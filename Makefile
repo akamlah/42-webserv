@@ -1,37 +1,44 @@
-NAME =	webserv
+NAME = webserv
 
-CC =	c++
+CC = c++
 
-# Compiling flags
-FLAGS = -Wall -Werror -Wextra
+FLAGS = -std=c++11 -Wall -Wextra #-Werror -O3
 
-# Folders
-SRC_DIR = ./src/
+SRC_DIR = ./
 OBJ_DIR = ./obj/
-INC_DIR = ./includes/
-LIBFT_DIR = ./libft/
+INC_DIR1 = ./src/
+INC_DIR2 = ./src/base/
+INC_DIR3 = ./src/iterators/
+INC_DIR4 = ./src/utils/
 
-# Source files and object files
-SRC_FILES =	
+SRC_FILES =  Socket.cpp ListenSocket.cpp main.cpp
 
-OBJ_FILES = $(SRC_FILES:.c=.o)
+OBJ_FILES = $(SRC_FILES:.cpp=.o)
 
-# Paths
 SRC = $(addprefix $(SRC_DIR), $(SRC_FILES))
 OBJ = $(addprefix $(OBJ_DIR), $(OBJ_FILES))
-LIBFT = $(addprefix $(LIBFT_DIR), libft.a)
 
-all: obj $(LIBFT) $(NAME)
+INC_FILES =  *.hpp
+
+all : $(NAME)
+
+$(OBJ_DIR)%.o: $(SRC_DIR)%.cpp $(INC_FILES)
+	@echo "updated $<"
+	@$(CC) $(FLAGS) -I $(INC_DIR1) -I $(INC_DIR2) -I $(INC_DIR3) -I $(INC_DIR4) -o $@ -c $<
+
+$(NAME) : obj $(OBJ)
+	@echo ".o files updated!...linking..."
+	@$(CC) $(FLAGS) $(OBJ) -o $(NAME)
+	@echo "$(NAME) executable compiled!"
 
 obj:
+	@mkdir -p $(OBJ_DIR)
 
-$(NAME): 
+clean :
+	cd $(OBJ_DIR) && rm -rf $(OBJ_FILES)
+	rm ./*.o
 
-# clean rule
-clean:
+fclean : clean
+	rm -rf $(NAME)
 
-# fclean rule
-fclean: clean
-
-# re rule
-re: fclean all
+re : fclean all
