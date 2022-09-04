@@ -20,19 +20,19 @@ int main() {
     catch (ws::exception& e) { std::cout << e.what() << std::endl; return (-1); }
 
     // all of next code in a "server run" function ?
-    ws::Socket new_server_connection;
     while (1) {
 
-        #if __APPLE__ //then use kqueue, else epoll ?
+        // #if __APPLE__ //then use kqueue, else epoll ?
 
             // -> multiplexing -> handle inside server class ?
 
+            ws::Socket new_server_connection;
             try { server.accept(new_server_connection); }
             catch (ws::exception& e) { std::cout << e.what() << std::endl; return (-1); }
             try { server.handle_connection(new_server_connection); }
             catch (ws::exception& e) { std::cout << e.what() << std::endl; return (-1); }
 
-        #endif
+        // #endif
 
     }
 
