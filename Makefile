@@ -1,4 +1,4 @@
-NAME =	cub3d
+NAME =	webserv
 
 CC =	c++
 
