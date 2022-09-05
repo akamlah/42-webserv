@@ -28,6 +28,7 @@ CLASSES_NAME = \
 	Server \
 	Socket \
 	Request \
+	Config \
 	Response
 
 OTHER_CPPFILES = \

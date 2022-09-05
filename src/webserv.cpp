@@ -1,10 +1,25 @@
 #include "../include/Server.hpp"
 #include "../include/Socket.hpp"
 #include "../include/utility.hpp"
+#include "../include/Config.hpp"
 
 
-int main() {
+int main(int argc, char **argv) {
 
+    if (argc != 2)
+    {
+        std::cout << "Wrong number of argument!.. try: ./webserv [configuration file]\n";
+        return (0);
+    }
+    try
+    {
+        ws::Config ourserv(argv[1]);
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+    }
+    
     // 1 parse config file
     // have a class object Config initialized with path of file, parsing done inside
 
