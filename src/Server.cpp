@@ -5,6 +5,8 @@
 /* ************************************************************************ */
 
 #include "../include/Server.hpp"
+#include "../include/utility.hpp"
+
 
 namespace ws {
 
@@ -17,7 +19,7 @@ const char* Server::SystemError::what() const throw() {
 // and a default constructor with a defalut config
 // config gets paresd by Master Class ("engine" or "configuration" or something like that, that then passes an object or a string to 
 // each server instance)
-Server::Server(Socket& server_socket, int port): _socket(server_socket), _port(port) {
+Server::Server(Socket & server_socket, config_data & configData): _socket(server_socket), _port(configData.port) {
     bzero((char *)&_address, sizeof(_address));
     _address.sin_family = AF_INET; // as option ?
     _address.sin_port = htons(_port);

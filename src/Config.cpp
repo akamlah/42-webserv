@@ -55,7 +55,6 @@ namespace ws {
 		std::string::size_type portPlace = configDataString.find(checkThis);
 		if (portPlace == std::string::npos)
 			throw ConfigFileError("ERROR: " + checkThis + " Missing from config file!");
-			
 		std::string temp;
 		portPlace += checkThis.length();
 		while (!(std::isprint(configDataString[portPlace])) || configDataString[portPlace] == ' ')
@@ -74,19 +73,24 @@ namespace ws {
 
 	void Config::checkContent(std::string const & configDataString)
 	{
-		std::string temp = helpCheckContent(configDataString, "port:", true);
-		std::cout << temp << std::endl;
-		this->port = std::stoi(temp);
-		temp = helpCheckContent(configDataString, "root:", false);
-		this->root = temp;
-		std::cout << temp << std::endl;
-		temp = helpCheckContent(configDataString, "index:", false);
-		this->index = temp;
-		std::cout << temp << std::endl;
-
-	
-
+		// std::string temp = helpCheckContent(configDataString, "port:", true);
+		// std::cout << temp << std::endl;
+		this->port = std::stoi(helpCheckContent(configDataString, "port:", true));
+		this->root = helpCheckContent(configDataString, "root:", false);
+		// std::cout << this->root << std::endl;
+		this->index = helpCheckContent(configDataString, "index:", false);
+		// this->index = helpCheckContent(configDataString, "index:", false);
+		// std::cout << this->index << std::endl;
 
 	}
+
+	config_data const Config::getConfigData() const {
+		config_data temp;
+		temp.port = port;
+		temp.root = root;
+		temp.index = index;
+		return (temp);
+	}
+
 
 } // namspace ws

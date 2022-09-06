@@ -8,6 +8,7 @@
 # define __CONFIG_HPP__
 
 # include <iostream>
+# include  "../include/utility.hpp"
 
 namespace ws {
 
@@ -18,6 +19,9 @@ class Config {
 	bool checkValid(char *argv);
 	void checkContent(std::string const & configDataString);
 	std::string helpCheckContent(std::string const & , std::string const &, bool );
+	
+	config_data const getConfigData() const;
+	
 	class ConfigFileError: public std::exception {
 		private:
 			std::string msg;
@@ -30,7 +34,7 @@ class Config {
 	private:
 		Config(); // pdf says that it has to run with argv so we dont have defult?
 	protected:
-		int			port;
+		int	port;
 		std::string	root;
 		std::string	index;
 }; // class Config
