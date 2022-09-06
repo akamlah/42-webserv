@@ -20,7 +20,7 @@ class Config {
 	void checkContent(std::string const & configDataString);
 	std::string helpCheckContent(std::string const & , std::string const &, bool );
 	
-	config_data const getConfigData() const;
+	config_data getConfigData();
 	
 	class ConfigFileError: public std::exception {
 		private:

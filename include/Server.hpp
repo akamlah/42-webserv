@@ -26,7 +26,7 @@ class Server {
                 virtual const char* what() const throw();
         };
 
-        Server(Socket & server_socket, config_data & configData); // change this to constructor with a "config" object later
+        Server(Socket & server_socket, config_data configData); // change this to constructor with a "config" object later
         // + cpy constr
         // + cpy assign ope
         ~Server();

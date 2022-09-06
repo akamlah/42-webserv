@@ -84,7 +84,7 @@ namespace ws {
 
 	}
 
-	config_data const Config::getConfigData() const {
+	config_data Config::getConfigData() {
 		config_data temp;
 		temp.port = port;
 		temp.root = root;
