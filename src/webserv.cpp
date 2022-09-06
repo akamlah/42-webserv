@@ -18,6 +18,7 @@ int main(int argc, char **argv) {
     catch(const std::exception& e)
     {
         std::cerr << e.what() << '\n';
+        exit(EXIT_FAILURE);
     }
     
     // 1 parse config file

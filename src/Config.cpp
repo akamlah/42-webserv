@@ -2,50 +2,91 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <cctype>
 
-ws::Config::Config() {}
-ws::Config::Config(char *argv) {
-	if (ws::Config::checkValid(argv))
-		std::cout << "The config file is valid, You may procide!\n";
-	else
-	{
+namespace ws {
 
-		std::cout << "The Config file is invalid!\n";
-		exit(EXIT_FAILURE);
+	Config::ConfigFileError::ConfigFileError(std::string const & msg) :msg(msg) {}
+
+	const char* Config::ConfigFileError::what() const throw() {
+		return (msg.c_str());
 	}
-}
+	Config::Config(): port(4200), root("html"), index("inex.html") {}
+	Config::Config(char *argv) {
+		if (Config::checkValid(argv))
+			std::cout << "The config file is valid, You may procide!\n";
+		else
+		{
+			throw ConfigFileError("The Config file is invalid!\n");
+		}
+	}
 
-ws::Config::~Config() {}
+	Config::~Config() {}
 
-bool ws::Config::checkValid(char *argv) const
-{
-	if (!argv)
-		return (false);
+	bool Config::checkValid(char *argv)
+	{
+		if (!argv)
+			return (false);
 
-	std::string temp = argv;
-	if (temp.size() <= 0)
-		return (false);
-	std::string::size_type ret;
-	ret = temp.find(".conf");
-	if (ret == std::string::npos || ret != temp.length() - 5)
-		return (false);
-	std::ifstream confFile;
-	confFile.open(argv, std::ios::in);
-	if (confFile.fail())
-		return (false);
-	char ch;
-	confFile >> ch;
-	if (ch != '{')
-		return (false);
-	std::stringstream buffer;
-	buffer << confFile.rdbuf();
-	// std::string fileContent(buffer.str());
-	checkContent(buffer.str());
+		std::string temp = argv;
+		if (temp.size() <= 0)
+			return (false);
+		std::string::size_type ret;
+		ret = temp.find(".conf");
+		if (ret == std::string::npos || ret != temp.length() - 5)
+			return (false);
+		std::ifstream confFile;
+		confFile.open(argv, std::ios::in);
+		if (confFile.fail())
+			return (false);
+		char ch;
+		confFile >> ch;
+		if (ch != '{')
+			return (false);
+		std::stringstream buffer;
+		buffer << confFile.rdbuf();
+		checkContent(buffer.str());
 
-	return (true);
-}
+		return (true);
+	}
 
-bool ws::Config::checkContent(std::string const & configDataString) const 
-{
+	std::string Config::helpCheckContent(std::string const & configDataString, std::string const & checkThis, bool isNumber)
+	{
+		std::string::size_type portPlace = configDataString.find(checkThis);
+		if (portPlace == std::string::npos)
+			throw ConfigFileError("ERROR: " + checkThis + " Missing from config file!");
+			
+		std::string temp;
+		portPlace += checkThis.length();
+		while (!(std::isprint(configDataString[portPlace])) || configDataString[portPlace] == ' ')
+			portPlace++;
+		for (std::string::size_type i = portPlace; configDataString[i] != ';'; i++)
+		{
+			if (isNumber && std::isdigit(configDataString[i]))
+				temp += configDataString[i];
+			else if (std::isprint(configDataString[i]))
+				temp += configDataString[i];
+			else
+				throw ConfigFileError("ERROR: " + checkThis + " wrong format in config file!");
+		}
+		return (temp);
+	}
 
-}
+	void Config::checkContent(std::string const & configDataString)
+	{
+		std::string temp = helpCheckContent(configDataString, "port:", true);
+		std::cout << temp << std::endl;
+		this->port = std::stoi(temp);
+		temp = helpCheckContent(configDataString, "root:", false);
+		this->root = temp;
+		std::cout << temp << std::endl;
+		temp = helpCheckContent(configDataString, "index:", false);
+		this->index = temp;
+		std::cout << temp << std::endl;
+
+	
+
+
+	}
+
+} // namspace ws
