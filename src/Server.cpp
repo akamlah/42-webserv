@@ -76,16 +76,16 @@ void Server::respond(Socket& new_connection, Request request) const {
 
 void    Server::run(int timeout)
 {
-    int new_fd, close_conn;
+    int incoming_fd;
     int ret, len;
-    int compress_array = false;
-    int end_server = false;
     int current_size = 0;
+    bool end_server = false, close_conn = false, compress_array = false;
 
     _poll.set_timeout(timeout);
     _poll.add_to_poll(_socket.fd, POLLIN, 0);
     do{
-        std::cout << "Waiting on poll()..." << std::endl;
+        if (DEBUG) 
+            std::cout << "Waiting on poll()..." << std::endl;
         _poll.poll();
         current_size = _poll._fds.size();
         for (int i = 0; i < current_size; ++i)
@@ -94,7 +94,8 @@ void    Server::run(int timeout)
                 continue;
             if (_poll._fds[i].elem.revents != POLLIN)
             {
-                std::cout << "  Error! revents = " << _poll._fds[i].elem.revents << std::endl;
+                if (DEBUG) 
+                    std::cout << "  Error! revents = " << _poll._fds[i].elem.revents << std::endl;
                 close(_poll._fds[i].elem.fd);
                 _poll._fds[i].elem.fd = -1;
                 compress_array = true;
@@ -102,26 +103,27 @@ void    Server::run(int timeout)
             }
             if (_poll._fds[i].elem.fd == _socket.fd)
             {
-                std::cout << "Listening socket is readable" << std::endl;
+                if (DEBUG)
+                    std::cout << "Listening socket is readable" << std::endl;
                 do
                 {
-                    new_fd = accept();
-                    if (new_fd < 0)
+                    incoming_fd = accept();
+                    if (incoming_fd < 0)
                     {
                         if (errno != EWOULDBLOCK)
                         {
-                            std::cerr << "accept() failed" << std::endl;
+                            if (DEBUG)
+                                std::cerr << "accept() failed" << std::endl;
                             end_server = true;
                         }
                         break;
                     }
-                    std::cout << "  New incoming connection - " << new_fd << std::endl;
-                    _poll.add_to_poll(new_fd, POLLIN);
-                } while (new_fd != -1);
-                    std::cout << new_fd << "Passed here" << std::endl;
+                    _poll.add_to_poll(incoming_fd, POLLIN);
+                } while (incoming_fd != -1);
             }
             else
             {
+                if (DEBUG)
                 std::cout << "Descriptor " << _poll._fds[i].elem.fd << " is readable" << std::endl;
                 close_conn = false;
                 do
@@ -131,24 +133,28 @@ void    Server::run(int timeout)
                     {
                         if (errno != EWOULDBLOCK)
                         {
-                            std::cerr << "  recv() failed" << std::endl;
+                            if (DEBUG)
+                                std::cerr << "  recv() failed" << std::endl;
                             close_conn = true;
                         }
                         break;
                     }
                     if (ret == 0)
                     {
-                        std::cout << "  Connection closed" << std::endl;
+                        if (DEBUG)
+                            std::cout << "  Connection closed" << std::endl;
                         close_conn = true;
                         break;
                     }
                     len = ret;
-                    std::cout << len << " bytes received" << std::endl;
+                    if (DEBUG)
+                        std::cout << len << " bytes received" << std::endl;
 
                     ret = send(_poll._fds[i].elem.fd, _buffer, len, 0);
                     if (ret < 0)
                     {
-                        std::cerr << "  send() failed" << std::endl;
+                        if (DEBUG)
+                            std::cerr << "  send() failed" << std::endl;
                         close_conn = true;
                         break;
                     }

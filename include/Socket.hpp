@@ -30,6 +30,7 @@ class Socket {
         Socket();
         Socket(const int domain, const int type, const int protocol);
         Socket(const Socket& other);
+        Socket(const int fd);
         // + cpy assign ope
         virtual ~Socket();
 

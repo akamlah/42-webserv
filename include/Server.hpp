@@ -29,6 +29,8 @@
 
 #include "Poll.hpp"
 
+#define DEBUG 0
+
 #define BUFFER_SIZE 5000
 
 namespace ws {

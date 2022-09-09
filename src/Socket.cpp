@@ -19,6 +19,13 @@ Socket::Socket(const Socket& other) : fd(other.fd)
         throw_print_error(SystemError(), "Failed to copy socket");
 }
 
+Socket::Socket(const int fd) : fd(fd)
+{
+    if (fd < 0)
+        throw_print_error(SystemError(), "Failed to copy socket");
+
+}
+
 Socket::~Socket() { close(fd); } // [ ! ]
 
 } // NAMESPACE ws
