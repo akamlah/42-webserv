@@ -74,7 +74,7 @@ void Server::respond(Socket& new_connection, Request request) const {
     catch(std::exception& e) { throw_print_error(SystemError()); }
 }
 
-void    Server::start(int timeout)
+void    Server::run(int timeout)
 {
     int new_fd, close_conn;
     int ret, len;

@@ -48,7 +48,7 @@ class Server {
         int accept() const;
         void handle_connection(Socket& new_connection) const;
         void respond(Socket& new_connection, Request request) const;
-        void start(int timeout_in_milliseconds);
+        void run(int timeout_in_milliseconds);
 
         const Listensocket& socket() const;
         int port() const;
