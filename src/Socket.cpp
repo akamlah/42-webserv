@@ -13,12 +13,12 @@ Socket::Socket(const int domain, const int type, const int protocol): fd(socket(
         throw_print_error(SystemError(), "Failed to create socket");
 }
 
-Socket::~Socket() { close(fd); } // [ ! ]
-
-void Socket::bind(const struct sockaddr_in server_address) const {
-    if (::bind(fd, (struct sockaddr *)&server_address, sizeof(server_address)) < 0)
-        throw_print_error(SystemError(), "Failed to bind socket");
-    std::cout << CYAN << "Bound socket" << NC << std::endl;
+Socket::Socket(const Socket& other) : fd(other.fd) 
+{
+    if (fd < 0)
+        throw_print_error(SystemError(), "Failed to copy socket");
 }
+
+Socket::~Socket() { close(fd); } // [ ! ]
 
 } // NAMESPACE ws
