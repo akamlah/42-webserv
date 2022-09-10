@@ -67,6 +67,28 @@ void Server::handle_connection(Socket& new_connection) const {
         // std::cout << "BAD REQUEST" << std::endl; /* bad request error */
         throw;
     }
+
+// CODE TO TEST CONNECTION INDIPENDENTLY OF REQUEST/RESPONSE CLASSES --------------------------------
+        char buffer[1024];
+        bzero(buffer,256);
+        size_t bytes_read;
+        FILE *html_data = fopen("./example_sites/example1/index.html", "r");
+        if (!html_data)
+            throw_print_error(SystemError());
+        char response_data[1024];
+        if (fgets(response_data, 1024, html_data) == NULL)
+            throw_print_error(SystemError());
+        char http_header[2048] = "HTTP/1.1 200 OK\r\n\n";
+        strcat(http_header, response_data);
+        if ((bytes_read = read(new_connection.fd, buffer, 1023)) < 0)
+            throw_print_error(SystemError());
+        std::cout << CYAN << "Message recieved: ---------\n\n" << NC << buffer;
+        std::cout << CYAN << "---------------------------\n" << NC << std::endl;
+        int sending_status = send(new_connection.fd, http_header, sizeof(http_header), 0);
+        if (sending_status < 0)
+            throw_print_error(SystemError());
+        std::cout << CYAN << "Server sent data" << NC << std::endl;
+// --------------------------------------------------------------------------------------------------
 }
 
 void Server::respond(Socket& new_connection, Request request) const {

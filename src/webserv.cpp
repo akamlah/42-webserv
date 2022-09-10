@@ -25,6 +25,7 @@ int main() {
 
         #if __APPLE__ //then use kqueue, else epoll ?
             // -> multiplexing -> handle inside server class ?
+
             try { server.run(3 * 60 * 1000); }
             catch (ws::exception& e) { std::cout << e.what() << std::endl; return -1; }
             // try { server.accept(); }
@@ -32,7 +33,7 @@ int main() {
             // try { server.handle_connection(new_server_connection); }
             // catch (ws::exception& e) { std::cout << e.what() << std::endl; return (-1); }
 
-        #endif
+        // #endif
 
 
     return (0);
