@@ -29,7 +29,6 @@ Server::Server(Socket& server_socket, int port): _socket(server_socket), _port(p
     _address.sin6_family = AF_INET6; // as option ?
     memcpy(&_address.sin6_addr, &in6addr_any, sizeof(in6addr_any));
     _address.sin6_port = htons(_port);
-    // _address.sin6_addr.s6_addr = htonl(INADDR_ANY); // as option ?
 }
 
 Server::~Server() {}
@@ -44,8 +43,8 @@ void Server::listen(const int backlog) const {
     }
     if (::listen(_socket.fd, backlog) < 0)
         throw_print_error(SystemError(), "Server unable to listen for connections");
-    std::cout << CYAN << "Server listening" << NC << std::endl;
-    std::cout << CYAN << "Waiting for connections...\n" << NC << std::endl;
+    std::cout << CYAN << "Server listening on port " << _port << NC << std::endl;
+    std::cout << CYAN << "Waiting for connections..." << NC << std::endl;
 }
 
 int Server::accept() const {
@@ -53,12 +52,12 @@ int Server::accept() const {
     struct sockaddr_in6 client_address;
     socklen_t client_length = sizeof(client_address);
     new_conn_fd = ::accept(_socket.fd, (struct sockaddr *)&client_address, &client_length);
-    std::cout << " on port " << _port << NC << std::endl;
     return new_conn_fd;
 }
 
 void Server::handle_connection(Socket& new_connection) const {
     // 1 parse request
+    std::cout << CYAN << "server received data from : " << new_connection.fd << NC << std::endl;
     try{
         Request new_request(new_connection); // paring inside
         // 2 send response
@@ -77,7 +76,6 @@ void Server::respond(Socket& new_connection, Request request) const {
         Response response(request);
         // send(response)
         if (::send(new_connection.fd, response.c_str(), sizeof(response.c_str()), 0) < 0) {
-                std::cout << "Got here. fd: " << new_connection.fd << std::endl;
             throw_print_error(SystemError(), "Failed to send response");
         }
         std::cout << CYAN << "Server sent data" << NC << std::endl;
@@ -161,14 +159,17 @@ void    Server::run(int timeout)
                         close_conn = true;
                         break;
                     }
+                    if (DEBUG) {   
                     std::cout << CYAN << "Message recieved: ---------\n\n" << NC << _buffer;
                     std::cout << CYAN << "---------------------------\n" << NC << std::endl;
+                    }
                     try { handle_connection(new_conn); }
                     catch (ws::exception& e) 
                     { 
                         if (DEBUG)
                             std::cout << "  Connection closed" << std::endl;
-                        close_conn = true;
+                        if (errno != EWOULDBLOCK)
+                            close_conn = true;
                         break;
                     }
                     // len = ret;

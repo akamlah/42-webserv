@@ -18,11 +18,15 @@ Request::Request(const Socket& new_connection) {
     // char buffer[1024];
     // bzero(buffer,256);
     // size_t bytes_read;
-    // if ((bytes_read = read(new_connection.fd, buffer, 1023)) < 0) {
+    // if ((bytes_read = recv(new_connection.fd, buffer, 1023, 0)) < 0) {
     //     std::cout << "BAD READ" << std::endl;
     // std::cout << CYAN << "Message recieved: ---------\n\n" << NC << buffer;
     // std::cout << CYAN << "---------------------------\n" << NC << std::endl;
     // }
+
+    // reading is already done. new_connection has valid bytes that can be
+    // worked on.
+    if (DEBUG)
     std::cout << CYAN << "Executing request from : " << new_connection.fd << NC << std::endl;
 }
 
