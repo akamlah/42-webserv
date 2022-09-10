@@ -27,6 +27,7 @@
 #include <sys/ioctl.h>
 
 #include "Poll.hpp"
+#include "Request.hpp"
 
 #define BUFFER_SIZE 5000
 
@@ -58,7 +59,6 @@ class Server {
         const int _port;
         struct sockaddr_in6 _address;
         Poll    _poll;
-        char    _buffer[BUFFER_SIZE];
 
 }; // Class Server
 
