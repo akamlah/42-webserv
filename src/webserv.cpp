@@ -33,7 +33,7 @@ int main() {
             // try { server.handle_connection(new_server_connection); }
             // catch (ws::exception& e) { std::cout << e.what() << std::endl; return (-1); }
 
-         #endif
+        #endif
 
 
     return (0);
