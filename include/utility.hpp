@@ -17,6 +17,8 @@ namespace ws {
 #define CYAN "\033[0;36m"
 #define NC "\033[0m"
 
+#define DEBUG 0
+
 // maybe we will not need this
 class exception : public std::exception { }; // might put stuff in here ?
 

@@ -8,21 +8,31 @@
 
 namespace ws {
 
-// bad request exceptions
+const char* Request::BadRead::what() const throw() {
+    return ("Bad read!");
+}
+const char* Request::EofReached::what() const throw() {
+    return ("EOF reached!");
+}
 
 Request::Request(const Socket& new_connection) {
-    // try parse,
-    // catch bad request
 
-    // temporary
     char buffer[1024];
     bzero(buffer,256);
-    size_t bytes_read;
-    if ((bytes_read = read(new_connection.fd, buffer, 1023)) < 0) {
-        std::cout << "BAD READ" << std::endl;
-    std::cout << CYAN << "Message recieved: ---------\n\n" << NC << buffer;
+    ssize_t bytes_read;
+    bytes_read = recv(new_connection.fd, buffer, 1023, 0);
+
+    if (bytes_read < 0)
+        throw BadRead();
+    if (bytes_read == 0)
+        throw EofReached();
+    
+    std::cout << CYAN << "server received request from : " << new_connection.fd << NC << std::endl;
+    std::cout << CYAN << "Message recieved: ---------\n\n" << NC << buffer << std::endl ;
     std::cout << CYAN << "---------------------------\n" << NC << std::endl;
-    }
+
+    if (DEBUG)
+    std::cout << CYAN << "Executing request from : " << new_connection.fd << NC << std::endl;
 }
 
 Request::~Request() {}

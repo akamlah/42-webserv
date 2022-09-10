@@ -12,6 +12,7 @@
 #include <sys/socket.h> // bind & socket
 #include <unistd.h> // close
 #include <netinet/in.h> // addresses
+#include <sys/ioctl.h> //ioctl
 
 #include <iostream>
 
@@ -28,11 +29,13 @@ class Socket {
 
         Socket();
         Socket(const int domain, const int type, const int protocol);
-        // + cpy constr
-        // + cpy assign ope
-        ~Socket();
+        Socket(const Socket& other);
+        Socket(int fd);
 
-        void bind(const struct sockaddr_in server_address) const;
+        void bind(const struct sockaddr_in6 server_address) const;
+        void connect(const struct sockaddr_in6 server_address) const;
+        // + cpy assign ope
+        virtual ~Socket();
 
         int fd;
 

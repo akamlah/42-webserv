@@ -15,6 +15,21 @@
 #include <arpa/inet.h> // htons etc
 #include <string.h> // bezero
 #include <iostream>
+#include <sys/event.h> // kqueue
+
+#include <assert.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <netinet/in.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/event.h>
+#include <sys/ioctl.h>
+
+#include "Poll.hpp"
+#include "Request.hpp"
+
+#define BUFFER_SIZE 5000
 
 namespace ws {
 
@@ -27,14 +42,13 @@ class Server {
         };
 
         Server(Socket& server_socket, int port); // change this to constructor with a "config" object later
-        // + cpy constr
-        // + cpy assign ope
         ~Server();
 
         void listen(const int backlog) const;
-        void accept(Socket& new_connection) const;
+        int accept() const;
         void handle_connection(Socket& new_connection) const;
         void respond(Socket& new_connection, Request request) const;
+        void run(int timeout_in_milliseconds);
 
         const Socket& socket() const;
         int port() const;
@@ -43,7 +57,8 @@ class Server {
 
         const Socket _socket;
         const int _port;
-        struct sockaddr_in _address;
+        struct sockaddr_in6 _address;
+        Poll    _poll;
 
 }; // Class Server
 
