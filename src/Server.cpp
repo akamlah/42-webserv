@@ -17,7 +17,14 @@ const char* Server::SystemError::what() const throw() {
 // and a default constructor with a defalut config
 // config gets paresd by Master Class ("engine" or "configuration" or something like that, that then passes an object or a string to 
 // each server instance)
-Server::Server(Listensocket& server_socket, int port): _socket(server_socket), _port(port) {
+Server::Server(Socket& server_socket, int port): _socket(server_socket), _port(port) {
+    int temp = 1;
+
+    if (setsockopt(_socket.fd, SOL_SOCKET,  SO_REUSEADDR, (char *)&temp, sizeof(temp)) < 0)
+        throw_print_error(SystemError(), "setsockopt() failed");
+    if (ioctl(_socket.fd, FIONBIO, (char *)&temp) < 0)
+        throw_print_error(SystemError(), "ioctl() failed");
+    memset(_buffer, 0, BUFFER_SIZE);
     memset(&_address, 0, sizeof(_address));
     _address.sin6_family = AF_INET6; // as option ?
     memcpy(&_address.sin6_addr, &in6addr_any, sizeof(in6addr_any));
@@ -58,7 +65,10 @@ void Server::handle_connection(Socket& new_connection) const {
         respond(new_connection, new_request);
     }
     // temporary
-    catch (ws::exception& e) { std::cout << "BAD REQUEST" << std::endl; /* bad request error */}
+    catch (ws::exception& e) {
+        std::cout << "BAD REQUEST" << std::endl; /* bad request error */
+        throw;
+    }
 }
 
 void Server::respond(Socket& new_connection, Request request) const {
@@ -67,6 +77,7 @@ void Server::respond(Socket& new_connection, Request request) const {
         Response response(request);
         // send(response)
         if (::send(new_connection.fd, response.c_str(), sizeof(response.c_str()), 0) < 0) {
+                std::cout << "Got here. fd: " << new_connection.fd << std::endl;
             throw_print_error(SystemError(), "Failed to send response");
         }
         std::cout << CYAN << "Server sent data" << NC << std::endl;
@@ -77,9 +88,11 @@ void Server::respond(Socket& new_connection, Request request) const {
 void    Server::run(int timeout)
 {
     int incoming_fd;
-    int ret, len;
+    ssize_t ret;
+    // ssize_t len;
     int current_size = 0;
     bool end_server = false, close_conn = false, compress_array = false;
+    Socket new_conn;
 
     _poll.set_timeout(timeout);
     _poll.add_to_poll(_socket.fd, POLLIN, 0);
@@ -123,12 +136,14 @@ void    Server::run(int timeout)
             }
             else
             {
+
                 if (DEBUG)
                 std::cout << "Descriptor " << _poll._fds[i].elem.fd << " is readable" << std::endl;
                 close_conn = false;
                 do
                 {
-                    ret = recv(_poll._fds[i].elem.fd, _buffer, BUFFER_SIZE, 0);
+                    new_conn = Socket(_poll._fds[i].elem.fd);
+                    ret = recv(_poll._fds[i].elem.fd, _buffer, BUFFER_SIZE - 1, 0);
                     if (ret < 0)
                     {
                         if (errno != EWOULDBLOCK)
@@ -146,18 +161,29 @@ void    Server::run(int timeout)
                         close_conn = true;
                         break;
                     }
-                    len = ret;
-                    if (DEBUG)
-                        std::cout << len << " bytes received" << std::endl;
-
-                    ret = send(_poll._fds[i].elem.fd, _buffer, len, 0);
-                    if (ret < 0)
-                    {
+                    std::cout << CYAN << "Message recieved: ---------\n\n" << NC << _buffer;
+                    std::cout << CYAN << "---------------------------\n" << NC << std::endl;
+                    try { handle_connection(new_conn); }
+                    catch (ws::exception& e) 
+                    { 
                         if (DEBUG)
-                            std::cerr << "  send() failed" << std::endl;
+                            std::cout << "  Connection closed" << std::endl;
                         close_conn = true;
                         break;
                     }
+                    // len = ret;
+                    // if (DEBUG)
+                    //     std::cout << len << " bytes received" << std::endl;
+
+                    // ret = send(_poll._fds[i].elem.fd, _buffer, len, 0);
+                    // if (ret < 0)
+                    // {
+                    //     if (DEBUG)
+                    //         std::cerr << "  send() failed" << std::endl;
+                    //     close_conn = true;
+                    //     break;
+                    // }
+                    if (ret > 0) { memset(_buffer, 0, ret); }
                 } while (true);
                 if (close_conn)
                 {
@@ -165,6 +191,7 @@ void    Server::run(int timeout)
                     _poll._fds[i].elem.fd = -1;
                     compress_array = true;
                 }
+                if (ret > 0) { memset(_buffer, 0, ret); }
             }
         }
         if (compress_array)
@@ -173,11 +200,12 @@ void    Server::run(int timeout)
             _poll.compress_array();
         }
     } while (end_server == false);
+    memset(_buffer, 0, BUFFER_SIZE);
     _poll.close_all();
 } 
 
 // accessors
-const Listensocket& Server::socket() const { return (_socket); }
+const Socket& Server::socket() const { return (_socket); }
 int Server::port() const { return (_port); }
 
 } // NAMESPACE ws

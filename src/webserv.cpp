@@ -1,6 +1,5 @@
 #include "../include/Server.hpp"
 #include "../include/Socket.hpp"
-#include "../include/Listensocket.hpp"
 #include "../include/utility.hpp"
 #define PORT 8001
 #define BACKLOG 100
@@ -13,7 +12,7 @@ int main() {
     // 2 instantiate servers and types and addresses
     // form niw constructor is Socket, later pass a "ServerConfig" object to server in constructor
     // try {
-        ws::Listensocket server_socket(AF_INET6, SOCK_STREAM, 0); // these might better be server parameters ?
+        ws::Socket server_socket(AF_INET6, SOCK_STREAM, 0); // these might better be server parameters ?
         ws::Server server(server_socket, PORT);
     // }
     // catch (ws::exception& e) { std::cout << e.what() << std::endl; return (-1); }
@@ -27,7 +26,7 @@ int main() {
 
         #if __APPLE__ //then use kqueue, else epoll ?
             // -> multiplexing -> handle inside server class ?
-            try { server.run(10 * 1000); }
+            try { server.run(3 * 60 * 1000); }
             catch (ws::exception& e) { std::cout << e.what() << std::endl; return -1; }
             // try { server.accept(); }
             // catch (ws::exception& e) { std::cout << e.what() << std::endl; return (-1); }

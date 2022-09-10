@@ -8,7 +8,6 @@
 # define __SERVER_HPP__
 
 #include "Socket.hpp"
-#include "Listensocket.hpp"
 #include "Request.hpp"
 #include "Response.hpp"
 #include "utility.hpp"
@@ -43,7 +42,7 @@ class Server {
                 virtual const char* what() const throw();
         };
 
-        Server(Listensocket& server_socket, int port); // change this to constructor with a "config" object later
+        Server(Socket& server_socket, int port); // change this to constructor with a "config" object later
         ~Server();
 
         void listen(const int backlog) const;
@@ -52,12 +51,12 @@ class Server {
         void respond(Socket& new_connection, Request request) const;
         void run(int timeout_in_milliseconds);
 
-        const Listensocket& socket() const;
+        const Socket& socket() const;
         int port() const;
 
     private:
 
-        const Listensocket _socket;
+        const Socket _socket;
         const int _port;
         struct sockaddr_in6 _address;
         Poll    _poll;

@@ -30,7 +30,10 @@ class Socket {
         Socket();
         Socket(const int domain, const int type, const int protocol);
         Socket(const Socket& other);
-        Socket(const int fd);
+        Socket(int fd);
+
+        void bind(const struct sockaddr_in6 server_address) const;
+        void connect(const struct sockaddr_in6 server_address) const;
         // + cpy assign ope
         virtual ~Socket();
 

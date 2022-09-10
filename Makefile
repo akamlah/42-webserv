@@ -30,7 +30,6 @@ CLASSES_NAME = \
 	Request \
 	Response \
 	Poll \
-	Listensocket \
 	Kqueue
 
 OTHER_CPPFILES = \
