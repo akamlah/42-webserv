@@ -9,11 +9,16 @@
 
 #include <stdexcept>
 #include <iostream>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <cctype>
 
 namespace ws {
 
 typedef struct c_data {
 	int		port;
+	std::string	host;
 	std::string	root;
 	std::string	index;
 } config_data;

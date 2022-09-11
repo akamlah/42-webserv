@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>favorit animal</title>
+    <link rel="stylesheet" href="cicastyle.css">
+</head>
+
+<body>
+    <form>
+        <h3>Mi a kedvenc állatod?</h3>
+        <label class="container" id="dog">kutya
+            <input type="radio" name="radio">
+            <span class="checkmark"></span>
+        </label>
+        <label class="container">macska
+            <input type="radio" name="radio">
+            <span class="checkmark"></span>
+        </label>
+        <label class="container">Viktor, az aranyhal
+            <input type="radio" name="radio" id="yesVik">
+            <span class="checkmark"></span>
+        </label>
+        <h3>Szeretnél feliratkozni a macskákkal kapcsolatos hírlevélre?</h3>
+        <label class="container">Igen
+            <input type="radio" name="radio2" id="yesCat">
+            <span class="checkmark"></span>
+        </label>
+        <label class="container">Nem
+            <input type="radio" name="radio2">
+            <span class="checkmark"></span>
+        </label>
+        <div class="buttonbox">
+            <input class="button" onclick="thankyousubscribe()" type="submit" value="Feliratkozás" id="suscribe"
+                disabled>
+        </div>
+        <div class="buttonbox">
+            <input class="button" onclick="thankyouCat()" type="submit" value="LOVE CAT" id="cat" disabled>
+        </div>
+    </form>
+    <script>
+        document.forms[0].addEventListener("click", function () {
+            let checkOn = document.forms[0].elements.radio.value;
+            if (checkOn === "on") {
+                document.getElementById("suscribe").disabled = false;
+            }
+            if (document.getElementById("yesCat").checked) {
+                document.getElementById("cat").disabled = false;
+            }
+            else { document.getElementById("cat").disabled = true; }
+        });
+        function thankyousubscribe() {
+            if (document.getElementById("yesVik").checked && !document.getElementById("yesCat").checked) {
+                alert("Upsz, mégis felvettünk a macskákkal kapcsolatos hírlevelünkre");
+            }
+            else {
+                alert("Köszönjük, sikeresen feliratkoztál a hírlevelünkre");
+            }
+        }
+        function thankyouCat() {
+            alert("Köszönjük, sikeresen feliratkoztál a macskákkal kapcsolatos hírlevelünkre");
+        }
+        function change(id) {
+            let x = document.getElementById(id);
+            if (x) {
+                x.disabled = false;
+            }
+            if (!x) {
+                x.disabled = true;
+            }
+        }
+    </script>
+</body>
+
+</html>

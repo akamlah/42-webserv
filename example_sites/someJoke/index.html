@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <h1>This is a Test for our existence?</h1>
+    <h2>But not be afraid of errors my dear!</h2>
+    <h2><?php
+        echo "Hello World!"
+        ?></h2>
+        <main>
+            <p></p>
+            <button>Make a joke</button>
+        </main>
+        <script src="server.js"></script>
+        <!-- <script>
+            const url = "http://api.icmdb.com/jokes/random";
+            const url1 = "http://api.icndb.com/jokes/random";
+            document.querySelector("button").addEventListener("click", () => {
+                fetch(url1)
+                .then(response => response.json())
+                .then(data => {
+                    document.querySelector("main p").innerHTML = data.value.joke;
+                }).catch(reject => console.error(reject.message))
+            });
+        </script> -->
+        <footer>
+            <?php include 'footer.php';?>
+        </footer>
+
+</body>
+
+</html>

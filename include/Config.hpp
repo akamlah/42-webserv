@@ -35,6 +35,7 @@ class Config {
 		Config(); // pdf says that it has to run with argv so we dont have defult?
 	protected:
 		int	port;
+		std::string	host;
 		std::string	root;
 		std::string	index;
 }; // class Config

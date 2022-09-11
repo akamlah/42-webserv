@@ -7,6 +7,7 @@
 #include "../include/Server.hpp"
 #include "../include/utility.hpp"
 
+bool trythis = true;
 
 namespace ws {
 
@@ -80,7 +81,26 @@ void Server::handle_connection(Socket& new_connection) const {
             throw_print_error(SystemError());
         std::cout << CYAN << "Message recieved: ---------\n\n" << NC << buffer;
         std::cout << CYAN << "---------------------------\n" << NC << std::endl;
-        int sending_status = send(new_connection.fd, http_header, sizeof(http_header), 0);
+
+                // html response test
+                        std::ifstream confFile;
+                        
+                        if (trythis)
+                        {
+                            confFile.open("./example_sites/someJoke/index.html", std::ios::in);
+                            trythis = false;
+                        }
+                        else
+                            confFile.open("./example_sites/someJoke/server.js", std::ios::in);
+                        if (confFile.fail())
+                            throw_print_error(SystemError());
+                        std::stringstream buffer2;
+                        buffer2 << confFile.rdbuf();
+                        std::string temp = "HTTP/1.1 200 OK\r\n\n" + buffer2.str();
+        int sending_status = send(new_connection.fd, temp.c_str(), temp.size(), 0);
+                //
+
+        // int sending_status = send(new_connection.fd, http_header, sizeof(http_header), 0);
         if (sending_status < 0)
             throw_print_error(SystemError());
         std::cout << CYAN << "Server sent data" << NC << std::endl;

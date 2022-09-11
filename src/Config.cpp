@@ -77,6 +77,7 @@ namespace ws {
 		// std::cout << temp << std::endl;
 		this->port = std::stoi(helpCheckContent(configDataString, "port:", true));
 		this->root = helpCheckContent(configDataString, "root:", false);
+		this->host = helpCheckContent(configDataString, "host:", false);
 		// std::cout << this->root << std::endl;
 		this->index = helpCheckContent(configDataString, "index:", false);
 		// this->index = helpCheckContent(configDataString, "index:", false);
@@ -88,6 +89,7 @@ namespace ws {
 		config_data temp;
 		temp.port = port;
 		temp.root = root;
+		temp.host = host;
 		temp.index = index;
 		return (temp);
 	}
