@@ -1,0 +1,10 @@
+# VSCode debug files
+.VSCode
+
+# Object files
+*.o
+
+# macOS user view preference
+.DS_Store
+
+webserv

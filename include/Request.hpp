@@ -18,8 +18,12 @@ namespace ws {
 class Request {
 
     public:
-
-        // + bad request exceptions
+        class BadRead: public ws::exception {
+                virtual const char* what() const throw();
+        };
+        class EofReached: public ws::exception {
+                virtual const char* what() const throw();
+        };
 
         Request(const Socket& new_connection);
         // + cpy constr
