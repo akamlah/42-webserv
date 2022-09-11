@@ -16,63 +16,60 @@ int main(int argc, char **argv) {
     try
     {
         ws::Config configData(argv[1]);
-        ws::Socket server_socket(AF_INET, SOCK_STREAM, 0); // these might better be server parameters ?
+        ws::Socket server_socket(AF_INET6, SOCK_STREAM, 0); // these might better be server parameters ?
+        // ws::Socket server_socket1(AF_INET6, SOCK_STREAM, 0); // these might better be server parameters ?
         ws::Server server(server_socket, configData.getConfigData());
-        try { server.listen(100); /* also bind */ }
+        // ws::Server server1(server_socket1, PORT);
+        try {
+                server.listen(BACKLOG);
+                // server1.listen(BACKLOG);
+        /* also bind */ }
         catch (ws::exception& e) { std::cout << e.what() << std::endl; return (-1); }
 
         // all of next code in a "server run" function ?
-        while (1) {
 
-            // #if __APPLE__ //then use kqueue, else epoll ?
 
+            #if __APPLE__ //then use kqueue, else epoll ?
                 // -> multiplexing -> handle inside server class ?
 
-                ws::Socket new_server_connection;
-                try { server.accept(new_server_connection); }
-                catch (ws::exception& e) { std::cout << e.what() << std::endl; return (-1); }
-                try { server.handle_connection(new_server_connection); }
-                catch (ws::exception& e) { std::cout << e.what() << std::endl; return (-1); }
+                try {
+                     server.run(3 * 60 * 1000); 
+                    //  server1.run(3 * 60 * 1000); 
+                }
+                catch (ws::exception& e) { std::cout << e.what() << std::endl; return -1; }
+                // try { server.accept(); }
+                // catch (ws::exception& e) { std::cout << e.what() << std::endl; return (-1); }
+                // try { server.handle_connection(new_server_connection); }
+                // catch (ws::exception& e) { std::cout << e.what() << std::endl; return (-1); }
 
-            // #endif
+              #endif
 
-        }
+
+        // old
+        // try { server.listen(100); /* also bind */ }
+        // catch (ws::exception& e) { std::cout << e.what() << std::endl; return (-1); }
+
+        // // all of next code in a "server run" function ?
+        // while (1) {
+
+        //     // #if __APPLE__ //then use kqueue, else epoll ?
+
+        //         // -> multiplexing -> handle inside server class ?
+
+        //         ws::Socket new_server_connection;
+        //         try { server.accept(new_server_connection); }
+        //         catch (ws::exception& e) { std::cout << e.what() << std::endl; return (-1); }
+        //         try { server.handle_connection(new_server_connection); }
+        //         catch (ws::exception& e) { std::cout << e.what() << std::endl; return (-1); }
+
+        //     // #endif
+        // end old
+
     }
     catch(const std::exception& e)
     {
         std::cerr << e.what() << '\n';
         return (-1);
     }
-    
-    // 1 parse config file
-    // have a class object Config initialized with path of file, parsing done inside
-
-    // 2 instantiate servers and types and addresses
-    // form niw constructor is Socket, later pass a "ServerConfig" object to server in constructor
-    // try {
-        ws::Socket server_socket(AF_INET6, SOCK_STREAM, 0); // these might better be server parameters ?
-        ws::Server server(server_socket, PORT);
-    // }
-    // catch (ws::exception& e) { std::cout << e.what() << std::endl; return (-1); }
-
-    try { server.listen(BACKLOG); /* also bind */ }
-    catch (ws::exception& e) { std::cout << e.what() << std::endl; return (-1); }
-
-    // all of next code in a "server run" function ?
-
-
-        #if __APPLE__ //then use kqueue, else epoll ?
-            // -> multiplexing -> handle inside server class ?
-
-            try { server.run(3 * 60 * 1000); }
-            catch (ws::exception& e) { std::cout << e.what() << std::endl; return -1; }
-            // try { server.accept(); }
-            // catch (ws::exception& e) { std::cout << e.what() << std::endl; return (-1); }
-            // try { server.handle_connection(new_server_connection); }
-            // catch (ws::exception& e) { std::cout << e.what() << std::endl; return (-1); }
-
-        #endif
-
-
     return (0);
 }

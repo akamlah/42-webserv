@@ -41,6 +41,7 @@ class Server {
                 virtual const char* what() const throw();
         };
 
+        Server(Socket& server_socket, config_data configData); // change this to constructor with a "config" object later
         Server(Socket& server_socket, int port); // change this to constructor with a "config" object later
         ~Server();
 
@@ -54,7 +55,6 @@ class Server {
         int port() const;
 
     private:
-
         const Socket _socket;
         const int _port;
         struct sockaddr_in6 _address;

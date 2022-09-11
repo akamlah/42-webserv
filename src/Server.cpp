@@ -20,6 +20,18 @@ const char* Server::SystemError::what() const throw() {
 // and a default constructor with a defalut config
 // config gets paresd by Master Class ("engine" or "configuration" or something like that, that then passes an object or a string to 
 // each server instance)
+Server::Server(Socket& server_socket, config_data configData): _socket(server_socket), _port(configData.port) {
+    int temp = 1;
+
+    if (setsockopt(_socket.fd, SOL_SOCKET,  SO_REUSEADDR, (char *)&temp, sizeof(temp)) < 0)
+        throw_print_error(SystemError(), "setsockopt() failed");
+    if (ioctl(_socket.fd, FIONBIO, (char *)&temp) < 0)
+        throw_print_error(SystemError(), "ioctl() failed");
+    memset(&_address, 0, sizeof(_address));
+    _address.sin6_family = AF_INET6; // as option ?
+    memcpy(&_address.sin6_addr, &in6addr_any, sizeof(in6addr_any));
+    _address.sin6_port = htons(_port);
+}
 Server::Server(Socket& server_socket, int port): _socket(server_socket), _port(port) {
     int temp = 1;
 
@@ -88,25 +100,27 @@ void Server::handle_connection(Socket& new_connection) const {
         std::cout << CYAN << "Message recieved: ---------\n\n" << NC << buffer;
         std::cout << CYAN << "---------------------------\n" << NC << std::endl;
 
-                // html response test
-                        std::ifstream confFile;
+                // html response test ---------------------------
+        //                 std::ifstream confFile;
                         
-                        if (trythis)
-                        {
-                            confFile.open("./example_sites/someJoke/index.html", std::ios::in);
-                            trythis = false;
-                        }
-                        else
-                            confFile.open("./example_sites/someJoke/server.js", std::ios::in);
-                        if (confFile.fail())
-                            throw_print_error(SystemError());
-                        std::stringstream buffer2;
-                        buffer2 << confFile.rdbuf();
-                        std::string temp = "HTTP/1.1 200 OK\r\n\n" + buffer2.str();
-        int sending_status = send(new_connection.fd, temp.c_str(), temp.size(), 0);
-                //
+        //                 if (trythis)
+        //                 {
+        //                     confFile.open("./example_sites/someJoke/index.html", std::ios::in);
+        //                     trythis = false;
+        //                 }
+        //                 else
+        //                     confFile.open("./example_sites/someJoke/server.js", std::ios::in);
+        //                 if (confFile.fail())
+        //                     throw_print_error(SystemError());
+        //                 std::stringstream buffer2;
+        //                 buffer2 << confFile.rdbuf();
+        //                 std::string temp = "HTTP/1.1 200 OK\r\n\n" + buffer2.str();
+        // int sending_status = send(new_connection.fd, temp.c_str(), temp.size(), 0);
+                // end resos test -------------------------
 
-        // int sending_status = send(new_connection.fd, http_header, sizeof(http_header), 0);
+        // how to stop the browser to be in constant loading phase?
+
+        int sending_status = send(new_connection.fd, http_header, sizeof(http_header), 0);
         if (sending_status < 0)
             throw_print_error(SystemError());
         std::cout << CYAN << "Server sent data" << NC << std::endl;

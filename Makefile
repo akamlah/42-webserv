@@ -28,11 +28,10 @@ CLASSES_NAME = \
 	Server \
 	Socket \
 	Request \
-	Config \
-	Response
 	Response \
+	Config \
 	Poll \
-	Kqueue
+# Kqueue
 
 OTHER_CPPFILES = \
 
