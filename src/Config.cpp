@@ -94,5 +94,4 @@ namespace ws {
 		return (temp);
 	}
 
-
 } // namspace ws
