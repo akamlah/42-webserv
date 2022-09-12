@@ -86,7 +86,7 @@ void Server::handle_connection(Socket& new_connection) const {
 // CODE TO TEST CONNECTION INDIPENDENTLY OF REQUEST/RESPONSE CLASSES --------------------------------
         char buffer[1024];
         bzero(buffer,256);
-        size_t bytes_read;
+        // size_t bytes_read;
         FILE *html_data = fopen("./example_sites/example1/index.html", "r");
         if (!html_data)
             throw_print_error(SystemError());
@@ -95,8 +95,8 @@ void Server::handle_connection(Socket& new_connection) const {
             throw_print_error(SystemError());
         char http_header[2048] = "HTTP/1.1 200 OK\r\n\n";
         strcat(http_header, response_data);
-        if ((bytes_read = read(new_connection.fd, buffer, 1023)) < 0)
-            throw_print_error(SystemError());
+        // if ((bytes_read = read(new_connection.fd, buffer, 1023)) < 0)
+        //     throw_print_error(SystemError());
         std::cout << CYAN << "Message recieved: ---------\n\n" << NC << buffer;
         std::cout << CYAN << "---------------------------\n" << NC << std::endl;
 

@@ -23,7 +23,8 @@ Request::Request(const Socket& new_connection) {
     bytes_read = recv(new_connection.fd, buffer, 1023, 0);
 
     if (bytes_read < 0)
-        throw BadRead();
+        throw EofReached();
+        // throw BadRead();
     if (bytes_read == 0)
         throw EofReached();
     
