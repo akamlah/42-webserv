@@ -13,8 +13,10 @@ namespace ws {
 	}
 	Config::Config(): port(4200), root("html"), index("inex.html") {}
 	Config::Config(char *argv) {
-		if (Config::checkValid(argv))
-			std::cout << "The config file is valid, You may procide!\n";
+		if (Config::checkValid(argv)){
+			if (DEBUG)
+				std::cout << "The config file is valid, You may procede!\n";
+		}
 		else
 		{
 			throw ConfigFileError("The Config file is invalid!\n");
@@ -84,14 +86,19 @@ namespace ws {
 		// std::cout << this->index << std::endl;
 
 	}
-
-	config_data Config::getConfigData() {
-		config_data temp;
-		temp.port = port;
-		temp.root = root;
-		temp.host = host;
-		temp.index = index;
-		return (temp);
+	
+	void Config::setConfigData() {
+		_data.port = port;
+///// testing multiple ports
+		_data.ports.push_back(54000);
+		_data.ports.push_back(18000);
+		_data.ports.push_back(8001);
+/////
+		_data.root = root;
+		_data.host = host;
+		_data.index = index;
 	}
+
+	config_data& Config::getConfigData() { return (_data); }
 
 } // namspace ws
