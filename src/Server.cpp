@@ -115,7 +115,8 @@ void Server::handle_connection(Socket& new_connection) const {
                 // html response test ---------------------------
                         std::ifstream confFile;
                         
-                            confFile.open("./example_sites/someJoke/index.html", std::ios::in);
+                            // confFile.open("./example_sites/someJoke/index.html", std::ios::in);
+                            confFile.open("./example_sites/phptestsite/index.html", std::ios::in); // request came for php file
                         // if (trythis)
                         // {
                         //     confFile.open("./example_sites/someJoke/index.html", std::ios::in);
