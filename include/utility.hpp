@@ -13,15 +13,9 @@
 #include <fstream>
 #include <sstream>
 #include <cctype>
+#include <vector>
 
 namespace ws {
-
-typedef struct c_data {
-	int		port;
-	std::string	host;
-	std::string	root;
-	std::string	index;
-} config_data;
 
 // some colors for output
 #define RED "\033[0;31m"
@@ -29,6 +23,14 @@ typedef struct c_data {
 #define NC "\033[0m"
 
 #define DEBUG 0
+
+typedef struct c_data {
+    std::vector<int> ports;
+    int		port;
+	std::string	host;
+	std::string	root;
+	std::string	index;
+} config_data;
 
 // maybe we will not need this
 class exception : public std::exception { }; // might put stuff in here ?
