@@ -33,6 +33,14 @@ typedef struct c_data {
 
 #define DEBUG 0
 
+typedef struct c_data {
+    std::vector<int> ports;
+    int		port;
+	std::string	host;
+	std::string	root;
+	std::string	index;
+} config_data;
+
 // maybe we will not need this
 class exception : public std::exception { }; // might put stuff in here ?
 

@@ -17,6 +17,16 @@
 
 namespace ws {
 
+typedef struct address_struct
+{
+    struct sockaddr_in6 _address;
+    address_struct()
+    {
+        memset(&_address, 0, sizeof(_address));
+        memcpy(&_address.sin6_addr, &in6addr_any, sizeof(in6addr_any));
+    }
+}s_address;
+
 typedef struct Pollfd
 {
     struct pollfd elem;
@@ -26,8 +36,9 @@ typedef struct Pollfd
 class Poll
 {
 public:
-    std::vector<struct Pollfd>  _fds;
-    int                         _timeout;
+    std::vector<struct Pollfd>  fds;
+    int                         timeout;
+    bool                        compress_array;
 
 public:
     class PollError: public ws::exception {
@@ -38,7 +49,7 @@ public:
     void set_timeout(int ts);
     void add_to_poll(int fd = 0, short events = 0, short revents = 0);
     void poll() ;
-    void compress_array();
+    void compress();
     void close_all();
 };
 

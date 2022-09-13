@@ -28,9 +28,11 @@ class Socket {
         };
 
         Socket();
-        Socket(const int domain, const int type, const int protocol);
+        Socket(const int domain, const int type, const int protocol, const int port = -1);
         Socket(const Socket& other);
         Socket(int fd);
+
+        bool operator<(const Socket& other) const;
 
         void bind(const struct sockaddr_in6 server_address) const;
         void connect(const struct sockaddr_in6 server_address) const;
@@ -38,6 +40,7 @@ class Socket {
         virtual ~Socket();
 
         int fd;
+        int port;
 
     // pvt:
         // address ?

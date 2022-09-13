@@ -20,7 +20,8 @@ class Config {
 	void checkContent(std::string const & configDataString);
 	std::string helpCheckContent(std::string const & , std::string const &, bool );
 	
-	config_data getConfigData();
+	config_data& getConfigData();
+	void setConfigData();
 	
 	class ConfigFileError: public std::exception {
 		private:
@@ -36,9 +37,11 @@ class Config {
 	protected:
 		config_data configData;
 		int	port;
+		std::vector<int> _ports;
 		std::string	host;
 		std::string	root;
 		std::string	index;
+		config_data	_data;
 }; // class Config
 
 } //namespase ws
