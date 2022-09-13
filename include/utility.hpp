@@ -13,11 +13,14 @@
 #include <fstream>
 #include <sstream>
 #include <cctype>
+#include <vector>
 
 namespace ws {
 
 typedef struct c_data {
+	std::vector<int>	ports; /// note dublication? same port in confi file how to handle.
 	int		port;
+	std::vector<std::string> hosts;
 	std::string	host;
 	std::string	root;
 	std::string	index;
