@@ -3,7 +3,8 @@
 #include <sys/wait.h>
 #include <string.h>
 #include <iostream>
-
+#include <iostream>
+#include <fstream>  
 #include <fstream>
 #include <sstream>
 #include <cctype>
@@ -16,10 +17,46 @@ namespace ws {
 	Cgi::Cgi() {}
 	Cgi::~Cgi() {}
 
-	std::string Cgi::executeCgi(std::string const & phpfile) 
+	void Cgi::readHTML()
+	{
+		std::ifstream confFile;
+		confFile.open("/example_sites/phptestsite/index.html", std::ios::in);
+		if (confFile.fail())
+			return ;
+		std::ofstream outfile ("response.html"); // how to what to do with the created expanded html is it stored permanently in a temp folder or override teh orgiinal one?
+	
+	}
+
+	std::string & Cgi::findPHPtag(std::string const & htmLine)
+	{
+		std::string::size_type phpindex;
+		std::string::size_type endphpindex;
+		phpindex = htmLine.find("<?php");
+		if (phpindex == std::string::npos)
+			return ; //not usre jet but means is over.
+		endphpindex = htmLine.find("?>");
+		if (endphpindex ==	std::string::npos)
+			return ; // throw some error that php is wrong
+		return ( executeCgi( createTempPHP( htmLine.substr(phpindex, endphpindex - phpindex) ) ) );
+	}
+
+
+	std::string & Cgi::createTempPHP(std::string const & phpCode) 
+	{
+		std::string temp = "temp.php";
+
+		std::ofstream outfile (temp);
+		outfile << phpCode;
+		outfile.close();
+		return (temp);
+	}
+
+
+	std::string & Cgi::executeCgi(std::string const & phpfile) 
 	{
 		int id;
 		int fd[2];
+		std::string temp;
 
 		pipe(fd);
 		id = fork();
@@ -29,12 +66,11 @@ namespace ws {
 					close(fd[1]);
 					close(fd[0]);
 			execl("/usr/bin/php", "php", phpfile.c_str(), NULL);
-			return nullptr;
+			return (temp);
 		}
 		else
 		{
 			waitpid(-1, NULL, 0);
-			std::string temp;
 			char hold;
 			fcntl(fd[0], F_SETFL, O_NONBLOCK);
 			while (read(fd[0], &hold, 1) != -1)
@@ -43,7 +79,5 @@ namespace ws {
 			close(fd[0]);
 			return (temp);
 		}
-
 	}
-
 }
