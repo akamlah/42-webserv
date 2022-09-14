@@ -24,7 +24,18 @@ namespace ws {
 		if (confFile.fail())
 			return ;
 		std::ofstream outfile ("response.html"); // how to what to do with the created expanded html is it stored permanently in a temp folder or override teh orgiinal one?
-	
+		if (outfile.fail())
+			return ;
+		char temp[128];
+		temp[128] = '\0';
+		// outfile.eof(); // true if teh file is finished. 
+		while (!(outfile.eof()))
+		{
+			confFile.getline(&temp, 128);
+			outfile << findPHPtag(temp);
+			// faitly logic...
+		}
+
 	}
 
 	std::string & Cgi::findPHPtag(std::string const & htmLine)
@@ -33,10 +44,10 @@ namespace ws {
 		std::string::size_type endphpindex;
 		phpindex = htmLine.find("<?php");
 		if (phpindex == std::string::npos)
-			return ; //not usre jet but means is over.
+			return (htmLine); //not usre jet but means is over.
 		endphpindex = htmLine.find("?>");
 		if (endphpindex ==	std::string::npos)
-			return ; // throw some error that php is wrong
+			return (htmLine); // throw some error that php is wrong
 		return ( executeCgi( createTempPHP( htmLine.substr(phpindex, endphpindex - phpindex) ) ) );
 	}
 
