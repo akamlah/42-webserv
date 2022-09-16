@@ -10,47 +10,82 @@
 #include <cctype>
 #include <stdlib.h>
 
- #include <fcntl.h>
+#include <fcntl.h>
 
 namespace ws {
 
 	Cgi::Cgi() {}
 	Cgi::~Cgi() {}
 
-	void Cgi::readHTML()
+	void Cgi::runRawPHP(std::string const & phpFilePath)
+	{
+		executeCgi(phpFilePath);
+	}
+	
+	void Cgi::readHTML(std::string const & htmlFilePath)
 	{
 		std::ifstream confFile;
-		confFile.open("/example_sites/phptestsite/index.html", std::ios::in);
+		confFile.open(htmlFilePath, std::ios::in);
 		if (confFile.fail())
 			return ;
-		std::ofstream outfile ("response.html"); // how to what to do with the created expanded html is it stored permanently in a temp folder or override teh orgiinal one?
+		std::ofstream outfile; // how to what to do with the created expanded html is it stored permanently in a temp folder or override teh orgiinal one?
+		outfile.open("response.html", std::ios_base::app);
+
+		// insted of an outfil it is possible to send the data directly to the client.
 		if (outfile.fail())
 			return ;
 		char tempChar;
-		// temp[128] = '\0';
-		// outfile.eof(); // true if teh file is finished. 
 		std::string buffer;
-		std::string::size_type checkChunk = std::string::npos;
-		while (!(outfile.eof()))
+		int i = 0;
+		bool commentflag = false;
+		confFile >> std::noskipws;
+		while (!(confFile.eof()))
 		{
-			while (checkChunk == std::string::npos)
-			{}
-
+			confFile >> tempChar;
+			if (commentflag == false && tempChar == '<' && confFile.peek() == '?')
+			{
+				outfile << buffer;
+				buffer.clear();
+			}
+			else if (commentflag == false && tempChar == '<' && confFile.peek() == '!')
+			{
+				buffer += tempChar;
 				confFile >> tempChar;
 				buffer += tempChar;
-				if (tempChar == '?' && confFile.peek() == '>')
+				confFile >> tempChar;
+				if (tempChar == '-' && confFile.peek() == '-')
 				{
+					buffer += tempChar;
+					confFile >> tempChar;
+					commentflag = true;
+					// buffer += tempChar;
+				}
+			}
+			else if (commentflag == true && tempChar == '-' && confFile.peek() == '-')
+			{
+					buffer += tempChar;
 					confFile >> tempChar;
 					buffer += tempChar;
-					outfile << findPHPtag(buffer);
-					buffer.clear();
-				}
-			
-			// faitly logic...
+					confFile >> tempChar;
+					if (tempChar == '>')
+						commentflag = false;
+			}
+			buffer += tempChar;
+			if (commentflag == false && tempChar == '?' && confFile.peek() == '>')
+			{
+				confFile >> tempChar;
+				buffer += tempChar;
+				outfile << findPHPtag(buffer);
+				buffer.clear();
+			}
 		}
+		// ----------Large file could cose troubles here??------------
+		buffer.pop_back();
+		outfile << buffer;
+		buffer.clear();
 	}
 
-	std::string & Cgi::findPHPtag(std::string const & htmLine)
+	std::string const Cgi::findPHPtag(std::string const & htmLine)
 	{
 		std::string::size_type phpindex;
 		std::string::size_type endphpindex;
@@ -60,11 +95,11 @@ namespace ws {
 		endphpindex = htmLine.find("?>");
 		if (endphpindex ==	std::string::npos)
 			return (htmLine); // throw some error that php is wrong
-		return ( executeCgi( createTempPHP( htmLine.substr(phpindex, endphpindex - phpindex) ) ) );
+		return ( executeCgi( createTempPHP( htmLine.substr(phpindex, endphpindex - phpindex + 2) ) ) );
 	}
 
 
-	std::string & Cgi::createTempPHP(std::string const & phpCode) 
+	std::string Cgi::createTempPHP(std::string const & phpCode) 
 	{
 		std::string temp = "temp.php";
 
@@ -75,7 +110,7 @@ namespace ws {
 	}
 
 
-	std::string & Cgi::executeCgi(std::string const & phpfile) 
+	std::string Cgi::executeCgi(std::string const & phpfile) 
 	{
 		int id;
 		int fd[2];
@@ -89,7 +124,7 @@ namespace ws {
 					close(fd[1]);
 					close(fd[0]);
 			execl("/usr/bin/php", "php", phpfile.c_str(), NULL);
-			return (temp);
+			// throw error....
 		}
 		else
 		{
@@ -100,7 +135,7 @@ namespace ws {
 				temp += hold;
 			close(fd[1]);
 			close(fd[0]);
-			return (temp);
 		}
+		return (temp);
 	}
 }

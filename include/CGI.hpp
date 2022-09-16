@@ -16,10 +16,11 @@ class Cgi {
 public:
 	Cgi();
 	~Cgi();
-	void readHTML();
-	std::string & executeCgi(std::string const & phpfile); // have to be in the correct location.
-	std::string & createTempPHP(std::string const & phpCode);
-	std::string & findPHPtag(std::string const & htmlfile);
+	void readHTML(std::string const & htmlFilePath);
+	void runRawPHP(std::string const & phpFilePath);
+	std::string executeCgi(std::string const & phpfile); // have to be in the correct location.
+	std::string createTempPHP(std::string const & phpCode);
+	std::string const findPHPtag(std::string const & htmlfile);
 
 private:
 }; // CLASS Cgi
