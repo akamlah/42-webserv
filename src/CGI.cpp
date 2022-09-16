@@ -26,16 +26,28 @@ namespace ws {
 		std::ofstream outfile ("response.html"); // how to what to do with the created expanded html is it stored permanently in a temp folder or override teh orgiinal one?
 		if (outfile.fail())
 			return ;
-		char temp[128];
-		temp[128] = '\0';
+		char tempChar;
+		// temp[128] = '\0';
 		// outfile.eof(); // true if teh file is finished. 
+		std::string buffer;
+		std::string::size_type checkChunk = std::string::npos;
 		while (!(outfile.eof()))
 		{
-			confFile.getline(&temp, 128);
-			outfile << findPHPtag(temp);
+			while (checkChunk == std::string::npos)
+			{}
+
+				confFile >> tempChar;
+				buffer += tempChar;
+				if (tempChar == '?' && confFile.peek() == '>')
+				{
+					confFile >> tempChar;
+					buffer += tempChar;
+					outfile << findPHPtag(buffer);
+					buffer.clear();
+				}
+			
 			// faitly logic...
 		}
-
 	}
 
 	std::string & Cgi::findPHPtag(std::string const & htmLine)
