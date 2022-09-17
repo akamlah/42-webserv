@@ -81,77 +81,19 @@ int Server::accept(int fd) const {
 }
 
 void Server::handle_connection(Socket& new_connection) const {
-    // 1 parse request
     try{
-        Request new_request(new_connection); // paring inside
-        // 2 send response
-        respond(new_connection, new_request);
+        http::Request request(new_connection);
+        request.parse();
+        http::Response response(request);
     }
-    // temporary
     catch (ws::exception& e) {
-        // only catch specific exceptions
-        // std::cout << "BAD REQUEST" << std::endl; /* bad request error */
-        throw;
+        #if DEBUG
+        std::cout << RED << "There has been an error in request/response" << NC << std::endl;
+        #endif
     }
-
-// CODE TO TEST CONNECTION INDIPENDENTLY OF REQUEST/RESPONSE CLASSES --------------------------------
-        char buffer[1024];
-        bzero(buffer,256);
-        // size_t bytes_read;
-        FILE *html_data = fopen("./example_sites/example1/index.html", "r");
-        // FILE *html_data = fopen("./example_sites/someJoke/index.html", "r");
-        if (!html_data)
-            throw_print_error(SystemError());
-        char response_data[1024];
-        if (fgets(response_data, 1024, html_data) == NULL)
-            throw_print_error(SystemError());
-        char http_header[2048] = "HTTP/1.1 200 OK\r\n\n";
-        strcat(http_header, response_data);
-        // if ((bytes_read = read(new_connection.fd, buffer, 1023)) < 0)
-        //     throw_print_error(SystemError());
-        std::cout << CYAN << "Message recieved: ---------\n\n" << NC << buffer;
-        std::cout << CYAN << "---------------------------\n" << NC << std::endl;
-
-                // html response test ---------------------------
-                        std::ifstream confFile;
-                        
-                            // confFile.open("./example_sites/someJoke/index.html", std::ios::in);
-                            confFile.open("./example_sites/phptestsite/index.html", std::ios::in); // request came for php file
-                        // if (trythis)
-                        // {
-                        //     confFile.open("./example_sites/someJoke/index.html", std::ios::in);
-                        //     trythis = false;
-                        // }
-                        // else
-                        //     confFile.open("./example_sites/someJoke/server.js", std::ios::in);
-                        if (confFile.fail())
-                            throw_print_error(SystemError());
-                        std::stringstream buffer2;
-                        buffer2 << confFile.rdbuf();
-                        std::string temp = "HTTP/1.1 200 OK\r\n\n" + buffer2.str();
-        int sending_status = send(new_connection.fd, temp.c_str(), temp.size(), 0);
-                // end resos test -------------------------
-
-        // how to stop the browser to be in constant loading phase?
-
-        // int sending_status = send(new_connection.fd, http_header, sizeof(http_header), 0);
-        if (sending_status < 0)
-            throw_print_error(SystemError());
-        std::cout << CYAN << "Server sent data" << NC << std::endl;
-// --------------------------------------------------------------------------------------------------
-}
-
-void Server::respond(Socket& new_connection, Request request) const {
-    // generate response according to request & send it:
-    try {
-        Response response(request);
-        // send(response)
-        if (::send(new_connection.fd, response.c_str(), sizeof(response.c_str()), 0) < 0) {
-            throw_print_error(SystemError(), "Failed to send response");
-        }
-        std::cout << CYAN << "Server sent response" << NC << std::endl;
-    }
-    catch(std::exception& e) { throw_print_error(SystemError()); }
+    #if DEBUG
+    std::cout << "Going on" << std::endl;
+    #endif
 }
 
 void    Server::run(int timeout)
@@ -223,34 +165,43 @@ void Server::accept_new_connections(int& index, int& number_of_listening_ports)
 void Server::handle_incoming(int& index)
 { 
     Socket  new_conn;
-    bool    close_conn = false;
+    // bool    close_conn = false;
 
     if (DEBUG)
     std::cout << "Descriptor " << _poll.fds[index].elem.fd << " is readable" << std::endl;
-    do
-    {
+    // do
+    // {
         new_conn = Socket(_poll.fds[index].elem.fd);
-        try { handle_connection(new_conn); }
-        catch (ws::Request::BadRead& e)
-        {
-            if (errno != EWOULDBLOCK)
-            {
-                if (DEBUG)
-                    std::cerr << "  recv() failed" << std::endl;
-                close_conn = true;
-            }
-            break;
-        }
-        catch (ws::Request::EofReached& e)
-        {
-            if (DEBUG)
-                std::cerr << "  Connection closed" << std::endl;
-            close_conn = true;
-            break;
-        }
-    } while (true);
-    if (close_conn)
-        close_connection(index);
+
+        handle_connection(new_conn);
+
+    // [ ! ]
+    // this code caused inf loop because was waiting for an exception for eof, that does not get thrown anymore
+    // -> need adaptation
+
+    //     try { handle_connection(new_conn); }
+    //     catch (ws::http::Request::BadRead& e)
+    //     {
+    //         if (errno != EWOULDBLOCK)
+    //         {
+    //             if (DEBUG)
+    //                 std::cerr << "  recv() failed" << std::endl;
+    //             close_conn = true;
+    //         }
+    //         break;
+    //     }
+    //     catch (ws::http::Request::EofReached& e)
+    //     {
+    //         if (DEBUG)
+    //             std::cerr << "  Connection closed" << std::endl;
+    //         close_conn = true;
+    //         break;
+    //     }
+    // } while (true);
+    // if (close_conn)
+        // close_connection(index);
+
+    close_connection(index);
 }
 
 void Server::close_connection(int index)

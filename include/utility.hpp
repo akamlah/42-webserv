@@ -31,7 +31,13 @@ typedef struct c_data {
 #define CYAN "\033[0;36m"
 #define NC "\033[0m"
 
-#define DEBUG 0
+#ifndef DEBUG
+#define DEBUG 0 // rule "make dbg" defines this at compiletime
+#endif
+
+// #ifdef DEBUG
+// #define DEBUG 1
+// #endif
 
 // maybe we will not need this
 class exception : public std::exception { }; // might put stuff in here ?
