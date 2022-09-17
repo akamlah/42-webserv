@@ -1,1 +1,4 @@
 test
+2T2 T
+2S6 S
+6AA A

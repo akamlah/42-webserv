@@ -6,6 +6,7 @@
 
 #include "../include/Server.hpp"
 #include "../include/utility.hpp"
+#include "../include/CGI.hpp"
 
 bool trythis = true;
 
@@ -114,22 +115,32 @@ void Server::handle_connection(Socket& new_connection) const {
 
                 // html response test ---------------------------
                         std::ifstream confFile;
-                        
-                            // confFile.open("./example_sites/someJoke/index.html", std::ios::in);
-                            confFile.open("./example_sites/phptestsite/index.html", std::ios::in); // request came for php file
-                        // if (trythis)
-                        // {
-                        //     confFile.open("./example_sites/someJoke/index.html", std::ios::in);
-                        //     trythis = false;
-                        // }
-                        // else
-                        //     confFile.open("./example_sites/someJoke/server.js", std::ios::in);
                         if (confFile.fail())
                             throw_print_error(SystemError());
-                        std::stringstream buffer2;
-                        buffer2 << confFile.rdbuf();
-                        std::string temp = "HTTP/1.1 200 OK\r\n\n" + buffer2.str();
-        int sending_status = send(new_connection.fd, temp.c_str(), temp.size(), 0);
+                        int sending_status;
+                            // confFile.open("./example_sites/someJoke/index.html", std::ios::in);
+                            // confFile.open("./example_sites/phptestsite/index.html", std::ios::in); // request came for php file
+                        if (trythis)
+                        {
+                            confFile.open("./example_sites/phptestsite/index.html", std::ios::in); // request came for php file
+                            // confFile.open("./example_sites/someJoke/index.html", std::ios::in);
+                            std::stringstream buffer2;
+                            buffer2 << confFile.rdbuf();
+                            std::string temp = "HTTP/1.1 200 OK\r\n\n" + buffer2.str();
+                            sending_status = send(new_connection.fd, temp.c_str(), temp.size(), 0);
+                            trythis = false;
+                        }
+                        else
+                        {
+                            Cgi test;
+                            std::string phpresp;
+                            phpresp = "HTTP/1.1 200 OK \nCONTENT_TYPE = text/event-stream\r\n\n";
+                            phpresp +=  test.executeCgi("./example_sites/phptestsite/send_sse.php");
+                            sending_status = send(new_connection.fd, phpresp.c_str(), phpresp.size(), 0);
+                        }
+                        
+                        //     confFile.open("./example_sites/someJoke/server.js", std::ios::in);
+                        //     confFile.open("./example_sites/someJoke/server.js", std::ios::in);
                 // end resos test -------------------------
 
         // how to stop the browser to be in constant loading phase?
