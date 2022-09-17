@@ -10,6 +10,7 @@
 #include "Request.hpp"
 #include "Socket.hpp"
 #include "utility.hpp"
+#include "CGI.hpp"
 #include "http_type_traits.hpp"
 #include <fstream>
 #include <sstream>

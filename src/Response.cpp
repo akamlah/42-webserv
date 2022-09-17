@@ -48,7 +48,12 @@ Response::Response(const Request& request): _status(request.status()), client_so
     // fetch path from config struct later, for now hardcode example
     // or use the DEFAULT CONFIG -> todo
     if (status() == WS_200_OK)
-        _root = "./example_sites/example2";
+    {
+        // problem to solve how the config data is reachable by all needed class?
+        // _root = config data??
+        _root = "./example_sites/phptestsite";
+        // _root = "./example_sites/example2";
+    }
     else
         _root = "./default_pages/errors";
 
@@ -77,21 +82,52 @@ Response::Response(const Request& request): _status(request.status()), client_so
         // fields_stream << "Transfer-Encoding: chunked" << CHAR_CR << CHAR_LF;
         // fields_stream << "Connection: keep-alive" << CHAR_CR << CHAR_LF;
     }
+    // cgi php part
+    // if (std::string::size_type locate = _file.find(".php") != std::string::npos && locate + 4 == _file.length())
+    if (_file.find(".php") != std::string::npos)
+    {
+        fields_stream << "Content-Type: text/event-stream\nCache-Control: no-cache" << CHAR_CR << CHAR_LF;
+    }
 // -------- header composition ^^ ---------------
 
     try {
-        std::ifstream page_file(path);
-        // if (!page_file.is_open()) ...
-        std::stringstream buffer;
+        if (_file.find(".php") != std::string::npos)
+        {
+               Cgi test;
+                std::string phpresp;
+                // phpresp = "HTTP/1.1 200 OK\nContent-Type: text/event-stream\nCache-Control: no-cache\n";
+                // phpresp +=  test.executeCgi("./example_sites/phptestsite/send_sse.php");
+                phpresp +=  test.executeCgi(path);
+            std::stringstream buffer;
 
-        buffer << _status_line << fields_stream.str() << CHAR_CR << CHAR_LF;
-        std::string _response_str = buffer.str();
-        // std::cout << "RESPONSE:\n" << _response_str << std::endl;
-        buffer << page_file.rdbuf() << CHAR_CR << CHAR_LF;
-        _response_str = buffer.str();
-        if (send(client_socket.fd, _response_str.c_str(), strlen(_response_str.c_str()), 0) < 0)
-            throw_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
-        std::cout << CYAN << "Response class: Server sent data" << NC << std::endl;
+            buffer << _status_line << fields_stream.str() << CHAR_CR << CHAR_LF;
+            std::string _response_str = buffer.str();
+
+            buffer << phpresp << CHAR_CR << CHAR_LF; // write php data in
+
+            _response_str = buffer.str();
+            if (send(client_socket.fd, _response_str.c_str(), strlen(_response_str.c_str()), 0) < 0)
+                throw_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
+            std::cout << CYAN << "Response class: Server sent data" << NC << std::endl;
+        }
+        else
+        {
+
+            std::ifstream page_file(path);
+            // if (!page_file.is_open()) ...
+            std::stringstream buffer;
+
+            buffer << _status_line << fields_stream.str() << CHAR_CR << CHAR_LF;
+
+            std::string _response_str = buffer.str();  // write before the file staff
+
+            // std::cout << "RESPONSE:\n" << _response_str << std::endl;
+            buffer << page_file.rdbuf() << CHAR_CR << CHAR_LF;
+            _response_str = buffer.str();
+            if (send(client_socket.fd, _response_str.c_str(), strlen(_response_str.c_str()), 0) < 0)
+                throw_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
+            std::cout << CYAN << "Response class: Server sent data" << NC << std::endl;
+        }
 
     } catch (std::exception& e) {
         std::cout << e.what() << std::endl;
