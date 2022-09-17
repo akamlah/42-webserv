@@ -40,7 +40,8 @@ INTERFACES = \
 HPP_TEMPLATES = \
 
 OTHER_HEADERS = \
-	utility.hpp
+	utility.hpp \
+	http_type_traits.hpp
 
 # ********************************************************************* #
 # internal setup:
@@ -86,9 +87,13 @@ obj:
 
 # compile with fsanitize address flag: 'make dbg'
 
-dbg: re
+sani: re
 	@ echo "\033[34;5;36mDebug mode: fsanitize address"
 	@ $(CC) $(CFLAGS) -o $(EXECUTABLE_NAME) $(SOURCES) -g3 -fsanitize=address
+
+dbg:
+	@ echo "\033[34;5;36mDebug mode: flag DEBUG = true"
+	@ $(CC) $(CFLAGS) -o $(EXECUTABLE_NAME) $(SOURCES) -DDEBUG=1
 
 .PHONY = clean
 

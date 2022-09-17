@@ -8,13 +8,24 @@
 # define __RESPONSE_HPP__
 
 #include "Request.hpp"
+#include "Socket.hpp"
 #include "utility.hpp"
+#include "http_type_traits.hpp"
+#include <fstream>
+#include <sstream>
 
 namespace ws {
+namespace http {
+
 
 class Response {
     
     public:
+
+        class ResponseException: public ws::exception {
+            public:
+                virtual const char* what() const throw();
+        };
 
         // + exceptions
 
@@ -24,15 +35,26 @@ class Response {
         ~Response();
 
         const char *c_str() const; // full response to c string
+        int status() const { return (_status.get_current()); }
 
     private:
-        // ?
-        std::string header;
-        std::string body;
-        std::string response;
+
+        const char* throw_status(int status, const char* msg = NULL) const ;
+        // mainly for target check (fstream open error handeling)
+        int error_status(Request& request, const int status, const char* msg = NULL) const ;
+
+        Status _status;
+        const Socket client_socket;
+        std::string _status_line;
+        std::string _root;
+        std::string _file;
+        std::string _response_str;
+
+        // status-line = HTTP-version SP status-code SP [ reason-phrase ]
 
 }; // CLASS Response
 
+} // NAMESPACE http
 } // NAMESPACE ws
 
 #endif // __RESPONSE_HPP__
