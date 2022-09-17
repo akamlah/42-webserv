@@ -77,7 +77,7 @@ class Request {
                 bool request_line_done;
                 bool header_done;
                 //  A server that receives a method longer than any that it implements SHOULD 
-                //  respond with a 501 (Not Implemented) status code -> BUFFER SIZES
+                //  respond with a 501 (Not Implemented) status code -> BUFFER SIZES -> [ ! ] centralise later
                 unsigned char buffer[BUFFER_SIZE];
                 char request_line[REQUEST_LINE_LENGTH];
                 char word[10000];

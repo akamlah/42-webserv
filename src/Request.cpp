@@ -37,20 +37,16 @@ Request& Request::operator=(const Request& other) {
 const Socket& Request::get_client() const { return (client_socket); }
 
 void Request::parse() {
-
     std::cout << "about to parse a new request on fd: " << client_socket.fd << std::endl;
-
     parser.parse(*this, client_socket.fd);
     // if (status.get_current() != WS_200_OK)... should be handeled by response anyways
 
     #if DEBUG
     std::cout << RED << "PARSED REQUEST STATUS: " << this->status() << NC << std::endl;
-
     std::cout << CYAN << "PARSED HEADER:\n" \
     << "\tMethod: " << header.method << "\n" \
     << "\tTarget: " << header.target << "\n" \
     << "\tVersion: " << header.version << NC << std::endl;
-
     std::cout << CYAN << "PARSED FIELDS:\n";
     for (std::map<std::string, std::string>::iterator it = fields.begin(); it != fields.end(); it++) {
         std::cout << it->first << "|" << it->second << std::endl;
@@ -66,7 +62,8 @@ Request::~Request() { /* free data ?*/ }
 // --------------------------------------------------------------------------------------------------------
 
 Request::parser::parser(): line_length(0), nb_lines(0), msg_length(0), nb_empty_lines_beginning(0),
-    word_length(0), host_fields(0), word_count(0), start_content(false), request_line_done(false), header_done(false)
+    word_length(0), host_fields(0), word_count(0), start_content(false), request_line_done(false),
+    header_done(false)
 {
     bzero(buffer, BUFFER_SIZE);
     bzero(request_line, REQUEST_LINE_LENGTH);
@@ -86,7 +83,7 @@ int Request::parser::error_status(Request& request, const int status, const char
     return (status);
 }
 
-// implemented methods:
+// implemented methods: -> CENTRALISE later!!
 const char Request::methods[4][10] = {"GET", "HEAD", "POST", "DELETE"};
 
 bool Request::parser::__is_method(const char *word, size_t word_length) const {
@@ -109,7 +106,7 @@ int Request::parser::parse(Request& request, int fd) {
             return (status) ; // if 0 it is end of file
         ++msg_length;
         ++line_length;
-        if (buffer[msg_length - 1] == LF) { // if newline found:
+        if (buffer[msg_length - 1] == LF_int) { // if newline found:
             ++nb_lines;
             // do strlcpy here ?
             if (!(status = __parse_previous_line(request, (char *)buffer + msg_length - line_length)))
@@ -133,7 +130,7 @@ int Request::parser::parse(Request& request, int fd) {
 
 // reads a byte and does some primary checks
 // encoding must be a superset of US-ASCII [USASCII] -> max 128 (hex 80) (RFC 9112)
-// ANY CR not folowed by LF is invalid and message is rejected (RFC 9112)
+// ANY CR_int not folowed by LF_int is invalid and message is rejected (RFC 9112)
 int Request::parser::__get_byte(Request& request, int fd) {
     size_t bytes_read = 0;
     if ((bytes_read = recv(fd, buffer + msg_length, 1, 0)) < 0)
@@ -142,7 +139,7 @@ int Request::parser::__get_byte(Request& request, int fd) {
         return (0);
     if (buffer[msg_length] >= 0x80)
         return (error_status(request, WS_400_BAD_REQUEST, "Bad encoding"));
-    if (line_length > 1 && buffer[msg_length - 1] == CR && buffer[msg_length] != LF)
+    if (line_length > 1 && buffer[msg_length - 1] == CR_int && buffer[msg_length] != LF_int)
         return (error_status(request, WS_400_BAD_REQUEST, "CR not followed by LF"));
     return (WS_200_OK);
 }
@@ -154,9 +151,9 @@ int Request::parser::__get_byte(Request& request, int fd) {
 // if here in the middle ANY whitespace at line start is found -> reject
 int Request::parser::__parse_previous_line(Request& request, const char* line) {
     int status = WS_200_OK;
-    if (!start_content && (line_length == 2 && line[line_length - 2] == CR))
+    if (!start_content && (line_length == 2 && line[line_length - 2] == CR_int))
         ++nb_empty_lines_beginning;
-    else if (header_done && (line_length == 2 && buffer[msg_length - 2] == CR)) { // final CRLF
+    else if (header_done && (line_length == 2 && buffer[msg_length - 2] == CR_int)) { // final CRLF
         // from here later start parsing mesasge BODY if any, else stop.
         return (0);
     }
@@ -191,13 +188,13 @@ int Request::parser::__parse_request_line(Request& request, const char* line) {
     if (line_length > REQUEST_LINE_LENGTH)
         return (error_status(request, WS_501_NOT_IMPLEMENTED, "Header too long"));
     strlcpy(request_line, line, line_length + 1);
-    if (!(request_line[line_length - 2] == CR && request_line[line_length - 1] == LF))
+    if (!(request_line[line_length - 2] == CR_int && request_line[line_length - 1] == LF_int))
         return (error_status(request, WS_400_BAD_REQUEST, "No CRLF at end of line"));
     while (i < line_length) {
-        if ( i < line_length - 2 && isspace(request_line[i]) && request_line[i] != SP)
+        if ( i < line_length - 2 && isspace(request_line[i]) && request_line[i] != SP_int)
             return (error_status(request, WS_400_BAD_REQUEST, "Bad spacing"));
-        if (request_line[i] == SP || request_line[i] == CR) { // end of a word
-            if (i + 1 < line_length && request_line[i + 1] == SP)
+        if (request_line[i] == SP_int || request_line[i] == CR_int) { // end of a word
+            if (i + 1 < line_length && request_line[i + 1] == SP_int)
                 return (error_status(request, WS_400_BAD_REQUEST, "Consecutive spaces in start line"));
             if ((status = __parse_next_word_request_line(request, i, skip) != WS_200_OK))
                 return (status);
@@ -206,7 +203,7 @@ int Request::parser::__parse_request_line(Request& request, const char* line) {
         }
         word_length++;
         i++;
-        if (request_line[i] == LF) {
+        if (request_line[i] == LF_int) {
            if (word_count < 3)
                 return (error_status(request, WS_400_BAD_REQUEST, "Too few words in start line"));
             break ;
@@ -263,7 +260,7 @@ int Request::parser::__parse_field_line(Request& request, const char* line) {
     char name[5000];
     bzero(name, 5000);
     char value[5000];
-    bzero(value, 5000);
+    bzero(value, 5000); // [ ! ] TODO: clean up this buffer hell
     while (field_line_tmp[i]) {
         if (field_line_tmp[i] == ':') {
             strlcpy(name, field_line_tmp, i + 1);

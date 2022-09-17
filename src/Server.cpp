@@ -201,7 +201,8 @@ void Server::handle_incoming(int& index)
     // if (close_conn)
         // close_connection(index);
 
-    close_connection(index);
+        close_connection(index);
+        std::cout << "  Connection closed" << std::endl;
 }
 
 void Server::close_connection(int index)
