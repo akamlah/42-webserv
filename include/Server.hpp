@@ -28,8 +28,6 @@
 #include <sys/ioctl.h>
 #include <map>
 
-#define BUFFER_SIZE 5000
-
 namespace ws {
 
 class Server {
@@ -47,7 +45,6 @@ class Server {
         void listen(const int backlog) const;
         int accept(int port) const;
         void handle_connection(Socket& new_connection) const;
-        void respond(Socket& new_connection, Request request) const;
         void run(int timeout_in_milliseconds);
         void handle_events(int& number_of_listening_ports);
         void accept_new_connections(int& index, int& number_of_listening_sockets);

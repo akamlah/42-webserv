@@ -82,17 +82,15 @@ int Server::accept(int fd) const {
 }
 
 void Server::handle_connection(Socket& new_connection) const {
-    // 1 parse request
     try{
-        Request new_request(new_connection); // paring inside
-        // 2 send response
-        respond(new_connection, new_request);
+        http::Request request(new_connection);
+        request.parse();
+        http::Response response(request);
     }
-    // temporary
     catch (ws::exception& e) {
-        // only catch specific exceptions
-        // std::cout << "BAD REQUEST" << std::endl; /* bad request error */
-        throw;
+        #if DEBUG
+        std::cout << RED << "There has been an error in request/response" << NC << std::endl;
+        #endif
     }
 
 // CODE TO TEST CONNECTION INDIPENDENTLY OF REQUEST/RESPONSE CLASSES --------------------------------
@@ -163,6 +161,9 @@ void Server::respond(Socket& new_connection, Request request) const {
         std::cout << CYAN << "Server sent response" << NC << std::endl;
     }
     catch(std::exception& e) { throw_print_error(SystemError()); }
+    #if DEBUG
+    std::cout << "Going on" << std::endl;
+    #endif
 }
 
 void    Server::run(int timeout)
@@ -234,34 +235,43 @@ void Server::accept_new_connections(int& index, int& number_of_listening_ports)
 void Server::handle_incoming(int& index)
 { 
     Socket  new_conn;
-    bool    close_conn = false;
+    // bool    close_conn = false;
 
     if (DEBUG)
     std::cout << "Descriptor " << _poll.fds[index].elem.fd << " is readable" << std::endl;
-    do
-    {
+    // do
+    // {
         new_conn = Socket(_poll.fds[index].elem.fd);
-        try { handle_connection(new_conn); }
-        catch (ws::Request::BadRead& e)
-        {
-            if (errno != EWOULDBLOCK)
-            {
-                if (DEBUG)
-                    std::cerr << "  recv() failed" << std::endl;
-                close_conn = true;
-            }
-            break;
-        }
-        catch (ws::Request::EofReached& e)
-        {
-            if (DEBUG)
-                std::cerr << "  Connection closed" << std::endl;
-            close_conn = true;
-            break;
-        }
-    } while (true);
-    if (close_conn)
-        close_connection(index);
+
+        handle_connection(new_conn);
+
+    // [ ! ]
+    // this code caused inf loop because was waiting for an exception for eof, that does not get thrown anymore
+    // -> need adaptation
+
+    //     try { handle_connection(new_conn); }
+    //     catch (ws::http::Request::BadRead& e)
+    //     {
+    //         if (errno != EWOULDBLOCK)
+    //         {
+    //             if (DEBUG)
+    //                 std::cerr << "  recv() failed" << std::endl;
+    //             close_conn = true;
+    //         }
+    //         break;
+    //     }
+    //     catch (ws::http::Request::EofReached& e)
+    //     {
+    //         if (DEBUG)
+    //             std::cerr << "  Connection closed" << std::endl;
+    //         close_conn = true;
+    //         break;
+    //     }
+    // } while (true);
+    // if (close_conn)
+        // close_connection(index);
+
+    close_connection(index);
 }
 
 void Server::close_connection(int index)
