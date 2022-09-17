@@ -134,7 +134,7 @@ void Server::handle_connection(Socket& new_connection) const {
                         {
                             Cgi test;
                             std::string phpresp;
-                            phpresp = "HTTP/1.1 200 OK \nCONTENT_TYPE = text/event-stream\r\n\n";
+                            phpresp = "HTTP/1.1 200 OK\nContent-Type: text/event-stream\nCache-Control: no-cache\n";
                             phpresp +=  test.executeCgi("./example_sites/phptestsite/send_sse.php");
                             sending_status = send(new_connection.fd, phpresp.c_str(), phpresp.size(), 0);
                         }
