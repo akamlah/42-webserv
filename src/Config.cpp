@@ -11,8 +11,8 @@ namespace ws {
 	const char* Config::ConfigFileError::what() const throw() {
 		return (msg.c_str());
 	}
-	Config::Config(): port(4200), root("html"), index("inex.html") {}
-	Config::Config(char *argv) {
+		Config::Config(): port(4200), root("html"), index("inex.html") {}
+		Config::Config(char *argv) {
 		if (Config::checkValid(argv)){
 			if (DEBUG)
 				std::cout << "The config file is valid, You may procede!\n";
@@ -88,15 +88,12 @@ namespace ws {
 	}
 	
 	void Config::setConfigData() {
-		_data.port = port;
-///// testing multiple ports
+
 		_data.ports.push_back(54000);
 		_data.ports.push_back(18000);
 		_data.ports.push_back(8001);
 /////
-		_data.root = root;
-		_data.host = host;
-		_data.index = index;
+
 	}
 
 	config_data& Config::getConfigData() { return (_data); }

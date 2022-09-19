@@ -126,82 +126,26 @@ Response::Response(const Request& request): _status(request.status()), client_so
         }
         else if (_file.find(".jpg") != std::string::npos || _file.find(".png") != std::string::npos ||  _file.find(".ico") != std::string::npos)
         {
-            std::ifstream fin(path, std::ios::in | std::ios::binary);
-            // std::ifstream fin(path, std::ios::in);
+            // std::ifstream fin(path, std::ios::in | std::ios::binary);
+            std::ifstream fin(path, std::ios::in);
             std::ostringstream oss;
-            // std::stringstream oss;
-
-            // std::string _response_str = oss.str();  // write before the file staff
-
-            // oss << _status_line << fields_stream.str() << CHAR_CR << CHAR_LF;
+ 
             oss << fin.rdbuf();
-            // std::cout << oss.str() << "\n";
-            // 	std::ofstream outfile ("this.png");
-            // outfile << oss.str();
-            // outfile.close();
+  
             std::stringstream ss;
             ss << oss.str().length();
             std::string str = ss.str();
             fields_stream << CHAR_LF << "accept-ranges: bytes\ncontent-length: " << str << CHAR_CR << CHAR_LF;
-            // std::ostringstream buffer;
 
-            // buffer << _status_line << fields_stream.str() << CHAR_CR << CHAR_LF;
-            // buffer << oss << CHAR_CR << CHAR_LF;
-
-            // _response_str = buffer.str();
-            // // _response_str += _status_line + fields_stream.str() + CHAR_LF + "content-length: " + str + CHAR_CR + CHAR_LF + oss.str() +  CHAR_CR + CHAR_LF;
-            // // _response_str += oss.str() + << CHAR_CR << CHAR_LF;
-            // if (send(client_socket.fd, _response_str.c_str(), strlen(_response_str.c_str()), 0) < 0)
-            //     throw_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
-            // std::cout << CYAN << "Response class: Server sent data" << NC << std::endl;
-            // if (send(client_socket.fd, data.c_str(), strlen(data.c_str()), 0) < 0)
-            // std::string data(oss.str());
-
-            // --------------------- clear state -------------------------
-            // std::ifstream page_file(path);
-            // if (page_file.fail())
-            // {
-            //     std::cout << "I'm not working\n";
-            // }
-            
-            // if (!page_file.is_open()) ...
             std::ostringstream buffer;
-            // std::stringstream buffer;
-
-            // buffer << fields_stream.str() << CHAR_CR << CHAR_LF;
+       
             buffer << _status_line << fields_stream.str() << CHAR_CR << CHAR_LF;
 
             std::string _response_str = buffer.str();  // write before the file staff
 
             buffer << oss.str() << CHAR_CR << CHAR_LF;
-            // std::cout << _response_str.length() << "before ||| ---------------fuck thos---------------------------------\n";
             _response_str = buffer.str();
-            // std::cout << _response_str.length() << "after      ---------------fuck thos---------------------------------\n";
-
-            // _response_str << std::noskipws;
-            // std::cout << "RESPONSE:\n" << _response_str.data() << std::endl;
-            std::vector<char> temp;
-            // char temp[_response_str.length()];
-            // char *temp;
-            // temp = (char *)malloc(_response_str.length());
-            for (size_t i = 0; i < _response_str.length(); i++)
-            {
-                // temp[i] =_response_str[i];
-                temp.push_back(_response_str[i]);
-                // std::cout << _response_str[i] << "\t" << (int) _response_str[i] << std::endl;
-
-            }
-
-            // std::cout << temp<< std::endl;
-            
-            // size_t bob =  strlen(_response_str.c_str());
-            // size_t bubi = _response_str.length();
-            // size_t bebi = _response_str.length();
-            // std::cout << "Here is bob the migthy: " << bob << " end: " << bob << std::endl;
-            // std::cout << "RESPONSE:\n" << _response_str << std::endl;
-
-            // if (send(client_socket.fd,  &(*(temp.begin())) , _response_str.length(), 0) < 0)
-            // if (send(client_socket.fd,  &(_response_str) , _response_str.length(), 0) < 0)
+     
             if (send(client_socket.fd,  &(*(_response_str.begin())) , _response_str.length(), 0) < 0)
                 throw_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
             std::cout << CYAN << "Response class: Server sent data" << NC << std::endl;
