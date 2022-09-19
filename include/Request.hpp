@@ -49,7 +49,8 @@ class Request {
 
         void parse();
         const Socket& get_client() const;
-        
+        bool field_is_value(const char* field_name, const char* value) const;
+
         Status _status;
 
         int status() const { return (_status.get_current()); }
@@ -100,6 +101,7 @@ class Request {
         const Socket client_socket;
         std::string error_msg;
         // Status status;
+        bool keep_alive; // set to fase if error occurs or connection not meant to be persistent
 
 }; // CLASS Request
 

@@ -24,7 +24,10 @@ const char* Response::throw_status(int status, const char* msg) const {
     throw Response::ResponseException();
 }
 
-Response::Response(const Request& request): _status(request.status()), client_socket(request.get_client()) {
+Response::Response(const Request& request): _request(request), _status(request.status()), client_socket(request.get_client()), keep_alive(request.keep_alive) {
+    
+    __set_content_type();
+    
     // #if DEBUG
     std::cout << RED << "rsp: PARSED REQUEST STATUS: " << request.status() << NC << std::endl;
     std::cout << CYAN << "rsp: PARSED HEADER:\n" \
@@ -38,41 +41,23 @@ Response::Response(const Request& request): _status(request.status()), client_so
     // std::cout << NC << std::endl;
     // #endif
 
-    std::stringstream stream_status_line;
-    stream_status_line << WS_HTTP_VERSION << SP_int << Status()[status()] << CRLF;
-    _status_line = stream_status_line.str();
 
-    // TEST ONLY:
-    // _status = WS_501_NOT_IMPLEMENTED;
-
-    // [ ! ] TODO
-    // if any response to a already failed system call fails agai, throw exception!
-
-    // fetch path from config struct later, for now hardcode example
-    // or use the DEFAULT CONFIG -> todo
-    if (status() == WS_200_OK)
-        _root = "./example_sites/example2";
-    else
-        _root = "./default_pages/errors";
-
-    if (request.header.target == "/") {
-        if (status() == WS_200_OK)
-            _file = "/index.html"; // later: index field of config file
-        else {
-            std::stringstream stream_file;
-            stream_file << "/error_" << status() << ".html";
-            _file = stream_file.str();
-        }
-    }
-    else
-        _file = request.header.target;
-
-    std::string path = _root + _file;
+    __set_target_path();
 
     #if DEBUG
-    std::cout << "RESPONSE PATH = " << path << std::endl;
+    std::cout << "RESPONSE PATH = " << _path << std::endl;
     #endif
 
+    if (request.keep_alive == true
+        && (((request.fields.find("connection"))->second == "keep-alive")
+        || ((request.fields.find("connection"))->second == "chunked"))) {
+            keep_alive = true;
+
+            if ((request.fields.find("connection"))->second == "keep-alive")
+                std::cout << "KEEP ALIVE" << std::endl;
+            else
+                std::cout << "not keep alive" << std::endl;
+        }
 
     // FILEDS
 
@@ -95,23 +80,72 @@ Response::Response(const Request& request): _status(request.status()), client_so
 // -------- header composition ^^ ---------------
 
     try {
-        std::ifstream page_file(path);
+        std::ifstream page_file(_path);
         // if (!page_file.is_open()) ...
         std::stringstream buffer;
 
-        buffer << _status_line << fields_stream.str() << CRLF;
+        buffer << __generate_status_line() << fields_stream.str() << CRLF;
         std::string _response_str = buffer.str();
         // std::cout << "RESPONSE:\n" << _response_str << std::endl;
         buffer << page_file.rdbuf() << CRLF;
         _response_str = buffer.str();
         if (send(client_socket.fd, _response_str.c_str(), strlen(_response_str.c_str()), 0) < 0)
-            throw_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
+            throw_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data"); 
         std::cout << CYAN << "Response class: Server sent data" << NC << std::endl;
 
     } catch (std::exception& e) {
         std::cout << e.what() << std::endl;
         throw_status(WS_500_INTERNAL_SERVER_ERROR);
     }
+}
+
+// - - - - - - - path - - - - - - - -
+
+static std::string __extension(const std::string& target) {
+    size_t pos = target.rfind('.');
+    if (pos != target.npos)
+        return (target.substr(pos + 1));
+    return ("no ext"); // <- temporary!!!!!!!!!!
+}
+
+void Response::__set_content_type() {
+    std::cout << __extension(_request.header.target) << std::endl;
+    // set feild accordingly
+}
+
+void Response::__set_target_path() {
+    std::string root;
+    std::string file;
+
+    // TEST ONLY:
+    // _status = WS_501_NOT_IMPLEMENTED;
+
+    // [ ! ] TODO
+    // if any response to a already failed system call fails agai, throw exception!
+
+    // fetch path from config struct later, for now hardcode example
+    // or use the DEFAULT CONFIG -> todo
+    if (status() == WS_200_OK) {
+        root = "./example_sites/example2";
+        if (_request.header.target == "/")
+            file = "/index.html";
+        else
+            file = _request.header.target;
+    }
+
+    else { // assuming any other thing besides 200 ok is wrong for now (rdr?)
+        root = "./default_pages/errors";
+        std::stringstream stream_file;
+        stream_file << "/error_" << status() << ".html";
+        file = stream_file.str();
+    }
+    _path = root + file;
+}
+
+std::string Response::__generate_status_line() const {
+    std::stringstream stream_status_line;
+    stream_status_line << WS_HTTP_VERSION << SP_int << Status()[status()] << CRLF;
+    return (stream_status_line.str());
 }
 
 Response::~Response() {}
@@ -122,4 +156,3 @@ const char *Response::c_str() const {
 
 } // NAMESPACE http
 } // NAMESPACE ws
-

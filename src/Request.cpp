@@ -1,5 +1,5 @@
-/* ************************************************************************ */
 /*                                                                          */
+/* ************************************************************************ */
 /*                              Class: Request                              */
 /*                                                                          */
 /* ************************************************************************ */
@@ -17,9 +17,9 @@ const char* Request::EofReached::what() const throw() {
     return ("EOF reached!");
 }
 
-Request::Request(const Socket& client): client_socket(client) { }
+Request::Request(const Socket& client): client_socket(client), keep_alive(true) { }
 
-Request::Request(const Request& other) {
+Request::Request(const Request& other): keep_alive(true) {
     header.method = other.header.method;
     header.target = other.header.target;
     header.version = other.header.version;
@@ -36,12 +36,18 @@ Request& Request::operator=(const Request& other) {
 
 const Socket& Request::get_client() const { return (client_socket); }
 
+bool Request::field_is_value(const char* field_name, const char* value) const {
+    if ((fields.find(field_name))->second == value)
+        return (true);
+    return (false);
+}
+
 void Request::parse() {
     std::cout << "about to parse a new request on fd: " << client_socket.fd << std::endl;
     parser.parse(*this, client_socket.fd);
     // if (status.get_current() != WS_200_OK)... should be handeled by response anyways
 
-    #if DEBUG
+    // #if DEBUG
     std::cout << RED << "PARSED REQUEST STATUS: " << this->status() << NC << std::endl;
     std::cout << CYAN << "PARSED HEADER:\n" \
     << "\tMethod: " << header.method << "\n" \
@@ -52,7 +58,7 @@ void Request::parse() {
         std::cout << it->first << "|" << it->second << std::endl;
     }
     std::cout << NC << std::endl;
-    #endif
+    // #endif
 }
 
 Request::~Request() { /* free data ?*/ }
@@ -73,13 +79,14 @@ Request::parser::parser(): line_length(0), nb_lines(0), msg_length(0), nb_empty_
 Request::parser::~parser() {}
 
 int Request::parser::error_status(Request& request, const int status, const char* msg) const {
-    #if DEBUG
+    // #if DEBUG
     if (msg)
         std::cout << RED << msg << ": " << NC;
     std::cout << RED << "Error: " << Status()[status] << NC << std::endl; // temporary
-    #endif
+    // #endif
     request.error_msg = msg;
     request._status = status;
+    request.keep_alive = false;
     return (status);
 }
 
@@ -98,31 +105,48 @@ bool Request::parser::__is_method(const char *word, size_t word_length) const {
 
 // goes through byte by byte and at every newline reads the previous line into the data structure.
 int Request::parser::parse(Request& request, int fd) {
+    std::cout << CYAN << "PARSER: Message recieved: ---------\n\n" << NC;
     int status = WS_200_OK;
     while (msg_length < BUFFER_SIZE) {
-        if (!(status = __get_byte(request, fd)))
+        if (!(status = __get_byte(request, fd))) {
+            // std::cout << "here x" << std::endl;
             break ;
-        if (status != WS_200_OK)
+        }
+    std::cout << CYAN << buffer[msg_length - 1] << NC;
+        if (status != WS_200_OK) {
+
+            // std::cout << "here" << std::endl;
             return (status) ; // if 0 it is end of file
+        }
         ++msg_length;
         ++line_length;
         if (buffer[msg_length - 1] == LF_int) { // if newline found:
             ++nb_lines;
             // do strlcpy here ?
-            if (!(status = __parse_previous_line(request, (char *)buffer + msg_length - line_length)))
+            if (!(status = __parse_previous_line(request, (char *)buffer + msg_length - line_length))) {
+                std::cout << "final CRLF 2" << std::endl;
+                // size_t bytes_read = 0;
+                // while ((bytes_read = recv(fd, buffer + msg_length, 1, MSG_DONTWAIT)) > 0)
+                //     std::cout << "|" << buffer[msg_length - 1] << "|" << std::endl;
                 break ;
+            }
             if (status != WS_200_OK)
                 return (status);
         }
     }
     // check that minimum was provided
-    if (!start_content)
-        return (error_status(request, WS_400_BAD_REQUEST, "Empty request header"));
+    if (!start_content) {
+        // return (error_status(request, WS_400_BAD_REQUEST, "Empty request header"));
+        throw EofReached();
+        return (status);
+    }
     if (!request_line_done)
         return (error_status(request, WS_400_BAD_REQUEST, "No request line provided"));
     if (!host_fields)
         return (error_status(request, WS_400_BAD_REQUEST, "No host field provided"));
     buffer[msg_length] = '\0';
+            std::cout << msg_length << std::endl;
+
     // std::cout << CYAN << "PARSER: Message recieved: ---------\n\n" << NC << buffer;
     // std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
     return (status);
@@ -133,7 +157,7 @@ int Request::parser::parse(Request& request, int fd) {
 // ANY CR_int not folowed by LF_int is invalid and message is rejected (RFC 9112)
 int Request::parser::__get_byte(Request& request, int fd) {
     size_t bytes_read = 0;
-    if ((bytes_read = recv(fd, buffer + msg_length, 1, 0)) < 0)
+    if ((bytes_read = recv(fd, buffer + msg_length, 1, MSG_DONTWAIT)) < 0)
         return (error_status(request, WS_500_INTERNAL_SERVER_ERROR, "Error recieving data"));
     if (!bytes_read)
         return (0);
@@ -151,9 +175,12 @@ int Request::parser::__get_byte(Request& request, int fd) {
 // if here in the middle ANY whitespace at line start is found -> reject
 int Request::parser::__parse_previous_line(Request& request, const char* line) {
     int status = WS_200_OK;
-    if (!start_content && (line_length == 2 && line[line_length - 2] == CR_int))
+    if (!start_content && (line_length == 2 && line[line_length - 2] == CR_int)) {
+        std::cout << "CRLF" << std::endl;
         ++nb_empty_lines_beginning;
+    }
     else if (header_done && (line_length == 2 && buffer[msg_length - 2] == CR_int)) { // final CRLF
+        std::cout << "final CRLF" << std::endl;
         // from here later start parsing mesasge BODY if any, else stop.
         return (0);
     }

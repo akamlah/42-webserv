@@ -44,7 +44,7 @@ class Server {
 
         void listen(const int backlog) const;
         int accept(int port) const;
-        void handle_connection(Socket& new_connection) const;
+        bool handle_connection(Socket& new_connection) const;
         void run(int timeout_in_milliseconds);
         void handle_events(int& number_of_listening_ports);
         void accept_new_connections(int& index, int& number_of_listening_sockets);

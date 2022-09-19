@@ -80,20 +80,19 @@ int Server::accept(int fd) const {
     return new_conn_fd;
 }
 
-void Server::handle_connection(Socket& new_connection) const {
-    try{
+bool Server::handle_connection(Socket& new_connection) const {
+    // try{
         http::Request request(new_connection);
         request.parse();
         http::Response response(request);
-    }
-    catch (ws::exception& e) {
-        #if DEBUG
-        std::cout << RED << "There has been an error in request/response" << NC << std::endl;
-        #endif
-    }
-    #if DEBUG
+        if (response.keep_alive)
+            return (true);
+    // }
+
+    // #if DEBUG
     std::cout << "Going on" << std::endl;
-    #endif
+    // #endif
+    return (false);
 }
 
 void    Server::run(int timeout)
@@ -165,44 +164,42 @@ void Server::accept_new_connections(int& index, int& number_of_listening_ports)
 void Server::handle_incoming(int& index)
 { 
     Socket  new_conn;
-    // bool    close_conn = false;
+    bool keep_alive = true;
 
     if (DEBUG)
     std::cout << "Descriptor " << _poll.fds[index].elem.fd << " is readable" << std::endl;
-    // do
-    // {
-        new_conn = Socket(_poll.fds[index].elem.fd);
+    new_conn = Socket(_poll.fds[index].elem.fd);
 
-        handle_connection(new_conn);
+	// struct timespec timeStart, timeEnd;
+	// clock_gettime(CLOCK_MONOTONIC, &timeStart);
+    // handle_connection(new_conn);
 
-    // [ ! ]
-    // this code caused inf loop because was waiting for an exception for eof, that does not get thrown anymore
-    // -> need adaptation
+    while(keep_alive == true) {
 
-    //     try { handle_connection(new_conn); }
-    //     catch (ws::http::Request::BadRead& e)
-    //     {
-    //         if (errno != EWOULDBLOCK)
-    //         {
-    //             if (DEBUG)
-    //                 std::cerr << "  recv() failed" << std::endl;
-    //             close_conn = true;
-    //         }
-    //         break;
-    //     }
-    //     catch (ws::http::Request::EofReached& e)
-    //     {
-    //         if (DEBUG)
-    //             std::cerr << "  Connection closed" << std::endl;
-    //         close_conn = true;
-    //         break;
-    //     }
-    // } while (true);
-    // if (close_conn)
-        // close_connection(index);
+        try {
+            keep_alive = handle_connection(new_conn);
+        }
+        catch (http::Request::EofReached& e) {
+            std::cout << "EOF" << std::endl;
+            // close_connection(index);
+            break ;
+        }
+        catch (ws::exception& e) {
+            std::cout << RED << "unforeseen exception req-resp" << NC << std::endl;
+            // close_connection(index);
+            break ;
+        }
 
-        close_connection(index);
-        std::cout << "  Connection closed" << std::endl;
+	    // clock_gettime(CLOCK_MONOTONIC, &timeEnd);
+        // double timePerformance = timeStart.tv_sec * 1e9;
+        // timePerformance = (timeEnd.tv_sec - timeStart.tv_sec) * 1e9;
+        // timePerformance = (timePerformance + (timeEnd.tv_nsec - timeStart.tv_nsec)) * 1e-9;
+        // std::cout << timePerformance << std::endl;
+        // if (timePerformance >= 60)
+            // break ;
+    }
+    close_connection(index);
+    std::cout << "  Connection closed" << std::endl;
 }
 
 void Server::close_connection(int index)

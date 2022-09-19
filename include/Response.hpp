@@ -43,14 +43,29 @@ class Response {
         // mainly for target check (fstream open error handeling)
         int error_status(Request& request, const int status, const char* msg = NULL) const ;
 
+        Request _request;
+
         Status _status;
         const Socket client_socket;
-        std::string _status_line;
-        std::string _root;
-        std::string _file;
+        
+        std::string _path;
+        std::stringstream _fields_stream;
         std::string _response_str;
+    
+    public:
 
-        // status-line = HTTP-version SP status-code SP [ reason-phrase ]
+        bool keep_alive; // set to fase if error occurs or connection not meant to be persistent
+
+    private:
+
+        std::string __generate_status_line() const ;
+        bool __decide_persistency();
+        void __set_target_path();
+        void __buffer_target(); // ?
+    
+        void __set_content_type();
+        void __add_field(const char* field_name, const char* value);
+        
 
 }; // CLASS Response
 
