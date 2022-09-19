@@ -199,7 +199,10 @@ Response::Response(const Request& request): _status(request.status()), client_so
             // size_t bebi = _response_str.length();
             // std::cout << "Here is bob the migthy: " << bob << " end: " << bob << std::endl;
             // std::cout << "RESPONSE:\n" << _response_str << std::endl;
-            if (send(client_socket.fd,  &(*(temp.begin())) , _response_str.length(), 0) < 0)
+
+            // if (send(client_socket.fd,  &(*(temp.begin())) , _response_str.length(), 0) < 0)
+            // if (send(client_socket.fd,  &(_response_str) , _response_str.length(), 0) < 0)
+            if (send(client_socket.fd,  &(*(_response_str.begin())) , _response_str.length(), 0) < 0)
                 throw_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
             std::cout << CYAN << "Response class: Server sent data" << NC << std::endl;
         }
