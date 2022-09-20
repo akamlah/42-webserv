@@ -24,7 +24,82 @@ const char* Response::throw_status(int status, const char* msg) const {
     throw Response::ResponseException();
 }
 
-Response::Response(const Request& request): _status(request.status()), client_socket(request.get_client()) {
+void Response::runSendCig( const std::string & path )
+{
+	Cgi test;
+	std::string phpresp;
+	// phpresp = "HTTP/1.1 200 OK\nContent-Type: text/event-stream\nCache-Control: no-cache\n";
+	// phpresp +=  test.executeCgi("./example_sites/phptestsite/send_sse.php");
+	phpresp +=  test.executeCgi(path);
+	std::stringstream buffer;
+
+	buffer << _status_line << fields_stream.str() << CHAR_CR << CHAR_LF;
+	std::string _response_str = buffer.str();
+
+	buffer << phpresp << CHAR_CR << CHAR_LF; // write php data in
+
+	_response_str = buffer.str();
+	if (send(client_socket.fd, _response_str.c_str(), strlen(_response_str.c_str()), 0) < 0)
+	throw_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
+	std::cout << CYAN << "Response class: Server sent data" << NC << std::endl;
+}
+void Response::sendPicResp( const std::string & path )
+{
+	// std::ifstream fin(path, std::ios::in | std::ios::binary);
+	std::ifstream fin(path, std::ios::in);
+	std::ostringstream oss;
+
+	oss << fin.rdbuf();
+
+	std::stringstream ss;
+	ss << oss.str().length();
+	std::string str = ss.str();
+	fields_stream << CHAR_LF << "accept-ranges: bytes\ncontent-length: " << str << CHAR_CR << CHAR_LF;
+
+	std::ostringstream buffer;
+
+	buffer << _status_line << fields_stream.str() << CHAR_CR << CHAR_LF;
+
+	std::string _response_str = buffer.str();  // write before the file staff
+
+	buffer << oss.str() << CHAR_CR << CHAR_LF;
+	_response_str = buffer.str();
+
+	if (send(client_socket.fd,  &(*(_response_str.begin())) , _response_str.length(), 0) < 0)
+	throw_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
+	std::cout << CYAN << "Response class: Server sent data" << NC << std::endl;
+}
+void Response::createFieldStream()
+{
+	if ((request.fields.find("sec-fetch-dest"))->second == "image") {
+		// std::cout << "is image" << std::endl;
+			// std::cout << "FUCK------111\n";
+		if (_file.find(".ico") != std::string::npos)
+			// fields_stream << "Content-Type: image/x-icon\nCache-Control: no-cache" << CHAR_CR << CHAR_LF;
+			fields_stream << "Content-Type: image/x-icon"/*  << CHAR_CR << CHAR_LF */;
+		else if (_file.find(".png") != std::string::npos)
+			// fields_stream << "Content-Type: image/x-icon\nCache-Control: no-cache" << CHAR_CR << CHAR_LF;
+			fields_stream << "Content-Type: image/png"/*  << CHAR_CR << CHAR_LF */;
+		else
+		{
+			// fields_stream << "Content-Type: image/png\nCache-Control: no-cache" << CHAR_CR << CHAR_LF;
+			fields_stream << "Content-Type: image/jpeg"/* << CHAR_CR << CHAR_LF */;
+			// fields_stream << "Content-Type: image/jpeg" << CHAR_CR << CHAR_LF;
+			// std::cout << "FUCK------\n";
+		}
+			// fields_stream << "Content-Type: image/x-icon" << CHAR_CR << CHAR_LF;
+		// fields_stream << "Transfer-Encoding: chunked" << CHAR_CR << CHAR_LF;
+		// fields_stream << "Connection: keep-alive" << CHAR_CR << CHAR_LF;
+	}
+	// cgi php part
+	// if (std::string::size_type locate = _file.find(".php") != std::string::npos && locate + 4 == _file.length())
+	if (_file.find(".php") != std::string::npos)
+	{
+		fields_stream << "Content-Type: text/event-stream\nCache-Control: no-cache" << CHAR_CR << CHAR_LF;
+	}
+}
+
+Response::Response(const Request& request): _status(request.status()), client_socket(request.get_client()), request(request) {
     #if DEBUG
     // std::cout << RED << "rsp: PARSED REQUEST STATUS: " << request.status() << NC << std::endl;
     // std::cout << CYAN << "rsp: PARSED HEADER:\n" \
@@ -74,81 +149,17 @@ Response::Response(const Request& request): _status(request.status()), client_so
     #if DEBUG
     std::cout << "RESPONSE PATH = " << path << std::endl;
     #endif
-
-    std::stringstream fields_stream;
-    if ((request.fields.find("sec-fetch-dest"))->second == "image") {
-        // std::cout << "is image" << std::endl;
-            // std::cout << "FUCK------111\n";
-        if (_file.find(".ico") != std::string::npos)
-            // fields_stream << "Content-Type: image/x-icon\nCache-Control: no-cache" << CHAR_CR << CHAR_LF;
-            fields_stream << "Content-Type: image/x-icon"/*  << CHAR_CR << CHAR_LF */;
-        else if (_file.find(".png") != std::string::npos)
-            // fields_stream << "Content-Type: image/x-icon\nCache-Control: no-cache" << CHAR_CR << CHAR_LF;
-            fields_stream << "Content-Type: image/png"/*  << CHAR_CR << CHAR_LF */;
-        else
-        {
-            // fields_stream << "Content-Type: image/png\nCache-Control: no-cache" << CHAR_CR << CHAR_LF;
-            fields_stream << "Content-Type: image/jpeg"/* << CHAR_CR << CHAR_LF */;
-            // fields_stream << "Content-Type: image/jpeg" << CHAR_CR << CHAR_LF;
-            // std::cout << "FUCK------\n";
-        }
-            // fields_stream << "Content-Type: image/x-icon" << CHAR_CR << CHAR_LF;
-        // fields_stream << "Transfer-Encoding: chunked" << CHAR_CR << CHAR_LF;
-        // fields_stream << "Connection: keep-alive" << CHAR_CR << CHAR_LF;
-    }
-    // cgi php part
-    // if (std::string::size_type locate = _file.find(".php") != std::string::npos && locate + 4 == _file.length())
-    if (_file.find(".php") != std::string::npos)
-    {
-        fields_stream << "Content-Type: text/event-stream\nCache-Control: no-cache" << CHAR_CR << CHAR_LF;
-    }
+	createFieldStream();
 // -------- header composition ^^ ---------------
 
     try {
         if (_file.find(".php") != std::string::npos)
         {
-               Cgi test;
-                std::string phpresp;
-                // phpresp = "HTTP/1.1 200 OK\nContent-Type: text/event-stream\nCache-Control: no-cache\n";
-                // phpresp +=  test.executeCgi("./example_sites/phptestsite/send_sse.php");
-                phpresp +=  test.executeCgi(path);
-            std::stringstream buffer;
-
-            buffer << _status_line << fields_stream.str() << CHAR_CR << CHAR_LF;
-            std::string _response_str = buffer.str();
-
-            buffer << phpresp << CHAR_CR << CHAR_LF; // write php data in
-
-            _response_str = buffer.str();
-            if (send(client_socket.fd, _response_str.c_str(), strlen(_response_str.c_str()), 0) < 0)
-                throw_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
-            std::cout << CYAN << "Response class: Server sent data" << NC << std::endl;
+            runSendCig(path);
         }
         else if (_file.find(".jpg") != std::string::npos || _file.find(".png") != std::string::npos ||  _file.find(".ico") != std::string::npos)
         {
-            // std::ifstream fin(path, std::ios::in | std::ios::binary);
-            std::ifstream fin(path, std::ios::in);
-            std::ostringstream oss;
- 
-            oss << fin.rdbuf();
-  
-            std::stringstream ss;
-            ss << oss.str().length();
-            std::string str = ss.str();
-            fields_stream << CHAR_LF << "accept-ranges: bytes\ncontent-length: " << str << CHAR_CR << CHAR_LF;
-
-            std::ostringstream buffer;
-       
-            buffer << _status_line << fields_stream.str() << CHAR_CR << CHAR_LF;
-
-            std::string _response_str = buffer.str();  // write before the file staff
-
-            buffer << oss.str() << CHAR_CR << CHAR_LF;
-            _response_str = buffer.str();
-     
-            if (send(client_socket.fd,  &(*(_response_str.begin())) , _response_str.length(), 0) < 0)
-                throw_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
-            std::cout << CYAN << "Response class: Server sent data" << NC << std::endl;
+			sendPicResp(path);
         }
         else
         {
