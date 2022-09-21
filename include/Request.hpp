@@ -9,6 +9,7 @@
 
 #include "utility.hpp"
 #include "Socket.hpp"
+#include "Conneciton.hpp"
 #include "http_type_traits.hpp"
 
 #include <string>
@@ -42,18 +43,15 @@ class Request {
 
     public:
 
-        Request(const Socket& client);
+        Request(const Connection& c);
         Request(const Request& other);
         Request& operator=(const Request& other);
         ~Request();
 
         void parse();
-        const Socket& get_client() const;
         bool field_is_value(const char* field_name, const char* value) const;
 
-        Status _status;
-
-        int status() const { return (_status.get_current()); }
+        int status;
 
     private:
 
@@ -95,13 +93,12 @@ class Request {
 
     public: // make private or response friend of request
 
+        Connection _connection;
         parser parser;
         header_t header;
         std::map<std::string, std::string> fields;
-        const Socket client_socket;
+        bool is_persistent;
         std::string error_msg;
-        // Status status;
-        bool keep_alive; // set to fase if error occurs or connection not meant to be persistent
 
 }; // CLASS Request
 

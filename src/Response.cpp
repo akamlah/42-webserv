@@ -25,7 +25,7 @@ const char* Response::throw_status(int status, const char* msg) const {
 }
 
 Response::Response(const Request& request): _request(request), _status(request.status()), client_socket(request.get_client()), keep_alive(request.keep_alive) {
-    
+
     __set_content_type();
     
     // #if DEBUG
@@ -89,7 +89,7 @@ Response::Response(const Request& request): _request(request), _status(request.s
         // std::cout << "RESPONSE:\n" << _response_str << std::endl;
         buffer << page_file.rdbuf() << CRLF;
         _response_str = buffer.str();
-        if (send(client_socket.fd, _response_str.c_str(), strlen(_response_str.c_str()), 0) < 0)
+        if (send(client_socket, _response_str.c_str(), strlen(_response_str.c_str()), 0) < 0)
             throw_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data"); 
         std::cout << CYAN << "Response class: Server sent data" << NC << std::endl;
 

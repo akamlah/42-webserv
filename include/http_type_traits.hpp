@@ -95,26 +95,12 @@ namespace http {
 // a 414 (URI Too Long) status code (see Section 15.5.15 of [HTTP]).
 #define TARGET_SIZE 1024
 
-class Status {
-
+class StatusPhrase {
     public:
-
-        Status(): _current(200) { _map_codes(); }
-        Status(const Status& other) { _map_codes(); _current = other.get_current(); }
-        Status(const int status) { _map_codes(); _current = status; }
-        Status& operator=(const Status& other) { _current = other.get_current(); return (*this); }
-        Status& operator=(const int status) { _current = status; return (*this); }
-        ~Status() {}
-
-        int get_current() const { return (_current); }
-        void set_current(const int status) { _current = status; }
+        StatusPhrase() { _map_codes(); }
         const char* operator[](int n) const { return (status_code[n]); }
-
     private:
-
-        int _current;
         const char *status_code[512];
-
         void _map_codes() {
             bzero(status_code, 512);
             status_code[100] = "100 (CONTINUE)";
@@ -167,7 +153,7 @@ class Status {
             status_code[507] = "507 (HTTP VERSION NOT SUPPORTED)";
             status_code[511] = "511 (NETWORK AUTHENTICATION REQUIRE)";
         }
-}; // CLASS Status
+}; // CLASS StatusPhrase
 
 } // NAMESPACE http
 } // NAMESPACE ws

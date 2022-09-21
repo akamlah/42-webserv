@@ -31,7 +31,8 @@ CLASSES_NAME = \
 	Response \
 	Config \
 	Poll \
-	Kqueue
+	Kqueue \
+	Connection
 
 OTHER_CPPFILES = \
 

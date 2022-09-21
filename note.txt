@@ -1,1 +1,202 @@
-test
+
+// goes through byte by byte and at every newline reads the previous line into the data structure.
+int Request::parse(Request& request, int fd) {
+    int status = WS_200_OK;
+    while (msg_length < BUFFER_SIZE) {
+        if (!(status = __get_byte(request, fd)))
+            break ;
+        if (buffer[msg_length] == '\0') {
+            _status = 0;
+            throw EofReached();
+        }
+        // std::cout << CYAN << "|" << buffer[msg_length] << "|" << NC;
+        if (status != WS_200_OK)
+            return (status) ; // if 0 it is end of file
+        ++msg_length;
+        ++parser::line_length;
+        if (buffer[msg_length - 1] == LF_int) { // if newline found:
+            ++nb_lines;
+            // do strlcpy here ?
+            if (!(status = __parse_previous_line(request, (char *)buffer + msg_length - parser::line_length))) {
+                std::cout << "final CRLF 2" << std::endl;
+                break ;
+            }
+            if (status != WS_200_OK)
+                return (status);
+        }
+    }
+    // check that minimum was provided
+    if (!start_content)
+        return (error_status(request, WS_400_BAD_REQUEST, "Empty request header"));
+    if (!parser::request_line_done)
+        return (error_status(request, WS_400_BAD_REQUEST, "No request line provided"));
+    if (!host_fields)
+        return (error_status(request, WS_400_BAD_REQUEST, "No host field provided"));
+    buffer[msg_length] = '\0';
+            std::cout << msg_length << std::endl;
+    // std::cout << CYAN << "PARSER: Message recieved: ---------\n\n" << NC << buffer;
+    // std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
+    std::cout << "Going on" << std::endl;
+    return (status);
+}
+
+// reads a byte and does some primary checks
+// encoding must be a superset of US-ASCII [USASCII] -> max 128 (hex 80) (RFC 9112)
+// ANY CR_int not folowed by LF_int is invalid and message is rejected (RFC 9112)
+int Request::__get_byte(Request& request, int fd) {
+    size_t bytes_read = 0;
+    if ((bytes_read = recv(fd, buffer + msg_length, 1, MSG_DONTWAIT)) < 0)
+        return (error_status(request, WS_500_INTERNAL_SERVER_ERROR, "Error recieving data"));
+    if (!bytes_read)
+        return (0);
+    if (buffer[msg_length] >= 0x80)
+        return (error_status(request, WS_400_BAD_REQUEST, "Bad encoding"));
+    if (parser::line_length > 1 && buffer[msg_length - 1] == CR_int && buffer[msg_length] != LF_int)
+        return (error_status(request, WS_400_BAD_REQUEST, "CR not followed by LF"));
+    return (WS_200_OK);
+}
+
+// chacks format and interprets line given
+// SKIP initial CRLF lines if nothing before it
+// Detect end of header with final CRLF
+// if not a CRLF line or a CRLF line that is neither at the end nor at the beginning of the request
+// if here in the middle ANY whitespace at line start is found -> reject
+int Request::__parse_previous_line(Request& request, const char* line) {
+    int status = WS_200_OK;
+    if (!start_content && (parser::line_length == 2 && line[parser::line_length - 2] == CR_int)) {
+        // std::cout << "CRLF" << std::endl;
+        ++nb_empty_lines_beginning;
+    }
+    else if (header_done && (parser::line_length == 2 && buffer[msg_length - 2] == CR_int)) { // final CRLF
+        std::cout << "final CRLF" << std::endl;
+        // from here later start parsing mesasge BODY if any, else stop.
+        return (0);
+    }
+    else {
+        start_content = true;
+        if (isspace(line[0]))
+            return (error_status(request, WS_400_BAD_REQUEST, "Whitespace at line begin"));
+        if (!parser::request_line_done) {
+            if ((status = __parse_parser::request_line(request, line)) != WS_200_OK)
+                return (status);
+            parser::request_line_done = true;
+        }
+        else
+            __parse_field_line(request, line);
+        header_done = true;
+    }
+    parser::line_length = 0;
+    return (WS_200_OK);
+}
+
+// if line not terminated by CRLF -> message rejected
+// use a copy to null terminate line without modifyig whole buffer
+// exclude any whitespace except SP and final CRLF
+// if space after a space -> invalid format
+//  A server that receives a method longer than any that it implements SHOULD 
+//  respond with a 501 (Not Implemented) status code -> BUFFER SIZES
+int Request::__parse_parser::request_line(Request& request, const char* line) {
+    size_t i = 0;
+    int skip = 0;
+    int status = WS_200_OK;
+
+    if (parser::line_length > REQUEST_LINE_LENGTH)
+        return (error_status(request, WS_501_NOT_IMPLEMENTED, "Header too long"));
+    strlcpy(parser::request_line, line, parser::line_length + 1);
+    if (!(parser::request_line[parser::line_length - 2] == CR_int && parser::request_line[parser::line_length - 1] == LF_int))
+        return (error_status(request, WS_400_BAD_REQUEST, "No CRLF at end of line"));
+    while (i < parser::line_length) {
+        if ( i < parser::line_length - 2 && isspace(parser::request_line[i]) && parser::request_line[i] != SP_int)
+            return (error_status(request, WS_400_BAD_REQUEST, "Bad spacing"));
+        if (parser::request_line[i] == SP_int || parser::request_line[i] == CR_int) { // end of a word
+            if (i + 1 < parser::line_length && parser::request_line[i + 1] == SP_int)
+                return (error_status(request, WS_400_BAD_REQUEST, "Consecutive spaces in start line"));
+            if ((status = __parse_next_word_parser::request_line(request, i, skip) != WS_200_OK))
+                return (status);
+            word_length = 0;
+            skip = 1;
+        }
+        word_length++;
+        i++;
+        if (parser::request_line[i] == LF_int) {
+           if (word_count < 3)
+                return (error_status(request, WS_400_BAD_REQUEST, "Too few words in start line"));
+            break ;
+        }
+    }
+    return (WS_200_OK);
+}
+
+//  An origin server that receives a request method that is unrecognized or not implemented
+// SHOULD respond with the 501 (Not Implemented) status code. 
+// recognized and implemented, but not allowed for the target resource,
+// SHOULD respond with the 405 (Method Not Allowed) status code.
+// taregt size > TARGET_SIZE -> 414 (URI Too Long)
+int Request::__parse_next_word_parser::request_line(Request& request, int i, int skip) {
+    ++word_count;
+    if (word_count > 3)
+        return (error_status(request, WS_400_BAD_REQUEST, "Too many words in start line"));
+    strlcpy(word, parser::request_line + i - word_length + skip, word_length + 1 - skip); // null terminated copy of word
+    if (word_count == 1) {
+        if (!__is_method(word, word_length))
+            return (error_status(request, WS_501_NOT_IMPLEMENTED, "Unknown method"));
+        header.method = word;
+    }
+    if (word_count == 2) {
+        header.target = word; // see later if it is valid
+    }
+    if (word_count == 3) {
+        if ((strlen(word) != strlen(WS_HTTP_VERSION) || strncmp(WS_HTTP_VERSION, word, strlen(WS_HTTP_VERSION))))
+            return (error_status(request, WS_400_BAD_REQUEST, "Bad version name"));
+        header.version = word;
+    }
+    return (WS_200_OK);
+}
+
+static void str_tolower(char * str) {
+    int i = 0;
+    while(str[i]) {
+        str[i] = tolower(str[i]);
+        i++;
+    }
+}
+
+// A server MUST respond with a 400 (Bad Request) status code to any HTTP/1.1 request message
+// that lacks a Host header field and to any request message that contains more than one Host
+// header field line or a Host header field with an invalid field value.
+// TODO:
+//  If the target URI includes an authority component, then a client MUST send a
+// field value for Host that is identical to that authority component
+int Request::__parse_field_line(Request& request, const char* line) {
+    char field_line_tmp[5000];
+    bzero(field_line_tmp, 5000);
+    strlcpy(field_line_tmp, line, parser::line_length + 1);
+    int i = 0;
+    char name[5000];
+    bzero(name, 5000);
+    char value[5000];
+    bzero(value, 5000); // [ ! ] TODO: clean up this buffer hell
+    while (field_line_tmp[i]) {
+        if (field_line_tmp[i] == ':') {
+            strlcpy(name, field_line_tmp, i + 1);
+            if (!i || (i && name[i - 1] == ' '))
+                return (error_status(request, WS_400_BAD_REQUEST, "Space before ':'"));
+            str_tolower(name);
+            if (!strcmp("host", name))
+                ++host_fields;
+            if (host_fields > 1)
+                return (error_status(request, WS_400_BAD_REQUEST, "Too many host fields"));
+            i++;
+            if (field_line_tmp[i] != ' ')
+                return (error_status(request, WS_400_BAD_REQUEST, "Missing space after ':'"));
+            while (field_line_tmp[i] == ' ')
+                i++;
+            strlcpy(value, field_line_tmp + i, strlen(&field_line_tmp[0] + i) - 1);
+            str_tolower(value);
+            fields.insert(std::pair<std::string, std::string>(name, value));
+            return (WS_200_OK);
+        }
+        i++;
+    }
+    return (error_status(request, WS_400_BAD_REQUEST, "Missing ':' in field line"));
+}

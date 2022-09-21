@@ -45,13 +45,14 @@ class Response {
 
         Request _request;
 
-        Status _status;
-        const Socket client_socket;
+        int _status;
+        // const Socket client_socket;
+        int client_socket;
         
         std::string _path;
         std::stringstream _fields_stream;
         std::string _response_str;
-    
+
     public:
 
         bool keep_alive; // set to fase if error occurs or connection not meant to be persistent
