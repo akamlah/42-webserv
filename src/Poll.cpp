@@ -35,6 +35,8 @@ void Poll::add_to_poll(int fd, short events, short revents)
 
 void Poll::poll()
 {
+    if (DEBUG)
+        std::cout << "polling" << std::endl;
     int temp = 0;
 
     temp = ::poll(&(fds[0].elem), fds.size(), timeout);

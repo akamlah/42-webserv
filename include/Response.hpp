@@ -41,7 +41,6 @@ class Response {
         // + cpy assign ope
         ~Response();
 
-        const char *c_str() const; // full response to c string
         int status() const { return (_status); }
         void send(const int fd);
 

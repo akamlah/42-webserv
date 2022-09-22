@@ -29,7 +29,7 @@ Response::Response(const Request& request, const int fd): _request(request), _st
 
     __set_content_type();
     
-    // #if DEBUG
+    #if DEBUG
     std::cout << RED << "rsp: PARSED REQUEST STATUS: " << request.status() << NC << std::endl;
     std::cout << CYAN << "rsp: PARSED HEADER:\n" \
     << "\tMethod: " << request.header.method << "\n" \
@@ -41,8 +41,7 @@ Response::Response(const Request& request, const int fd): _request(request), _st
     //     std::cout << it->first << "|" << it->second << std::endl;
     // }
     // std::cout << NC << std::endl;
-    // #endif
-
+    #endif
 
     __set_target_path();
 
@@ -112,7 +111,7 @@ void Response::send(const int fd) {
 }
 
 
-// - - - - - - - path - - - - - - - -
+// - - - - - - - path/ utils - - - - - - - -
 
 static std::string __extension(const std::string& target) {
     size_t pos = target.rfind('.');
@@ -139,9 +138,14 @@ void Response::__set_target_path() {
     // fetch path from config struct later, for now hardcode example
     // or use the DEFAULT CONFIG -> todo
     if (status() == WS_200_OK) {
-        root = "./example_sites/example2";
-        if (_request.header.target == "/")
-            file = "/index.html";
+        // root = "./example_sites/example2";
+        root = "./default_pages/errors";
+        if (_request.header.target == "/") {
+            std::stringstream stream_file;
+            stream_file << "/error_400.html";
+            file = stream_file.str();
+            // file = "/index.html";
+        }
         else
             file = _request.header.target;
     }
@@ -162,10 +166,6 @@ std::string Response::__generate_status_line() const {
 }
 
 Response::~Response() {}
-
-const char *Response::c_str() const {
-    return (_response_str.c_str());
-}
 
 } // NAMESPACE http
 } // NAMESPACE ws
