@@ -51,7 +51,9 @@ Response::Response(const Request& request, const int fd): _request(request), _st
     #endif
 
     if (request._is_persistent == true
+        // && (request.field_is_value("connection", "keep-alive")
         && (((request.fields.find("connection"))->second == "keep-alive")
+        // || request.field_is_value("connection", "chunked"))) {
         || ((request.fields.find("connection"))->second == "chunked"))) {
             keep_alive = true;
 
@@ -92,9 +94,9 @@ Response::Response(const Request& request, const int fd): _request(request), _st
         buffer << page_file.rdbuf() << CRLF;
         _response_str = buffer.str();
 
-    if (::send(fd, _response_str.c_str(), strlen(_response_str.c_str()), 0) < 0)
-        throw_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data"); 
-    std::cout << CYAN << "Response class: Server sent data" << NC << std::endl;
+        if (::send(fd, _response_str.c_str(), strlen(_response_str.c_str()), 0) < 0)
+            throw_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
+        std::cout << CYAN << "Response class: Server sent data" << NC << std::endl;
 
     } catch (std::exception& e) {
         std::cout << e.what() << std::endl;
