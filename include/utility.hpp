@@ -17,20 +17,27 @@
 
 namespace ws {
 
+typedef struct c_data {
+	std::vector<int>	ports; /// note dublication? same port in confi file how to handle.
+	int		port;
+	std::vector<std::string> hosts;
+	std::string	host;
+	std::string	root;
+	std::string	index;
+} config_data;
+
 // some colors for output
 #define RED "\033[0;31m"
 #define CYAN "\033[0;36m"
 #define NC "\033[0m"
 
-#define DEBUG 0
+#ifndef DEBUG
+#define DEBUG 0 // rule "make dbg" defines this at compiletime
+#endif
 
-typedef struct c_data {
-    std::vector<int> ports;
-    int		port;
-	std::string	host;
-	std::string	root;
-	std::string	index;
-} config_data;
+// #ifdef DEBUG
+// #define DEBUG 1
+// #endif
 
 // maybe we will not need this
 class exception : public std::exception { }; // might put stuff in here ?

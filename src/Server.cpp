@@ -15,6 +15,8 @@ const char* Server::SystemError::what() const throw() {
     return ("Server system error");
 }
 
+// --------------------------------------------------------------------------------------------------------
+
 Server::Server(config_data& configData) {
     int temp = 1;
 
@@ -38,6 +40,7 @@ Server::Server(config_data& configData) {
         (iter->second._address).sin6_family = AF_INET6; // as option ?
         (iter->second._address).sin6_port = htons(iter->first.port);
     }
+    _number_of_listening_ports = _listening_sockets.size();
 }
 
 Server::Server(Socket& server_socket, int port) {
@@ -49,11 +52,14 @@ Server::Server(Socket& server_socket, int port) {
         throw_print_error(SystemError(), "setsockopt() failed");
     if (ioctl(_listening_sockets.begin()->first.fd, FIONBIO, (char *)&temp) < 0)
         throw_print_error(SystemError(), "ioctl() failed");
-   _listening_sockets[server_socket]._address.sin6_family = AF_INET6; // as option ?
+    _listening_sockets[server_socket]._address.sin6_family = AF_INET6; // as option ?
     _listening_sockets[server_socket]._address.sin6_port = htons(port);
+    _number_of_listening_ports = _listening_sockets.size();
 }
 
 Server::~Server() {}
+
+// --------------------------------------------------------------------------------------------------------
 
 void Server::listen(const int backlog) const {
     
@@ -72,89 +78,9 @@ void Server::listen(const int backlog) const {
     }
 }
 
-int Server::accept(int fd) const {
-    int new_conn_fd;
-    struct sockaddr_in6 client_address;
-    socklen_t client_length = sizeof(client_address);
-    new_conn_fd = ::accept(fd, (struct sockaddr *)&client_address, &client_length);
-    return new_conn_fd;
-}
-
-void Server::handle_connection(Socket& new_connection) const {
-    // 1 parse request
-    try{
-        Request new_request(new_connection); // paring inside
-        // 2 send response
-        respond(new_connection, new_request);
-    }
-    // temporary
-    catch (ws::exception& e) {
-        // only catch specific exceptions
-        // std::cout << "BAD REQUEST" << std::endl; /* bad request error */
-        throw;
-    }
-
-// CODE TO TEST CONNECTION INDIPENDENTLY OF REQUEST/RESPONSE CLASSES --------------------------------
-        char buffer[1024];
-        bzero(buffer,256);
-        // size_t bytes_read;
-        FILE *html_data = fopen("./example_sites/example1/index.html", "r");
-        if (!html_data)
-            throw_print_error(SystemError());
-        char response_data[1024];
-        if (fgets(response_data, 1024, html_data) == NULL)
-            throw_print_error(SystemError());
-        char http_header[2048] = "HTTP/1.1 200 OK\r\n\n";
-        strcat(http_header, response_data);
-        // if ((bytes_read = read(new_connection.fd, buffer, 1023)) < 0)
-        //     throw_print_error(SystemError());
-        std::cout << CYAN << "Message recieved: ---------\n\n" << NC << buffer;
-        std::cout << CYAN << "---------------------------\n" << NC << std::endl;
-
-                // html response test ---------------------------
-        //                 std::ifstream confFile;
-                        
-        //                 if (trythis)
-        //                 {
-        //                     confFile.open("./example_sites/someJoke/index.html", std::ios::in);
-        //                     trythis = false;
-        //                 }
-        //                 else
-        //                     confFile.open("./example_sites/someJoke/server.js", std::ios::in);
-        //                 if (confFile.fail())
-        //                     throw_print_error(SystemError());
-        //                 std::stringstream buffer2;
-        //                 buffer2 << confFile.rdbuf();
-        //                 std::string temp = "HTTP/1.1 200 OK\r\n\n" + buffer2.str();
-        // int sending_status = send(new_connection.fd, temp.c_str(), temp.size(), 0);
-                // end resos test -------------------------
-
-        // how to stop the browser to be in constant loading phase?
-
-        int sending_status = send(new_connection.fd, http_header, sizeof(http_header), 0);
-        if (sending_status < 0)
-            throw_print_error(SystemError());
-        std::cout << CYAN << "Server sent data" << NC << std::endl;
-// --------------------------------------------------------------------------------------------------
-}
-
-void Server::respond(Socket& new_connection, Request request) const {
-    // generate response according to request & send it:
-    try {
-        Response response(request);
-        // send(response)
-        if (::send(new_connection.fd, response.c_str(), sizeof(response.c_str()), 0) < 0) {
-            throw_print_error(SystemError(), "Failed to send response");
-        }
-        std::cout << CYAN << "Server sent response" << NC << std::endl;
-    }
-    catch(std::exception& e) { throw_print_error(SystemError()); }
-}
-
 void    Server::run(int timeout)
 {
-    int number_of_listening_ports = _listening_sockets.size();
-
+    // number_of_listening_ports = _listening_sockets.size(); <- is in constructors now
     _poll.set_timeout(timeout);
     for(std::map<Socket, s_address>::const_iterator iter = _listening_sockets.cbegin(); iter != _listening_sockets.cend(); ++iter)
         _poll.add_to_poll(iter->first.fd, POLLIN, 0);
@@ -162,100 +88,83 @@ void    Server::run(int timeout)
         if (DEBUG) 
             std::cout << "Waiting on poll()..." << std::endl;
         _poll.poll();
-        handle_events(number_of_listening_ports);
+        handle_events();
         _poll.compress();
 
-    } while (number_of_listening_ports);
+    } while (_number_of_listening_ports);
     _poll.close_all();
 } 
 
-void Server::handle_events(int& number_of_listening_ports)
+void Server::handle_events()
 {
     int    current_size = _poll.fds.size();
 
-    for (int i = 0; i < current_size; ++i)
+    for (int poll_index = 0; poll_index < current_size; ++poll_index)
     {
-        if (_poll.fds[i].elem.revents == 0)
+        std::cout << "iter on index " << poll_index << std::endl;
+        if (_poll.fds[poll_index].elem.revents == 0)
             continue;
-        if (_poll.fds[i].elem.revents != POLLIN)
+        if (_poll.fds[poll_index].elem.revents != POLLIN)
         {
-            if (DEBUG) 
-                std::cout << "  Error! revents = " << _poll.fds[i].elem.revents << std::endl;
-            close_connection(i);
+            if (DEBUG)
+                std::cout << "  Error! revents = " << _poll.fds[poll_index].elem.revents << std::endl;
+            close_connection(poll_index);
             continue;
         }
-        if (i < number_of_listening_ports)
-            accept_new_connections(i, number_of_listening_ports);
+        if (poll_index < _number_of_listening_ports)
+            accept_new_connections(poll_index);
         else
-            handle_incoming(i);
+            handle_connection(poll_index);
     }
 }
 
-void Server::accept_new_connections(int& index, int& number_of_listening_ports)
-{
-    int    incoming_fd;
+// --------------------------------------------------------------------------------------------------------
 
+// void map_connection(const Connection& c) {
+
+// }
+
+void Server::accept_new_connections(const int poll_index)
+{
+    int fd = _poll.fds[poll_index].elem.fd;
     if (DEBUG)
-        std::cout << "Listening socket " << _poll.fds[index].elem.fd << "is readable." << std::endl;
-    do
-    {
-        incoming_fd = accept(_poll.fds[index].elem.fd);
-        if (incoming_fd < 0)
-        {
-            if (errno != EWOULDBLOCK)
-            {
-                if (DEBUG){
-                    std::cerr << "accept() failed on listening port " << _poll.fds[index].elem.fd << std::endl;
+        std::cout << "Listening socket " << _poll.fds[poll_index].elem.fd << "is readable." << std::endl;
+    do {
+        http::Connection c;
+        c.establish(fd);
+        if (!c.good()) {
+            if (errno != EWOULDBLOCK) {
+                if (DEBUG) {
+                    std::cerr << "accept() failed on listening port " << _poll.fds[poll_index].elem.fd << std::endl;
                     std::cerr << "Port has been discarded from array" << std::endl;
                 }
-                close_connection(index);
-                --number_of_listening_ports;
+                close_connection(poll_index);
+                --_number_of_listening_ports;
             }
             break;
         }
-        _poll.add_to_poll(incoming_fd, POLLIN);
-    } while (incoming_fd != -1);
-}
-
-void Server::handle_incoming(int& index)
-{ 
-    Socket  new_conn;
-    bool    close_conn = false;
-
-    if (DEBUG)
-    std::cout << "Descriptor " << _poll.fds[index].elem.fd << " is readable" << std::endl;
-    do
-    {
-        new_conn = Socket(_poll.fds[index].elem.fd);
-        try { handle_connection(new_conn); }
-        catch (ws::Request::BadRead& e)
-        {
-            if (errno != EWOULDBLOCK)
-            {
-                if (DEBUG)
-                    std::cerr << "  recv() failed" << std::endl;
-                close_conn = true;
-            }
-            break;
-        }
-        catch (ws::Request::EofReached& e)
-        {
-            if (DEBUG)
-                std::cerr << "  Connection closed" << std::endl;
-            close_conn = true;
-            break;
-        }
+        _poll.add_to_poll(c.fd(), POLLIN);
+        _connections[poll_index + 1] = c;
     } while (true);
-    if (close_conn)
-        close_connection(index);
 }
 
-void Server::close_connection(int index)
+void Server::handle_connection(const int poll_index)
 {
-    close(_poll.fds[index].elem.fd);
-    _poll.fds[index].elem.fd = -1;
+    // + timeout ?
+    // + try catch ?
+    _connections[poll_index].handle();
+    if (!_connections[poll_index].is_persistent()) {
+        close_connection(poll_index);
+        std::cout << "  Connection closed" << std::endl;
+    }
+}
+
+void Server::close_connection(const int poll_index)
+{
+    close(_poll.fds[poll_index].elem.fd);
+    _poll.fds[poll_index].elem.fd = -1;
     _poll.compress_array = true;
+    _connections.erase(poll_index);
 }
 
 } // NAMESPACE ws
-
