@@ -13,7 +13,7 @@ namespace http {
 //     return ("");
 // }
 
-Connection::Connection(const int fd): _fd(fd), _status(WS_200_OK), _is_persistent(false) { }
+Connection::Connection(const int fd): _fd(fd), _status(0), _is_persistent(true) { }
 
 Connection::Connection(): _is_persistent(false) { }
 
@@ -51,7 +51,9 @@ void Connection::handle() {
     try {
         http::Request request;
         try {
-            _status = request.parse(_fd);
+            request.parse(_fd);
+            _status = request.status();
+            _is_persistent = request.is_persistent();
         }
         catch (http::Request::EofReached& e) { // <- very hacky, might become a problem, we'll see
             std::cout << "EOF" << std::endl;

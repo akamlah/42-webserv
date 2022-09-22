@@ -43,15 +43,15 @@ bool Request::field_is_value(const char* field_name, const char* value) const {
 }
 
 int Request::status() const { return (_status); }
+bool Request::is_persistent() const { return (_is_persistent);}
 
-int Request::parse(const int fd) {
-    _status = WS_200_OK;
+int Request::parse(const int fd) {    
     std::cout << "about to parse a new request on fd: " << fd << std::endl;
     parser parser;
 
+    _status = WS_200_OK;
     parser.parse(*this, fd);
-    if (_status == 0)
-        throw Request::EofReached(); // not good
+
     // if (status() != WS_200_OK)... should be handeled by response anyways
 
     // #if DEBUG
@@ -118,8 +118,7 @@ int parser::parse(Request& request, int fd) {
         if (!(status = __get_byte(request, fd)))
             break ;
         if (buffer[msg_length] == '\0') {
-            request._status = 0;
-            return (0);
+            throw Request::EofReached(); // not good
         }
         if (status != WS_200_OK)
             return (status) ; // if 0 it is end of file
