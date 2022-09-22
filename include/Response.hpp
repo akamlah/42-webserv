@@ -17,9 +17,16 @@
 namespace ws {
 namespace http {
 
-
 class Response {
-    
+
+    // private:
+
+    //     typedef struct s_header {
+    //         std::string method;
+    //         std::string target;
+    //         std::string version;
+    //     } header_t;    public:
+
     public:
 
         class ResponseException: public ws::exception {
@@ -29,13 +36,14 @@ class Response {
 
         // + exceptions
 
-        Response(const Request& request);
+        Response(const Request& request, const int fd);
         // + cpy constr
         // + cpy assign ope
         ~Response();
 
         const char *c_str() const; // full response to c string
-        int status() const { return (_status.get_current()); }
+        int status() const { return (_status); }
+        void send(const int fd);
 
     private:
 
@@ -43,14 +51,27 @@ class Response {
         // mainly for target check (fstream open error handeling)
         int error_status(Request& request, const int status, const char* msg = NULL) const ;
 
-        Status _status;
-        const Socket client_socket;
-        std::string _status_line;
-        std::string _root;
-        std::string _file;
+        Request _request;
+        int _status;
+        std::string _path;
+        std::stringstream _fields_stream;
         std::string _response_str;
+        bool _is_persistent;
 
-        // status-line = HTTP-version SP status-code SP [ reason-phrase ]
+    public:
+
+        bool keep_alive; // set to fase if error occurs or connection not meant to be persistent
+
+    private:
+
+        std::string __generate_status_line() const ;
+        bool __decide_persistency();
+        void __set_target_path();
+        void __buffer_target(); // ?
+    
+        void __set_content_type();
+        void __add_field(const char* field_name, const char* value);
+        
 
 }; // CLASS Response
 

@@ -31,7 +31,8 @@ CLASSES_NAME = \
 	Response \
 	Config \
 	Poll \
-	Kqueue
+	Kqueue \
+	Connection
 
 OTHER_CPPFILES = \
 
@@ -88,11 +89,11 @@ obj:
 # compile with fsanitize address flag: 'make dbg'
 
 sani: re
-	@ echo "\033[34;5;36mDebug mode: fsanitize address"
+	@ echo "\033[34;0;36mDebug mode: fsanitize address"
 	@ $(CC) $(CFLAGS) -o $(EXECUTABLE_NAME) $(SOURCES) -g3 -fsanitize=address
 
 dbg:
-	@ echo "\033[34;5;36mDebug mode: flag DEBUG = true"
+	@ echo "\033[34;0;36mDebug mode: flag DEBUG = true"
 	@ $(CC) $(CFLAGS) -o $(EXECUTABLE_NAME) $(SOURCES) -DDEBUG=1
 
 .PHONY = clean
