@@ -43,7 +43,6 @@ class Connection {
         void establish(const int fd);
         void handle();
 
-
     private:
 
         int _fd;
