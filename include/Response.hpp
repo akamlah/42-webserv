@@ -17,9 +17,16 @@
 namespace ws {
 namespace http {
 
-
 class Response {
-    
+
+    // private:
+
+    //     typedef struct s_header {
+    //         std::string method;
+    //         std::string target;
+    //         std::string version;
+    //     } header_t;    public:
+
     public:
 
         class ResponseException: public ws::exception {
@@ -29,13 +36,14 @@ class Response {
 
         // + exceptions
 
-        Response(const Request& request);
+        Response(const Request& request, const int fd);
         // + cpy constr
         // + cpy assign ope
         ~Response();
 
         const char *c_str() const; // full response to c string
-        int status() const { return (_status.get_current()); }
+        int status() const { return (_status); }
+        void send(const int fd);
 
     private:
 
@@ -44,14 +52,11 @@ class Response {
         int error_status(Request& request, const int status, const char* msg = NULL) const ;
 
         Request _request;
-
         int _status;
-        // const Socket client_socket;
-        int client_socket;
-        
         std::string _path;
         std::stringstream _fields_stream;
         std::string _response_str;
+        bool _is_persistent;
 
     public:
 

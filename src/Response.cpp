@@ -17,14 +17,15 @@ const char* Response::throw_status(int status, const char* msg) const {
     #if DEBUG
     if (msg)
         std::cout << RED << msg << ": " << NC;
-    std::cout << RED << "Error: " << Status()[status] << NC << std::endl;
+    std::cout << RED << "Error: " << StatusPhrase()[status] << NC << std::endl;
     #endif
     (void)status;
     (void)msg;
     throw Response::ResponseException();
 }
 
-Response::Response(const Request& request): _request(request), _status(request.status()), client_socket(request.get_client()), keep_alive(request.keep_alive) {
+Response::Response(const Request& request, const int fd): _request(request), _status(request.status()),
+    _is_persistent(request._is_persistent) {
 
     __set_content_type();
     
@@ -35,7 +36,8 @@ Response::Response(const Request& request): _request(request), _status(request.s
     << "\tTarget: " << request.header.target << "\n" \
     << "\tVersion: " << request.header.version << NC << std::endl;
     // std::cout << CYAN << "rsp: PARSED FIELDS:\n";
-    // for (std::map<std::string, std::string>::iterator it = request.fields.begin(); it != request.fields.end(); it++) {
+    // for (std::map<std::string, std::string>::iterator it = request.fields.begin(); \
+        // it != request.fields.end(); it++) {
     //     std::cout << it->first << "|" << it->second << std::endl;
     // }
     // std::cout << NC << std::endl;
@@ -48,7 +50,7 @@ Response::Response(const Request& request): _request(request), _status(request.s
     std::cout << "RESPONSE PATH = " << _path << std::endl;
     #endif
 
-    if (request.keep_alive == true
+    if (request._is_persistent == true
         && (((request.fields.find("connection"))->second == "keep-alive")
         || ((request.fields.find("connection"))->second == "chunked"))) {
             keep_alive = true;
@@ -89,15 +91,24 @@ Response::Response(const Request& request): _request(request), _status(request.s
         // std::cout << "RESPONSE:\n" << _response_str << std::endl;
         buffer << page_file.rdbuf() << CRLF;
         _response_str = buffer.str();
-        if (send(client_socket, _response_str.c_str(), strlen(_response_str.c_str()), 0) < 0)
-            throw_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data"); 
-        std::cout << CYAN << "Response class: Server sent data" << NC << std::endl;
+
+    if (::send(fd, _response_str.c_str(), strlen(_response_str.c_str()), 0) < 0)
+        throw_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data"); 
+    std::cout << CYAN << "Response class: Server sent data" << NC << std::endl;
 
     } catch (std::exception& e) {
         std::cout << e.what() << std::endl;
         throw_status(WS_500_INTERNAL_SERVER_ERROR);
     }
 }
+
+void Response::send(const int fd) {
+
+    if (::send(fd, _response_str.c_str(), strlen(_response_str.c_str()), 0) < 0)
+        throw_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data"); 
+    std::cout << CYAN << "Response class: Server sent data" << NC << std::endl;
+}
+
 
 // - - - - - - - path - - - - - - - -
 
@@ -144,7 +155,7 @@ void Response::__set_target_path() {
 
 std::string Response::__generate_status_line() const {
     std::stringstream stream_status_line;
-    stream_status_line << WS_HTTP_VERSION << SP_int << Status()[status()] << CRLF;
+    stream_status_line << WS_HTTP_VERSION << SP_int << StatusPhrase()[status()] << CRLF;
     return (stream_status_line.str());
 }
 

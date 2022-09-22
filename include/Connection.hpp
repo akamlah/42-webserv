@@ -37,17 +37,17 @@ class Connection {
         int fd() const;
         bool good() const;
         bool is_persistent() const;
-
+        int status() const;
         int get_id() const;
         void set_id(const int id);
         void establish(const int fd);
         void handle();
 
-        int status;
 
     private:
 
         int _fd;
+        int _status;
         int _poll_id;
         struct sockaddr_in6 _address;
         bool _is_persistent;

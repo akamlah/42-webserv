@@ -19,9 +19,9 @@ const char* Request::EofReached::what() const throw() {
 
 // Request::Request(const Socket& client): client_socket(client), keep_alive(true) { }
 // Request::Request(const int fd): fd(fd), keep_alive(true) { }
-Request::Request(const Connection& c): _connection(c) { }
+Request::Request() { }
 
-Request::Request(const Request& other): keep_alive(true) {
+Request::Request(const Request& other): _is_persistent(true) {
     header.method = other.header.method;
     header.target = other.header.target;
     header.version = other.header.version;
@@ -42,15 +42,20 @@ bool Request::field_is_value(const char* field_name, const char* value) const {
     return (false);
 }
 
-void Request::parse() {
-    std::cout << "about to parse a new request on fd: " << fd << std::endl;
+int Request::status() const { return (_status); }
 
-    parser.parse(*this);
-    _connection._status
-    if (status.get_current() != WS_200_OK)... should be handeled by response anyways
+int Request::parse(const int fd) {
+    _status = WS_200_OK;
+    std::cout << "about to parse a new request on fd: " << fd << std::endl;
+    parser parser;
+
+    parser.parse(*this, fd);
+    if (_status == 0)
+        throw Request::EofReached(); // not good
+    // if (status() != WS_200_OK)... should be handeled by response anyways
 
     // #if DEBUG
-    std::cout << RED << "PARSED REQUEST STATUS: " << this->status() << NC << std::endl;
+    std::cout << RED << "PARSED REQUEST STATUS: " << _status << NC << std::endl;
     std::cout << CYAN << "PARSED HEADER:\n" \
     << "\tMethod: " << header.method << "\n" \
     << "\tTarget: " << header.target << "\n" \
@@ -61,6 +66,7 @@ void Request::parse() {
     }
     std::cout << NC << std::endl;
     // #endif
+    return (_status);
 }
 
 Request::~Request() { /* free data ?*/ }
@@ -69,7 +75,7 @@ Request::~Request() { /* free data ?*/ }
 // HTTP REQUEST PARSER
 // --------------------------------------------------------------------------------------------------------
 
-Request::parser::parser(): line_length(0), nb_lines(0), msg_length(0), nb_empty_lines_beginning(0),
+parser::parser(): line_length(0), nb_lines(0), msg_length(0), nb_empty_lines_beginning(0),
     word_length(0), host_fields(0), word_count(0), start_content(false), request_line_done(false),
     header_done(false)
 {
@@ -78,27 +84,27 @@ Request::parser::parser(): line_length(0), nb_lines(0), msg_length(0), nb_empty_
     bzero(word, 10000);
 }
 
-Request::parser::~parser() {}
+parser::~parser() {}
 
-int Request::parser::error_status(Request& request, const int status, const char* msg) const {
+int parser::error_status(Request& request, const int status, const char* msg) const {
     // #if DEBUG
     if (msg)
         std::cout << RED << msg << ": " << NC;
-    std::cout << RED << "Error: " << Status()[status] << NC << std::endl; // temporary
+    std::cout << RED << "Error: " << StatusPhrase()[status] << NC << std::endl; // temporary
     // #endif
     request.error_msg = msg;
     request._status = status;
-    request.keep_alive = false;
+    request._is_persistent = false;
     return (status);
 }
 
 // implemented methods: -> CENTRALISE later!!
 const char Request::methods[4][10] = {"GET", "HEAD", "POST", "DELETE"};
 
-bool Request::parser::__is_method(const char *word, size_t word_length) const {
+bool parser::__is_method(const char *word, size_t word_length) const {
     int i = 0;
     while (i < 4) {
-        if (!strncmp(methods[i], word, word_length) && word_length == strlen(methods[i]))
+        if (!strncmp(Request::methods[i], word, word_length) && word_length == strlen(Request::methods[i]))
             return true;
         i++;
     }
@@ -106,23 +112,21 @@ bool Request::parser::__is_method(const char *word, size_t word_length) const {
 }
 
 // goes through byte by byte and at every newline reads the previous line into the data structure.
-int Request::parser::parse(Request& request, int fd) {
+int parser::parse(Request& request, int fd) {
     int status = WS_200_OK;
     while (msg_length < BUFFER_SIZE) {
         if (!(status = __get_byte(request, fd)))
             break ;
         if (buffer[msg_length] == '\0') {
             request._status = 0;
-            throw EofReached();
+            return (0);
         }
-        // std::cout << CYAN << "|" << buffer[msg_length] << "|" << NC;
         if (status != WS_200_OK)
             return (status) ; // if 0 it is end of file
         ++msg_length;
         ++line_length;
         if (buffer[msg_length - 1] == LF_int) { // if newline found:
             ++nb_lines;
-            // do strlcpy here ?
             if (!(status = __parse_previous_line(request, (char *)buffer + msg_length - line_length))) {
                 std::cout << "final CRLF 2" << std::endl;
                 break ;
@@ -149,7 +153,7 @@ int Request::parser::parse(Request& request, int fd) {
 // reads a byte and does some primary checks
 // encoding must be a superset of US-ASCII [USASCII] -> max 128 (hex 80) (RFC 9112)
 // ANY CR_int not folowed by LF_int is invalid and message is rejected (RFC 9112)
-int Request::parser::__get_byte(Request& request, int fd) {
+int parser::__get_byte(Request& request, int fd) {
     size_t bytes_read = 0;
     if ((bytes_read = recv(fd, buffer + msg_length, 1, MSG_DONTWAIT)) < 0)
         return (error_status(request, WS_500_INTERNAL_SERVER_ERROR, "Error recieving data"));
@@ -167,12 +171,10 @@ int Request::parser::__get_byte(Request& request, int fd) {
 // Detect end of header with final CRLF
 // if not a CRLF line or a CRLF line that is neither at the end nor at the beginning of the request
 // if here in the middle ANY whitespace at line start is found -> reject
-int Request::parser::__parse_previous_line(Request& request, const char* line) {
+int parser::__parse_previous_line(Request& request, const char* line) {
     int status = WS_200_OK;
-    if (!start_content && (line_length == 2 && line[line_length - 2] == CR_int)) {
-        // std::cout << "CRLF" << std::endl;
+    if (!start_content && (line_length == 2 && line[line_length - 2] == CR_int))
         ++nb_empty_lines_beginning;
-    }
     else if (header_done && (line_length == 2 && buffer[msg_length - 2] == CR_int)) { // final CRLF
         std::cout << "final CRLF" << std::endl;
         // from here later start parsing mesasge BODY if any, else stop.
@@ -201,7 +203,7 @@ int Request::parser::__parse_previous_line(Request& request, const char* line) {
 // if space after a space -> invalid format
 //  A server that receives a method longer than any that it implements SHOULD 
 //  respond with a 501 (Not Implemented) status code -> BUFFER SIZES
-int Request::parser::__parse_request_line(Request& request, const char* line) {
+int parser::__parse_request_line(Request& request, const char* line) {
     size_t i = 0;
     int skip = 0;
     int status = WS_200_OK;
@@ -238,7 +240,7 @@ int Request::parser::__parse_request_line(Request& request, const char* line) {
 // recognized and implemented, but not allowed for the target resource,
 // SHOULD respond with the 405 (Method Not Allowed) status code.
 // taregt size > TARGET_SIZE -> 414 (URI Too Long)
-int Request::parser::__parse_next_word_request_line(Request& request, int i, int skip) {
+int parser::__parse_next_word_request_line(Request& request, int i, int skip) {
     ++word_count;
     if (word_count > 3)
         return (error_status(request, WS_400_BAD_REQUEST, "Too many words in start line"));
@@ -248,9 +250,8 @@ int Request::parser::__parse_next_word_request_line(Request& request, int i, int
             return (error_status(request, WS_501_NOT_IMPLEMENTED, "Unknown method"));
         request.header.method = word;
     }
-    if (word_count == 2) {
+    if (word_count == 2)
         request.header.target = word; // see later if it is valid
-    }
     if (word_count == 3) {
         if ((strlen(word) != strlen(WS_HTTP_VERSION) || strncmp(WS_HTTP_VERSION, word, strlen(WS_HTTP_VERSION))))
             return (error_status(request, WS_400_BAD_REQUEST, "Bad version name"));
@@ -273,7 +274,7 @@ static void str_tolower(char * str) {
 // TODO:
 //  If the target URI includes an authority component, then a client MUST send a
 // field value for Host that is identical to that authority component
-int Request::parser::__parse_field_line(Request& request, const char* line) {
+int parser::__parse_field_line(Request& request, const char* line) {
     char field_line_tmp[5000];
     bzero(field_line_tmp, 5000);
     strlcpy(field_line_tmp, line, line_length + 1);
