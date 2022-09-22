@@ -37,7 +37,7 @@ Server::Server(config_data& configData) {
             std::cout << "Port ignored" << std::endl;
             continue;
         }
-        (iter->second._address).sin6_family = AF_INET6; // as option ?
+        (iter->second._address).sin6_family = AF_INET6;
         (iter->second._address).sin6_port = htons(iter->first.port);
     }
     _number_of_listening_ports = _listening_sockets.size();
@@ -52,7 +52,7 @@ Server::Server(Socket& server_socket, int port) {
         throw_print_error(SystemError(), "setsockopt() failed");
     if (ioctl(_listening_sockets.begin()->first.fd, FIONBIO, (char *)&temp) < 0)
         throw_print_error(SystemError(), "ioctl() failed");
-    _listening_sockets[server_socket]._address.sin6_family = AF_INET6; // as option ?
+    _listening_sockets[server_socket]._address.sin6_family = AF_INET6;
     _listening_sockets[server_socket]._address.sin6_port = htons(port);
     _number_of_listening_ports = _listening_sockets.size();
 }
@@ -80,7 +80,6 @@ void Server::listen(const int backlog) const {
 
 void    Server::run(int timeout)
 {
-    // number_of_listening_ports = _listening_sockets.size(); <- is in constructors now
     _poll.set_timeout(timeout);
     for(std::map<Socket, s_address>::const_iterator iter = _listening_sockets.cbegin(); iter != _listening_sockets.cend(); ++iter)
         _poll.add_to_poll(iter->first.fd, POLLIN, 0);
@@ -101,7 +100,8 @@ void Server::handle_events()
 
     for (int poll_index = 0; poll_index < current_size; ++poll_index)
     {
-        std::cout << "iter on index " << poll_index << std::endl;
+        if (DEBUG)
+            std::cout << "iter on index " << poll_index << std::endl;
         if (_poll.fds[poll_index].elem.revents == 0)
             continue;
         if (_poll.fds[poll_index].elem.revents != POLLIN)

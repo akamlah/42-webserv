@@ -13,9 +13,9 @@ namespace http {
 //     return ("");
 // }
 
-Connection::Connection(const int fd): _fd(fd), _status(WS_200_OK), _is_persistent(true) { }
+Connection::Connection(const int fd): _fd(fd), _status(WS_200_OK), _is_persistent(false) { }
 
-Connection::Connection(): _is_persistent(true) { }
+Connection::Connection(): _is_persistent(false) { }
 
 Connection::Connection(const Connection& other) {
     _fd = other._fd;
