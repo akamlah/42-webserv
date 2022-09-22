@@ -257,9 +257,5 @@ void Server::close_connection(int index)
     _poll.compress_array = true;
 }
 
-// Do we need these accessors?
-// const Socket& Server::socket() const { return (_socket); }
-// int Server::port() const { return (_port); }
-
 } // NAMESPACE ws
 
