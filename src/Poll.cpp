@@ -25,6 +25,8 @@ Poll::~Poll()
 
 void Poll::set_timeout(int timeout_in_ms) { timeout = timeout_in_ms; }
 
+int  Poll::get_fd(int index) const { return fds[index].elem.fd; }
+
 
 void Poll::add_to_poll(int fd, short events, short revents)
 {
@@ -35,8 +37,6 @@ void Poll::add_to_poll(int fd, short events, short revents)
 
 void Poll::poll()
 {
-    if (DEBUG)
-        std::cout << "polling" << std::endl;
     int temp = 0;
 
     temp = ::poll(&(fds[0].elem), fds.size(), timeout);

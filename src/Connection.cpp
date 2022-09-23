@@ -15,25 +15,19 @@ namespace http {
 
 Connection::Connection(const int fd): _fd(fd), _status(0), _is_persistent(true) { }
 
-<<<<<<< HEAD
-Connection::Connection(): _is_persistent(false) { }
-=======
 Connection::Connection(): _fd(-1), _status(0), _is_persistent(true) { }
->>>>>>> 41dd9f992646fc1ecf64036157c64361190e588c
 
-Connection::Connection(const Connection& other) {
+Connection::Connection(const Connection& other)
+    : _fd(other._fd), _status(other._status), _address(other._address),
+        _is_persistent(other._is_persistent), _request(other._request) 
+{
     if (DEBUG)
         std::cout << "Connection cpy constr" << std::endl;
-    _fd = other._fd;
-    _status = other._status;
-    _address = other._address;
-    _is_persistent = other._is_persistent;
-    _request = other._request;
 }
 
 Connection& Connection::operator=(const Connection& other) {
     if (DEBUG)
-        std::cout << "Connction ope =" << std::endl;
+        std::cout << "Connection assign ope =" << std::endl;
     _fd = other._fd;
     _status = other._status;
     _address = other._address;
@@ -43,15 +37,15 @@ Connection& Connection::operator=(const Connection& other) {
 }
 
 int Connection::fd() const { return (_fd); }
-bool Connection::good() const { return (_fd < 0 ? false : true); }
+bool Connection::is_good() const { return (_fd < 0 ? false : true); }
 bool Connection::is_persistent() const { return (_is_persistent);}
 int Connection::status() const { return (_status); }
 
 void Connection::establish(const int fd) {
     socklen_t address_length = sizeof(_address);
     _fd = ::accept(fd, (struct sockaddr *)&_address, &address_length);
-    if (DEBUG)
-        std::cout << "established connection on fd " << _fd << " from fd: " << fd << std::endl;
+    if (DEBUG && _fd > 0)
+        std::cout << "<<<<<--------- established connection on fd " << _fd << " from fd: " << fd << std::endl;
 }
 
 void Connection::handle() {

@@ -35,7 +35,7 @@ class Connection {
         ~Connection();
 
         int fd() const;
-        bool good() const;
+        bool is_good() const;
         bool is_persistent() const;
         int status() const;
 
@@ -46,7 +46,7 @@ class Connection {
 
         int _fd;
         int _status;
-        struct sockaddr_in6 _address;
+        struct sockaddr_in6 _address; // ??
         bool _is_persistent;
         Request _request;
 
