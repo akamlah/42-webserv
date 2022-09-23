@@ -25,6 +25,7 @@ namespace http {
 #define SP_int 32
 
 #define CRLF "\r\n"
+#define SP " "
 
 // Common HTTP status codes --------------------------------------------------
 // INFORMATION RESPONSES

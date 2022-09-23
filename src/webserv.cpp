@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
                 // -> multiplexing -> handle inside server class ?
 
                 try {
-                     server.run(3 * 60 * 1000); 
+                     server.run(); 
                 }
                 catch (ws::exception& e) { std::cout << e.what() << std::endl; return -1; }
 

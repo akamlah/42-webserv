@@ -19,13 +19,14 @@ const char* Request::EofReached::what() const throw() {
 
 // Request::Request(const Socket& client): client_socket(client), keep_alive(true) { }
 // Request::Request(const int fd): fd(fd), keep_alive(true) { }
-Request::Request() { }
+Request::Request(): _is_persistent(true), _status(WS_200_OK) { }
 
-Request::Request(const Request& other): _is_persistent(true) {
+Request::Request(const Request& other): _is_persistent(true), _status(WS_200_OK) {
     header.method = other.header.method;
     header.target = other.header.target;
     header.version = other.header.version;
     fields = other.fields;
+    _status = other._status;
 }
 
 Request& Request::operator=(const Request& other) {
@@ -33,6 +34,7 @@ Request& Request::operator=(const Request& other) {
     header.target = other.header.target;
     header.version = other.header.version;
     fields = other.fields;
+    _status = other._status;
     return (*this);
 }
 
@@ -42,19 +44,25 @@ bool Request::field_is_value(const char* field_name, const char* value) const {
     return (false);
 }
 
+std::string Request::get_field_value(const char* field_name) const {
+    std::map<std::string, std::string>::const_iterator field = fields.find(field_name);
+    if (field != fields.end())
+        return (fields.find(field_name)->second);
+    return (std::string());
+}
+
 int Request::status() const { return (_status); }
 bool Request::is_persistent() const { return (_is_persistent);}
 
-int Request::parse(const int fd) {    
-    std::cout << "about to parse a new request on fd: " << fd << std::endl;
-    parser parser;
+int Request::parse(const int fd) {
+    if (DEBUG)
+        std::cout << "about to parse a new request on fd: " << fd << std::endl;
 
+    parser parser;
     _status = WS_200_OK;
     parser.parse(*this, fd);
 
-    // if (status() != WS_200_OK)... should be handeled by response anyways
-
-    // #if DEBUG
+    #if DEBUG
     std::cout << RED << "PARSED REQUEST STATUS: " << _status << NC << std::endl;
     std::cout << CYAN << "PARSED HEADER:\n" \
     << "\tMethod: " << header.method << "\n" \
@@ -65,7 +73,8 @@ int Request::parse(const int fd) {
         std::cout << it->first << "|" << it->second << std::endl;
     }
     std::cout << NC << std::endl;
-    // #endif
+    #endif
+
     return (_status);
 }
 
@@ -87,11 +96,12 @@ parser::parser(): line_length(0), nb_lines(0), msg_length(0), nb_empty_lines_beg
 parser::~parser() {}
 
 int parser::error_status(Request& request, const int status, const char* msg) const {
-    // #if DEBUG
+    #if DEBUG
     if (msg)
         std::cout << RED << msg << ": " << NC;
     std::cout << RED << "Error: " << StatusPhrase()[status] << NC << std::endl; // temporary
-    // #endif
+    #endif
+
     request.error_msg = msg;
     request._status = status;
     request._is_persistent = false;
@@ -115,8 +125,10 @@ bool parser::__is_method(const char *word, size_t word_length) const {
 int parser::parse(Request& request, int fd) {
     int status = WS_200_OK;
     while (msg_length < BUFFER_SIZE) {
-        if (!(status = __get_byte(request, fd)))
+        if (!(status = __get_byte(request, fd))) {
+            std::cout << "get byte returned 0" << std::endl;
             break ;
+        }
         if (buffer[msg_length] == '\0') {
             throw Request::EofReached(); // not good
         }
@@ -127,7 +139,8 @@ int parser::parse(Request& request, int fd) {
         if (buffer[msg_length - 1] == LF_int) { // if newline found:
             ++nb_lines;
             if (!(status = __parse_previous_line(request, (char *)buffer + msg_length - line_length))) {
-                std::cout << "final CRLF 2" << std::endl;
+                if (DEBUG)
+                    std::cout << "final CRLF 2" << std::endl;
                 break ;
             }
             if (status != WS_200_OK)
@@ -145,7 +158,10 @@ int parser::parse(Request& request, int fd) {
             std::cout << msg_length << std::endl;
     // std::cout << CYAN << "PARSER: Message recieved: ---------\n\n" << NC << buffer;
     // std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
-    std::cout << "Going on" << std::endl;
+    if (DEBUG)
+        std::cout << "Going on: ";
+    if (DEBUG)
+        std::cout << request._is_persistent << std::endl;
     return (status);
 }
 
@@ -175,7 +191,8 @@ int parser::__parse_previous_line(Request& request, const char* line) {
     if (!start_content && (line_length == 2 && line[line_length - 2] == CR_int))
         ++nb_empty_lines_beginning;
     else if (header_done && (line_length == 2 && buffer[msg_length - 2] == CR_int)) { // final CRLF
-        std::cout << "final CRLF" << std::endl;
+        if (DEBUG)
+            std::cout << "final CRLF" << std::endl;
         // from here later start parsing mesasge BODY if any, else stop.
         return (0);
     }

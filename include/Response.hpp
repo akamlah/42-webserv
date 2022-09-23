@@ -37,14 +37,19 @@ class Response {
 
         // + exceptions
 
-        Response(const Request& request, const int fd);
+        Response(const Request& request);
         // + cpy constr
         // + cpy assign ope
         ~Response();
 
-        const char *c_str() const; // full response to c string
         int status() const { return (_status); }
         void send(const int fd);
+        bool is_persistent() const;
+
+        void runSendCig( const std::string & path );
+        void sendPicResp( const std::string & path );
+        void createFieldStream();
+
 
     private:
         const char* throw_status(int status, const char* msg = NULL) const ;
@@ -53,24 +58,31 @@ class Response {
 
         Request _request;
         int _status;
-        std::string _path;
-        std::stringstream _fields_stream;
-        std::string _response_str;
         bool _is_persistent;
 
-    public:
+        std::string _path;
+        std::stringstream _fields_stream;
+        std::stringstream _body;
 
-        bool keep_alive; // set to fase if error occurs or connection not meant to be persistent
+        std::string _type;
+        std::string _subtype;
+        std::string _extension;
+
+        std::string _response_str; // the whole response
+
 
     private:
+        
+        void __add_field(const std::string& field_name, const std::string& value);
+        void __set_type(const std::string& type, const std::string& subtype = "");
 
-        std::string __generate_status_line() const ;
-        bool __decide_persistency();
+        std::string __generate_status_line() const;
         void __set_target_path();
-        void __buffer_target(); // ?
-    
-        void __set_content_type();
-        void __add_field(const char* field_name, const char* value);
+        void __set_content_type_field();
+        void __handle_type();
+        void __buffer_target_body();
+        void __decide_persistency();
+        void __generate_response();
         
 
 }; // CLASS Response

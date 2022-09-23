@@ -43,7 +43,7 @@ class Server {
         ~Server();
 
         void listen(const int backlog) const;
-        void run(int timeout_in_milliseconds);
+        void run(int timeout_in_milliseconds = -1);
         void handle_events();
         void accept_new_connections(const int poll_index);
         void handle_connection(const int poll_index);

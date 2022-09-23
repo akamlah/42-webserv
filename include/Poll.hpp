@@ -47,6 +47,7 @@ public:
     Poll();
     ~Poll();
     void set_timeout(int ts);
+    int  get_fd(int index) const;
     void add_to_poll(int fd = 0, short events = 0, short revents = 0);
     void poll() ;
     void compress();
