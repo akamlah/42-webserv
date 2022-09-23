@@ -1,0 +1,28 @@
+*, *::before, *::after {
+    box-sizing: border-box; /* st sized easily */
+    font-family: 'Courier New', Courier, monospace;
+    color: white;
+}
+body {
+    padding: 0; /* so entire screen filled */
+    margin: 0;
+    background-color: rgb(40, 40, 40);
+    background-size: cover;
+}
+h1 {
+    text-align: center;
+    font-size: 5rem;
+    font-weight: bold;
+}
+h2 {
+    text-align: center;
+    font-weight: normal;
+    font-size: 2rem;
+    color: rgb(209, 209, 209);
+}
+.center {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    width: 50%;
+}

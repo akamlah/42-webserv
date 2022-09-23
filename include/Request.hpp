@@ -86,6 +86,7 @@ class Request {
 
         int parse(const int fd);
         bool field_is_value(const char* field_name, const char* value) const;
+        std::string get_field_value(const char* field_name) const;
         int status() const;
         bool is_persistent() const;
 
