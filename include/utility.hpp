@@ -31,7 +31,7 @@ typedef struct c_data {
 	std::string					download;
 	std::string					cgi;
 	bool						isCgiOn;
-	bool						direcotry_listing;
+	bool						directory_listing;
 	std::vector<std::string>	http_methods;
 } config_data;
 

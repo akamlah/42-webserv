@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
         std::cout << "port in 0: " << configData.getAllConfigData()[0].port << std::endl;
         std::cout << "port in 1: " << configData.getAllConfigData()[1].port << std::endl;
         std::cout << "port in 2: " << configData.getAllConfigData()[2].port << std::endl;
-
+        std::cout << "number of server: " << configData.getnumberOfServers() <<  std::endl;
 
         // ws::Socket server_socket(AF_INET6, SOCK_STREAM, 0); // these might better be server parameters ?
         // ws::Socket server_socket1(AF_INET6, SOCK_STREAM, 0, PORT); // these might better be server parameters ?

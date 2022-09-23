@@ -8,12 +8,16 @@ namespace ws {
 
 	Config::ConfigFileError::ConfigFileError(std::string const & msg) :msg(msg) {}
 
-	const char* Config::ConfigFileError::what() const throw() {
+	const char* Config::ConfigFileError::what() const throw() 
+	{
 		return (msg.c_str());
 	}
-		Config::Config(): port(4200), root("html"), index("inex.html") {}
-		Config::Config(char *argv) {
-		if (Config::checkValid(argv)){
+	Config::Config(): port(4200), root("html"), index("inex.html") {}
+
+	Config::Config(char *argv)
+	{
+		if (Config::checkValid(argv))
+		{
 			if (DEBUG)
 				std::cout << "The config file is valid, You may procede!\n";
 		}
@@ -51,17 +55,25 @@ namespace ws {
 		//cut
 		std::string fullConfile;
 		fullConfile = buffer.str();
-		std::string::size_type closingsingLoc = 0;
+		numberOfServers = 0;
+		std::string::size_type closingsingLoc = -1;
 		std::string::size_type startsignLoc = 0;
-		while (fullConfile[closingsingLoc + 1] == '{')
+		do
 		{
-			closingsingLoc = fullConfile.find('}');
+			// std::cout << "I'm here\n";
+			closingsingLoc++;
+			closingsingLoc = fullConfile.find('}', closingsingLoc);
+
+			// std::cout << "post }; " << closingsingLoc << std::endl;
+			// std::cout << "caracter after " << fullConfile[closingsingLoc + 1] << std::endl;
+			
 			if (closingsingLoc == std::string::npos )
 				return (false);
 			checkContent(fullConfile.substr(startsignLoc, closingsingLoc - startsignLoc));
 			startsignLoc = closingsingLoc + 1;
 			numberOfServers++;
 		}
+		while (fullConfile[closingsingLoc + 9] == '{');
 
 		// checkContent(buffer.str());
 
@@ -130,9 +142,9 @@ namespace ws {
 			temp.isCgiOn = true;
 		else
 			temp.isCgiOn = false;
-		temp.direcotry_listing = helpGetDirecotry_listing(configDataString, "direcotry_listing:");
+		temp.directory_listing = helpGetDirecotry_listing(configDataString, "directory_listing:");
+		std::cout << "inside: " << temp.port << std::endl;
 		configDataAll.push_back(temp);
-
 	}
 	
 	void Config::setConfigData() {

@@ -27,6 +27,9 @@ class Config {
 	config_data const & getNumberConfigData(int number) const;
 	
 	config_data & getConfigData();
+
+	int getnumberOfServers() const {return (numberOfServers);};
+
 	void setConfigData();
 	
 	class ConfigFileError: public std::exception {
