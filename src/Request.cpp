@@ -122,9 +122,9 @@ int parser::parse(Request& request, int fd) {
             std::cout << "get byte returned 0" << std::endl;
             break ;
         }
-        // if (buffer[msg_length] == '\0') {
-        //     throw Request::EofReached(); // not good
-        // }
+        if (buffer[msg_length] == '\0') {
+            throw Request::EofReached(); // not good
+        }
         if (status != WS_200_OK)
             return (status) ; // if 0 it is end of file
         ++msg_length;

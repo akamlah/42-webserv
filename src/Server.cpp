@@ -136,17 +136,27 @@ void Server::handle_events()
 // void map_connection(const Connection& c) {
 
 // }
+int server_accept(int fd) {
+    int new_conn_fd;
+    struct sockaddr_in6 client_address;
+    socklen_t client_length = sizeof(client_address);
+    new_conn_fd = ::accept(fd, (struct sockaddr *)&client_address, &client_length);
+    return new_conn_fd;
+}
 
 void Server::accept_new_connections(const int poll_index)
 {
-    http::Connection c;
     std::cout << "accept index: " << poll_index << std::endl;
     int fd = _poll.fds[poll_index].elem.fd;
+    int incoming_fd;
     if (DEBUG)
         std::cout << "Listening socket " << _poll.fds[poll_index].elem.fd << " is readable." << std::endl;
     do {
-        c.establish(fd);
-        if (!c.good()) {
+
+        incoming_fd = server_accept(fd);
+        http::Connection c(incoming_fd);
+        // c.establish(fd);
+        if (incoming_fd < 0) {
             if (errno != EWOULDBLOCK) {
                 if (DEBUG) {
                     std::cerr << "accept() failed on listening port " << _poll.fds[poll_index].elem.fd << std::endl;
@@ -154,6 +164,7 @@ void Server::accept_new_connections(const int poll_index)
                 }
                 close_connection(poll_index);
                 --_number_of_listening_ports;
+                break;
             }
             else {
                 if (DEBUG)
@@ -162,20 +173,24 @@ void Server::accept_new_connections(const int poll_index)
                 // return ;
             }
         }
+        // _poll.add_to_poll(incoming_fd, POLLIN);
+        
         _poll.add_to_poll(c.fd(), POLLIN);
-        _connections[c.fd()] = c;
-    } while (c.good());
+        _connections.insert(std::make_pair(c.fd(), c));
+        if (DEBUG) {
+            std::cout << "NEW MAP:" << std::endl;
+            std::map<int, http::Connection>::iterator it;
+            for (it = _connections.begin(); it != _connections.end(); it++){
+                std::cout << "fd:" << it->first << " conn status " << it->second.status() << std::endl;
+            }
+            std::cout << std::endl;
+        }
+    } while (incoming_fd != -1);
+    // } while (c.good());
 }
 
 void Server::handle_connection(const int poll_index)
 {
-    if (DEBUG) {
-        std::cout << "handle index: " << poll_index << std::endl;
-        std::cout << "handle fd: " << _poll.fds[poll_index].elem.fd << std::endl;
-    }
-
-    // problem: if this is NOT in a while loop then how do we recognize that the connection already got established?
-
     // + timeout ?
     // + try catch ?
     _connections[_poll.fds[poll_index].elem.fd].handle();
@@ -190,10 +205,10 @@ void Server::close_connection(const int poll_index)
 {
     if (DEBUG)
         std::cout << "CLOSE ! fd: " << _poll.fds[poll_index].elem.fd << std::endl;
+    _connections.erase(_poll.fds[poll_index].elem.fd);
     close(_poll.fds[poll_index].elem.fd);
     _poll.fds[poll_index].elem.fd = -1;
     _poll.compress_array = true;
-    _connections.erase(_poll.fds[poll_index].elem.fd);
 }
 
 // Do we need these accessors?

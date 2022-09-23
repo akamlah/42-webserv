@@ -57,12 +57,13 @@ void Connection::handle() {
         try {
             _request.parse(_fd);
             _status = _request.status();
-            _is_persistent = _request.is_persistent();
         }
         catch (http::Request::EofReached& e) { // <- very hacky, might become a problem, we'll see
             std::cout << "EOF" << std::endl;
+            _is_persistent = false;
         }
         Response response(_request, _fd);
+        _is_persistent = _request.is_persistent();
         // response.send(_fd);
     }
     catch (ws::exception& e) {
