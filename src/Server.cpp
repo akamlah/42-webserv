@@ -143,7 +143,7 @@ void Server::accept_new_connections(const int poll_index)
         std::cout << "Listening socket " << listening_fd << " is readable." << std::endl;
     do {
         incoming.establish(listening_fd);
-        if (incoming.fd() < 0) {
+        if (!incoming.is_good()) {
             if (errno != EWOULDBLOCK) {
                 if (DEBUG) {
                     std::cerr << "accept() failed on listening port " << listening_fd << std::endl;
