@@ -36,7 +36,7 @@ namespace ws {
 			return ;
 		char tempChar;
 		std::string buffer;
-		int i = 0;
+		// int i = 0;
 		bool commentflag = false;
 		confFile >> std::noskipws;
 		while (!(confFile.eof()))

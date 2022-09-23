@@ -18,12 +18,21 @@
 namespace ws {
 
 typedef struct c_data {
-	std::vector<int>	ports; /// note dublication? same port in confi file how to handle.
-	int		port;
-	std::vector<std::string> hosts;
-	std::string	host;
-	std::string	root;
-	std::string	index;
+	std::vector<int>			ports; /// note dublication? same port in confi file how to handle.
+	
+	int							port;
+	int							limit_body;
+	std::string 				server_name;
+	std::string					error;
+	std::string					host;
+	std::string					root;
+	std::string					index;
+	std::string					http_redirects;
+	std::string					download;
+	std::string					cgi;
+	bool						isCgiOn;
+	bool						directory_listing;
+	std::vector<std::string>	http_methods;
 } config_data;
 
 // some colors for output

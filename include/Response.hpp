@@ -10,6 +10,7 @@
 #include "Request.hpp"
 #include "Socket.hpp"
 #include "utility.hpp"
+#include "CGI.hpp"
 #include "http_type_traits.hpp"
 #include <fstream>
 #include <sstream>
@@ -51,7 +52,6 @@ class Response {
 
 
     private:
-
         const char* throw_status(int status, const char* msg = NULL) const ;
         // mainly for target check (fstream open error handeling)
         int error_status(Request& request, const int status, const char* msg = NULL) const ;
