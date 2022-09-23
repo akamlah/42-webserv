@@ -15,22 +15,30 @@ namespace http {
 
 Connection::Connection(const int fd): _fd(fd), _status(0), _is_persistent(true) { }
 
+<<<<<<< HEAD
 Connection::Connection(): _is_persistent(false) { }
+=======
+Connection::Connection(): _fd(-1), _status(0), _is_persistent(true) { }
+>>>>>>> 41dd9f992646fc1ecf64036157c64361190e588c
 
 Connection::Connection(const Connection& other) {
+    if (DEBUG)
+        std::cout << "Connection cpy constr" << std::endl;
     _fd = other._fd;
-    _poll_id = other._poll_id;
+    _status = other._status;
     _address = other._address;
-    _fd = other._fd;
     _is_persistent = other._is_persistent;
+    _request = other._request;
 }
 
 Connection& Connection::operator=(const Connection& other) {
+    if (DEBUG)
+        std::cout << "Connction ope =" << std::endl;
     _fd = other._fd;
-    _poll_id = other._poll_id;
+    _status = other._status;
     _address = other._address;
-    _fd = other._fd;
     _is_persistent = other._is_persistent;
+    _request = other._request;
     return (*this);
 }
 
@@ -39,26 +47,27 @@ bool Connection::good() const { return (_fd < 0 ? false : true); }
 bool Connection::is_persistent() const { return (_is_persistent);}
 int Connection::status() const { return (_status); }
 
-int Connection::get_id() const { return (_poll_id); }
-void Connection::set_id(const int id) { _poll_id = id; }
-
 void Connection::establish(const int fd) {
     socklen_t address_length = sizeof(_address);
     _fd = ::accept(fd, (struct sockaddr *)&_address, &address_length);
+    if (DEBUG)
+        std::cout << "established connection on fd " << _fd << " from fd: " << fd << std::endl;
 }
 
 void Connection::handle() {
+    // start timer if first call
+    // else check timer
     try {
-        http::Request request;
         try {
-            request.parse(_fd);
-            _status = request.status();
-            _is_persistent = request.is_persistent();
+            _request.parse(_fd);
+            _status = _request.status();
         }
         catch (http::Request::EofReached& e) { // <- very hacky, might become a problem, we'll see
             std::cout << "EOF" << std::endl;
+            _is_persistent = false;
         }
-        http::Response response(request, _fd);
+        Response response(_request, _fd);
+        _is_persistent = _request.is_persistent();
         // response.send(_fd);
     }
     catch (ws::exception& e) {
