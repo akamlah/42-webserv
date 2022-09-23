@@ -44,6 +44,13 @@ bool Request::field_is_value(const char* field_name, const char* value) const {
     return (false);
 }
 
+std::string Request::get_field_value(const char* field_name) const {
+    std::map<std::string, std::string>::const_iterator field = fields.find(field_name);
+    if (field != fields.end())
+        return (fields.find(field_name)->second);
+    return (std::string());
+}
+
 int Request::status() const { return (_status); }
 bool Request::is_persistent() const { return (_is_persistent);}
 
