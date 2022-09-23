@@ -62,9 +62,9 @@ void Connection::handle() {
             std::cout << "EOF" << std::endl;
             _is_persistent = false;
         }
-        Response response(_request, _fd);
+        Response response(_request);
         _is_persistent = _request.is_persistent();
-        // response.send(_fd);
+        response.send(_fd);
     }
     catch (ws::exception& e) {
         std::cout << RED << "unforeseen exception req-resp" << NC << std::endl;

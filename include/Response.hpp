@@ -36,7 +36,7 @@ class Response {
 
         // + exceptions
 
-        Response(const Request& request, const int fd);
+        Response(const Request& request);
         // + cpy constr
         // + cpy assign ope
         ~Response();
@@ -62,19 +62,27 @@ class Response {
 
         std::string _path;
         std::stringstream _fields_stream;
-        std::string _response_str;
+        std::stringstream _body;
+
         std::string _type;
+        std::string _subtype;
+        std::string _extension;
+
+        std::string _response_str; // the whole response
 
 
     private:
-
-        std::string __generate_status_line() const ;
-        bool __decide_persistency();
-        void __set_target_path();
-        void __buffer_target(); // ?
-    
-        void __set_content_type_field();
+        
         void __add_field(const std::string& field_name, const std::string& value);
+        void __set_type(const std::string& type, const std::string& subtype = "");
+
+        std::string __generate_status_line() const;
+        void __set_target_path();
+        void __set_content_type_field();
+        void __handle_type();
+        void __buffer_target_body();
+        void __decide_persistency();
+        void __generate_response();
         
 
 }; // CLASS Response
