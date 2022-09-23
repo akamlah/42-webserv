@@ -20,8 +20,10 @@ class Config {
 	bool checkValid(char *argv);
 	void checkContent(std::string const & configDataString);
 	std::string helpCheckContent(std::string const & , std::string const &, bool );
+	bool helpGetDirecotry_listing(std::string const & configDataString, std::string const & checkThis);
 
-	std::map<int, ws::config_data> const & getAllConfigData() const;
+	std::vector<ws::config_data> const & getAllConfigData() const;
+	// std::map<int, ws::config_data> const & getAllConfigData() const;
 	config_data const & getNumberConfigData(int number) const;
 	
 	config_data & getConfigData();
@@ -40,7 +42,8 @@ class Config {
 		Config(); // pdf says that it has to run with argv so we dont have defult?
 	protected:
 		config_data configData;
-		std::map<int, ws::config_data>	configDataAll;
+		// std::map<int, ws::config_data &>	configDataAll;
+		std::vector<ws::config_data>	configDataAll;
 		std::vector<int>				_ports;
 		int								numberOfServers;
 		int	port;

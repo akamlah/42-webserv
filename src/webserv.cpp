@@ -18,6 +18,10 @@ int main(int argc, char **argv) {
         ws::Config configData(argv[1]);
         configData.setConfigData();
 
+        std::cout << "port in 0: " << configData.getAllConfigData()[0].port << std::endl;
+        std::cout << "port in 1: " << configData.getAllConfigData()[1].port << std::endl;
+        std::cout << "port in 2: " << configData.getAllConfigData()[2].port << std::endl;
+
 
         // ws::Socket server_socket(AF_INET6, SOCK_STREAM, 0); // these might better be server parameters ?
         // ws::Socket server_socket1(AF_INET6, SOCK_STREAM, 0, PORT); // these might better be server parameters ?

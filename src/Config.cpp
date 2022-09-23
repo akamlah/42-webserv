@@ -47,7 +47,23 @@ namespace ws {
 			return (false);
 		std::stringstream buffer;
 		buffer << confFile.rdbuf();
-		checkContent(buffer.str());
+
+		//cut
+		std::string fullConfile;
+		fullConfile = buffer.str();
+		std::string::size_type closingsingLoc = 0;
+		std::string::size_type startsignLoc = 0;
+		while (fullConfile[closingsingLoc + 1] == '{')
+		{
+			closingsingLoc = fullConfile.find('}');
+			if (closingsingLoc == std::string::npos )
+				return (false);
+			checkContent(fullConfile.substr(startsignLoc, closingsingLoc - startsignLoc));
+			startsignLoc = closingsingLoc + 1;
+			numberOfServers++;
+		}
+
+		// checkContent(buffer.str());
 
 		return (true);
 	}
@@ -73,17 +89,49 @@ namespace ws {
 		return (temp);
 	}
 
+	bool Config::helpGetDirecotry_listing(std::string const &  configDataString, std::string const & checkThis )
+	{
+		std::string::size_type portPlace = configDataString.find(checkThis);
+		if (portPlace == std::string::npos)
+			throw ConfigFileError("ERROR: " + checkThis + " Missing from config file!");
+		std::string temp;
+		portPlace += checkThis.length();
+		while (!(std::isprint(configDataString[portPlace])) || configDataString[portPlace] == ' ')
+			portPlace++;
+		for (std::string::size_type i = portPlace; configDataString[i] != ';'; i++)
+		{
+				temp += configDataString[i];
+		}
+		if (temp.compare("on"))
+			return (true);
+		else if (temp.compare("off"))
+			return (false);
+		else
+			throw ConfigFileError("ERROR: " + checkThis + " wrong format in config file!");
+		
+	}
+
 	void Config::checkContent(std::string const & configDataString)
 	{
 		// std::string temp = helpCheckContent(configDataString, "port:", true);
 		// std::cout << temp << std::endl;
-		this->port = std::stoi(helpCheckContent(configDataString, "port:", true));
-		this->root = helpCheckContent(configDataString, "root:", false);
-		this->host = helpCheckContent(configDataString, "host:", false);
-		// std::cout << this->root << std::endl;
-		this->index = helpCheckContent(configDataString, "index:", false);
-		// this->index = helpCheckContent(configDataString, "index:", false);
-		// std::cout << this->index << std::endl;
+		config_data temp;
+		temp.port = std::stoi(helpCheckContent(configDataString, "port:", true));
+		temp.limit_body = std::stoi(helpCheckContent(configDataString, "limit_body:", true));
+		temp.server_name = helpCheckContent(configDataString, "server_name:", false);
+		temp.error = helpCheckContent(configDataString, "error:", false);
+		temp.host = helpCheckContent(configDataString, "host:", false);
+		temp.root = helpCheckContent(configDataString, "root:", false);
+		temp.index = helpCheckContent(configDataString, "index:", false);
+		temp.http_redirects = helpCheckContent(configDataString, "http_redirects:", false);
+		temp.download = helpCheckContent(configDataString, "download:", false);
+		temp.cgi = helpCheckContent(configDataString, "cgi:", false);
+		if (temp.cgi.find("non") == std::string::npos)
+			temp.isCgiOn = true;
+		else
+			temp.isCgiOn = false;
+		temp.direcotry_listing = helpGetDirecotry_listing(configDataString, "direcotry_listing:");
+		configDataAll.push_back(temp);
 
 	}
 	
@@ -97,5 +145,7 @@ namespace ws {
 	}
 
 	config_data& Config::getConfigData() { return (_data); }
+
+	std::vector<ws::config_data> const & Config::getAllConfigData() const { return (configDataAll); }
 
 } // namspace ws

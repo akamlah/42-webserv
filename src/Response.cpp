@@ -69,6 +69,7 @@ void Response::sendPicResp( const std::string & path )
 	throw_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
 	std::cout << CYAN << "Response class: Server sent data" << NC << std::endl;
 }
+
 void Response::createFieldStream()
 {
 	if ((request.fields.find("sec-fetch-dest"))->second == "image") {
