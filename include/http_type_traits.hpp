@@ -10,16 +10,23 @@
 namespace ws {
 namespace http {
 
+//   HTTP-message   = start-line CRLF
+//                    *( field-line CRLF )
+//                    CRLF
+//                    [ message-body ]
+//  start-line     = request-line / status-line
+
+// ANY other version request is rejected. This is also response version.
 #define WS_HTTP_VERSION "HTTP/1.1"
 
 // ascii tokens
-#define LF 10
-#define CR 13
-#define SP 32
-#define CHAR_LF '\n'
-#define CHAR_CR '\r'
-#define CHAR_SP ' '
+#define LF_int 10
+#define CR_int 13
+#define SP_int 32
 
+#define CRLF "\r\n"
+
+// Common HTTP status codes --------------------------------------------------
 // INFORMATION RESPONSES
 #define WS_100_CONTINUE 100
 #define WS_101_SWITCHING_PROTOCOLS 101
@@ -74,17 +81,10 @@ namespace http {
 #define WS_506_VARIANT_ALSO_NEGOTIATES 506
 #define WS_507_HTTP_VERSION_NOT_SUPPORTED 507
 #define WS_511_NETWORK_AUTHENTICATION_REQUIRED 511
+// ---------------------------------------------------------------------------
 
-//   HTTP-message   = start-line CRLF
-//                    *( field-line CRLF )
-//                    CRLF
-//                    [ message-body ]
-//  start-line     = request-line / status-line
-// The normal procedure for parsing an HTTP message is to read the start-line into a structure, read each 
-// header field line into a hash table by field name until the empty line, and then use the parsed data to 
-// determine if a message body is expected. If a message body has been indicated, then it is read as a stream 
-// until an amount of octets equal to the message body length is read or the connection is closed.
 #define BUFFER_SIZE 100000
+
 // It is RECOMMENDED that all HTTP senders and recipients support, at a 
 // minimum, request-line lengths of 8000 octets.
 #define REQUEST_LINE_LENGTH 9000
@@ -94,28 +94,13 @@ namespace http {
 // status code. A server that receives a request-target longer than any URI it wishes to parse MUST respond with
 // a 414 (URI Too Long) status code (see Section 15.5.15 of [HTTP]).
 #define TARGET_SIZE 1024
-// method ? 501 (Not Implemented)
 
-class Status {
-
+class StatusPhrase {
     public:
-
-        Status(): _current(200) { _map_codes(); }
-        Status(const Status& other) { _map_codes(); _current = other.get_current(); }
-        Status(const int status) { _map_codes(); _current = status; }
-        Status& operator=(const Status& other) { _current = other.get_current(); return (*this); }
-        Status& operator=(const int status) { _current = status; return (*this); }
-        ~Status() {}
-
-        int get_current() const { return (_current); }
-        void set_current(const int status) { _current = status; }
+        StatusPhrase() { _map_codes(); }
         const char* operator[](int n) const { return (status_code[n]); }
-
     private:
-
-        int _current;
         const char *status_code[512];
-
         void _map_codes() {
             bzero(status_code, 512);
             status_code[100] = "100 (CONTINUE)";
@@ -168,10 +153,9 @@ class Status {
             status_code[507] = "507 (HTTP VERSION NOT SUPPORTED)";
             status_code[511] = "511 (NETWORK AUTHENTICATION REQUIRE)";
         }
-
-};
+}; // CLASS StatusPhrase
 
 } // NAMESPACE http
 } // NAMESPACE ws
-#endif // __TRAITS_HPP__
 
+#endif // __TRAITS_HPP__

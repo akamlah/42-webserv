@@ -8,10 +8,10 @@
 # define __SERVER_HPP__
 
 #include "Socket.hpp"
-#include "Request.hpp"
-#include "Response.hpp"
+
 #include "utility.hpp"
 #include "Poll.hpp"
+#include "Connection.hpp"
 
 #include <arpa/inet.h> // htons etc
 #include <string.h> // bezero
@@ -43,13 +43,11 @@ class Server {
         ~Server();
 
         void listen(const int backlog) const;
-        int accept(int port) const;
-        void handle_connection(Socket& new_connection) const;
         void run(int timeout_in_milliseconds);
-        void handle_events(int& number_of_listening_ports);
-        void accept_new_connections(int& index, int& number_of_listening_sockets);
-        void handle_incoming(int& index);
-        void close_connection(int index);
+        void handle_events();
+        void accept_new_connections(const int poll_index);
+        void handle_connection(const int poll_index);
+        void close_connection(const int poll_index);
 
         const Socket& socket() const;
         int port() const;
@@ -57,6 +55,8 @@ class Server {
     private:
         std::map<Socket, s_address> _listening_sockets;
         Poll    _poll;
+        int _number_of_listening_ports;
+        std::map<int, http::Connection> _connections;
 
 }; // Class Server
 

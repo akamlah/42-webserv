@@ -16,6 +16,8 @@ const char* Server::SystemError::what() const throw() {
     return ("Server system error");
 }
 
+// --------------------------------------------------------------------------------------------------------
+
 Server::Server(config_data& configData) {
     int temp = 1;
 
@@ -39,6 +41,7 @@ Server::Server(config_data& configData) {
         (iter->second._address).sin6_family = AF_INET6; // as option ?
         (iter->second._address).sin6_port = htons(iter->first.port);
     }
+    _number_of_listening_ports = _listening_sockets.size();
 }
 
 Server::Server(Socket& server_socket, int port) {
@@ -50,11 +53,14 @@ Server::Server(Socket& server_socket, int port) {
         throw_print_error(SystemError(), "setsockopt() failed");
     if (ioctl(_listening_sockets.begin()->first.fd, FIONBIO, (char *)&temp) < 0)
         throw_print_error(SystemError(), "ioctl() failed");
-   _listening_sockets[server_socket]._address.sin6_family = AF_INET6; // as option ?
+    _listening_sockets[server_socket]._address.sin6_family = AF_INET6; // as option ?
     _listening_sockets[server_socket]._address.sin6_port = htons(port);
+    _number_of_listening_ports = _listening_sockets.size();
 }
 
 Server::~Server() {}
+
+// --------------------------------------------------------------------------------------------------------
 
 void Server::listen(const int backlog) const {
     
@@ -73,34 +79,9 @@ void Server::listen(const int backlog) const {
     }
 }
 
-int Server::accept(int fd) const {
-    int new_conn_fd;
-    struct sockaddr_in6 client_address;
-    socklen_t client_length = sizeof(client_address);
-    new_conn_fd = ::accept(fd, (struct sockaddr *)&client_address, &client_length);
-    return new_conn_fd;
-}
-
-void Server::handle_connection(Socket& new_connection) const {
-    try{
-        http::Request request(new_connection);
-        request.parse();
-        http::Response response(request);
-    }
-    catch (ws::exception& e) {
-        #if DEBUG
-        std::cout << RED << "There has been an error in request/response" << NC << std::endl;
-        #endif
-    }
-    #if DEBUG
-    std::cout << "Going on" << std::endl;
-    #endif
-}
-
 void    Server::run(int timeout)
 {
-    int number_of_listening_ports = _listening_sockets.size();
-
+    // number_of_listening_ports = _listening_sockets.size(); <- is in constructors now
     _poll.set_timeout(timeout);
     for(std::map<Socket, s_address>::const_iterator iter = _listening_sockets.cbegin(); iter != _listening_sockets.cend(); ++iter)
         _poll.add_to_poll(iter->first.fd, POLLIN, 0);
@@ -108,108 +89,83 @@ void    Server::run(int timeout)
         if (DEBUG) 
             std::cout << "Waiting on poll()..." << std::endl;
         _poll.poll();
-        handle_events(number_of_listening_ports);
+        handle_events();
         _poll.compress();
 
-    } while (number_of_listening_ports);
+    } while (_number_of_listening_ports);
     _poll.close_all();
 } 
 
-void Server::handle_events(int& number_of_listening_ports)
+void Server::handle_events()
 {
     int    current_size = _poll.fds.size();
 
-    for (int i = 0; i < current_size; ++i)
+    for (int poll_index = 0; poll_index < current_size; ++poll_index)
     {
-        if (_poll.fds[i].elem.revents == 0)
+        std::cout << "iter on index " << poll_index << std::endl;
+        if (_poll.fds[poll_index].elem.revents == 0)
             continue;
-        if (_poll.fds[i].elem.revents != POLLIN)
+        if (_poll.fds[poll_index].elem.revents != POLLIN)
         {
-            if (DEBUG) 
-                std::cout << "  Error! revents = " << _poll.fds[i].elem.revents << std::endl;
-            close_connection(i);
+            if (DEBUG)
+                std::cout << "  Error! revents = " << _poll.fds[poll_index].elem.revents << std::endl;
+            close_connection(poll_index);
             continue;
         }
-        if (i < number_of_listening_ports)
-            accept_new_connections(i, number_of_listening_ports);
+        if (poll_index < _number_of_listening_ports)
+            accept_new_connections(poll_index);
         else
-            handle_incoming(i);
+            handle_connection(poll_index);
     }
 }
 
-void Server::accept_new_connections(int& index, int& number_of_listening_ports)
-{
-    int    incoming_fd;
+// --------------------------------------------------------------------------------------------------------
 
+// void map_connection(const Connection& c) {
+
+// }
+
+void Server::accept_new_connections(const int poll_index)
+{
+    int fd = _poll.fds[poll_index].elem.fd;
     if (DEBUG)
-        std::cout << "Listening socket " << _poll.fds[index].elem.fd << "is readable." << std::endl;
-    do
-    {
-        incoming_fd = accept(_poll.fds[index].elem.fd);
-        if (incoming_fd < 0)
-        {
-            if (errno != EWOULDBLOCK)
-            {
-                if (DEBUG){
-                    std::cerr << "accept() failed on listening port " << _poll.fds[index].elem.fd << std::endl;
+        std::cout << "Listening socket " << _poll.fds[poll_index].elem.fd << "is readable." << std::endl;
+    do {
+        http::Connection c;
+        c.establish(fd);
+        if (!c.good()) {
+            if (errno != EWOULDBLOCK) {
+                if (DEBUG) {
+                    std::cerr << "accept() failed on listening port " << _poll.fds[poll_index].elem.fd << std::endl;
                     std::cerr << "Port has been discarded from array" << std::endl;
                 }
-                close_connection(index);
-                --number_of_listening_ports;
+                close_connection(poll_index);
+                --_number_of_listening_ports;
             }
             break;
         }
-        _poll.add_to_poll(incoming_fd, POLLIN);
-    } while (incoming_fd != -1);
+        _poll.add_to_poll(c.fd(), POLLIN);
+        _connections[poll_index + 1] = c;
+    } while (true);
 }
 
-void Server::handle_incoming(int& index)
-{ 
-    Socket  new_conn;
-    // bool    close_conn = false;
-
-    if (DEBUG)
-    std::cout << "Descriptor " << _poll.fds[index].elem.fd << " is readable" << std::endl;
-    // do
-    // {
-        new_conn = Socket(_poll.fds[index].elem.fd);
-
-        handle_connection(new_conn);
-
-    // [ ! ]
-    // this code caused inf loop because was waiting for an exception for eof, that does not get thrown anymore
-    // -> need adaptation
-
-    //     try { handle_connection(new_conn); }
-    //     catch (ws::http::Request::BadRead& e)
-    //     {
-    //         if (errno != EWOULDBLOCK)
-    //         {
-    //             if (DEBUG)
-    //                 std::cerr << "  recv() failed" << std::endl;
-    //             close_conn = true;
-    //         }
-    //         break;
-    //     }
-    //     catch (ws::http::Request::EofReached& e)
-    //     {
-    //         if (DEBUG)
-    //             std::cerr << "  Connection closed" << std::endl;
-    //         close_conn = true;
-    //         break;
-    //     }
-    // } while (true);
-    // if (close_conn)
-        // close_connection(index);
-
-    close_connection(index);
-}
-
-void Server::close_connection(int index)
+void Server::handle_connection(const int poll_index)
 {
-    close(_poll.fds[index].elem.fd);
-    _poll.fds[index].elem.fd = -1;
+    // + timeout ?
+    // + try catch ?
+    _connections[poll_index].handle();
+    if (!_connections[poll_index].is_persistent()) {
+        close_connection(poll_index);
+        std::cout << "  Connection closed" << std::endl;
+    }
+}
+
+void Server::close_connection(const int poll_index)
+{
+    close(_poll.fds[poll_index].elem.fd);
+    _poll.fds[poll_index].elem.fd = -1;
     _poll.compress_array = true;
+    _connections.erase(poll_index);
 }
 
 // Do we need these accessors?
@@ -217,4 +173,3 @@ void Server::close_connection(int index)
 // int Server::port() const { return (_port); }
 
 } // NAMESPACE ws
-

@@ -44,6 +44,7 @@ void Socket::connect(const struct sockaddr_in6 server_address) const {
     std::cout << CYAN << "Connected socket" << NC << std::endl;;;;
 }
 
-Socket::~Socket() { } // [ ! ]
+Socket::~Socket() { std::cout << "Socket destroyed" << std::endl;
+} // [ ! ]
 
 } // NAMESPACE ws
