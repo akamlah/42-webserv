@@ -17,46 +17,41 @@ const char* Server::SystemError::what() const throw() {
 
 // --------------------------------------------------------------------------------------------------------
 
-Server::Server(config_data& configData): _tokens() {
+Server::Server(const std::vector<ws::config_data>& all_config) : _all_config(all_config)
+{
     int temp = 1;
+    int fd = -1;
+
     s_address address;
-
-    for (std::vector<int>::const_iterator iter = configData.ports.cbegin(); iter < configData.ports.cend(); ++iter)
-        _listening_sockets.insert(std::make_pair(Socket(AF_INET6, SOCK_STREAM, 0, *iter), address));
-
-    for(std::map<Socket, s_address>::iterator iter = _listening_sockets.begin(); iter != _listening_sockets.end(); ++iter)
+    size_t number_of_servers = all_config.size();
+    for (size_t i = 0; i < number_of_servers; ++i)
     {
-        if (setsockopt(iter->first.fd, SOL_SOCKET,  SO_REUSEADDR, (char *)&temp, sizeof(temp)) < 0)
+        size_t number_of_ports = all_config[i].ports.size();
+        for(size_t j = 0; j < number_of_ports; ++j)
         {
-            std::cout << "Failed to listen on: " << iter->first.fd << std::endl;
-            std::cout << "Port ignored" << std::endl;
-            continue;
+            fd = ::socket(AF_INET6, SOCK_STREAM, 0);
+            if (fd < 0)
+                throw_print_error(SystemError(), "Failed to create socket");
+            if (setsockopt(fd, SOL_SOCKET,  SO_REUSEADDR, (char *)&temp, sizeof(temp)) < 0)
+            {
+                std::cout << "Failed to listen on: " << fd << std::endl;
+                std::cout << "Port ignored" << std::endl;
+                continue;
+            }
+            if (ioctl(fd, FIONBIO, (char *)&temp) < 0)
+            {
+                std::cout << "ioctl() failed on: " << fd << std::endl;
+                std::cout << "Port ignored" << std::endl;
+                continue;
+            }
+            _listening_ports.insert(std::make_pair(fd, address));
+            (_listening_ports.find(fd)->second._address).sin6_family = AF_INET6;
+            (_listening_ports.find(fd)->second._address).sin6_port = htons(all_config[i].ports[j]);
+            _port_server.insert(std::make_pair(fd, i));
         }
-        if (ioctl(iter->first.fd, FIONBIO, (char *)&temp) < 0)
-        {
-            std::cout << "ioctl() failed on: " << iter->first.fd << std::endl;
-            std::cout << "Port ignored" << std::endl;
-            continue;
-        }
-        (iter->second._address).sin6_family = AF_INET6;
-        (iter->second._address).sin6_port = htons(iter->first.port);
     }
-    _number_of_listening_ports = _listening_sockets.size();
 }
 
-Server::Server(Socket& server_socket, int port): _tokens() {
-    int temp = 1;
-
-    server_socket.port = port;
-    _listening_sockets.insert(std::make_pair(server_socket, s_address()));
-    if (setsockopt(_listening_sockets.begin()->first.fd, SOL_SOCKET,  SO_REUSEADDR, (char *)&temp, sizeof(temp)) < 0)
-        throw_print_error(SystemError(), "setsockopt() failed");
-    if (ioctl(_listening_sockets.begin()->first.fd, FIONBIO, (char *)&temp) < 0)
-        throw_print_error(SystemError(), "ioctl() failed");
-    _listening_sockets[server_socket]._address.sin6_family = AF_INET6;
-    _listening_sockets[server_socket]._address.sin6_port = htons(port);
-    _number_of_listening_ports = _listening_sockets.size();
-}
 
 Server::~Server() {
     _poll.close_all();
@@ -66,26 +61,22 @@ Server::~Server() {
 
 void Server::listen(const int backlog) const {
     
-    for(std::map<Socket, s_address>::const_iterator iter = _listening_sockets.begin(); iter != _listening_sockets.end(); ++iter)
+    for(std::map<int, s_address>::const_iterator iter = _listening_ports.begin(); iter != _listening_ports.end(); ++iter)
     {
-        try {
-            iter->first.bind(iter->second._address);
-        }
-        catch (std::exception& e) {
-            std::cout << e.what() << std::endl;
-            throw_print_error(SystemError(), "Bad server socket address");
-        }
-        if (::listen(iter->first.fd, backlog) < 0)
+        if (::bind(iter->first, (struct sockaddr *) &(iter->second._address), sizeof(struct sockaddr_in6)) < 0)
+            throw_print_error(SystemError(), "Failed to bind socket");
+        if (::listen(iter->first, backlog) < 0)
             throw_print_error(SystemError(), "Server unable to listen for connections");
-        std::cout << CYAN << "Server listening on port " << iter->first.port << NC << std::endl;
+        std::cout << CYAN << "Server listening on port " << ntohs(iter->second._address.sin6_port) << NC << std::endl;
     }
 }
 
 void    Server::run(int timeout)
 {
     _poll.set_timeout(timeout);
-    for(std::map<Socket, s_address>::const_iterator iter = _listening_sockets.cbegin(); iter != _listening_sockets.cend(); ++iter)
-        _poll.add_to_poll(iter->first.fd, POLLIN, 0);
+    for(std::map<int, s_address>::const_iterator iter = _listening_ports.cbegin(); iter != _listening_ports.cend(); ++iter)
+        _poll.add_to_poll(iter->first, POLLIN, 0);
+
     do{
         if (DEBUG)
             std::cout << "Waiting on poll()..." << std::endl;
@@ -94,12 +85,12 @@ void    Server::run(int timeout)
             std::cout << "polled" << std::endl;
         handle_events();
         _poll.compress();
-    } while (_number_of_listening_ports);
+    } while (!_listening_ports.empty());
 } 
 
 void Server::handle_events()
 {
-    int    current_size = _poll.fds.size();
+    size_t    current_size = _poll.fds.size();
 
     if (DEBUG) {
         std::map<int, http::Connection>::iterator it;
@@ -108,7 +99,7 @@ void Server::handle_events()
         }
     }
 
-    for (int poll_index = 0; poll_index < current_size; ++poll_index)
+    for (size_t poll_index = 0; poll_index < current_size; ++poll_index)
     {
         if (_poll.fds[poll_index].elem.revents == 0) {
             if (DEBUG)
@@ -122,7 +113,7 @@ void Server::handle_events()
             close_connection(poll_index);
             continue;
         }
-        if (poll_index < _number_of_listening_ports)
+        if (poll_index < _listening_ports.size())
             accept_new_connections(poll_index);
         else
             handle_connection(poll_index);
@@ -137,21 +128,24 @@ void Server::handle_events()
 
 void Server::accept_new_connections(const int poll_index)
 {
-    http::Connection incoming(_tokens);
     int listening_fd = _poll.get_fd(poll_index);
 
     if (DEBUG)
         std::cout << "Listening socket " << listening_fd << " is readable." << std::endl;
-    do {
+    while (true)
+    {
+        http::Connection incoming(_tokens, _all_config[_port_server.find(listening_fd)->second]);
         incoming.establish(listening_fd);
+        std::cerr << "fd " << listening_fd << " Port " << ntohs(_listening_ports.find(listening_fd)->second._address.sin6_port) << " has been checked from array" << std::endl;
         if (!incoming.is_good()) {
             if (errno != EWOULDBLOCK) {
                 if (DEBUG) {
                     std::cerr << "accept() failed on listening port " << listening_fd << std::endl;
-                    std::cerr << "Port has been discarded from array" << std::endl;
+                    std::cerr << "Port " << ntohs(_listening_ports.find(listening_fd)->second._address.sin6_port) 
+                    << " has been discarded from array" << std::endl;
                 }
                 close_connection(poll_index);
-                --_number_of_listening_ports;
+                _listening_ports.erase(listening_fd);
                 break;
             }
             else {
@@ -162,15 +156,9 @@ void Server::accept_new_connections(const int poll_index)
         }
         _poll.add_to_poll(incoming.fd(), POLLIN);
         _connections.insert(std::make_pair(incoming.fd(), incoming));
-        // if (DEBUG) {
-        //     std::cout << "NEW MAP:" << std::endl;
-        //     std::map<int, http::Connection>::iterator it;
-        //     for (it = _connections.begin(); it != _connections.end(); it++){
-        //         std::cout << "fd:" << it->first << " conn status " << it->second.status() << std::endl;
-        //     }
-        //     std::cout << std::endl;
-        // }
-    } while (incoming.is_good());
+        if (!incoming.is_good())
+            break;
+    }
 }
 
 void Server::handle_connection(const int poll_index)

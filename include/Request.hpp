@@ -8,7 +8,6 @@
 # define __REQUEST_HPP__
 
 #include "utility.hpp"
-#include "Socket.hpp"
 #include "http_type_traits.hpp"
 
 #include <string>

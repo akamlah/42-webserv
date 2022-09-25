@@ -8,7 +8,6 @@
 # define __RESPONSE_HPP__
 
 #include "Request.hpp"
-#include "Socket.hpp"
 #include "utility.hpp"
 #include "CGI.hpp"
 #include "http_type_traits.hpp"

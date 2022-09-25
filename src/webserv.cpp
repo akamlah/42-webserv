@@ -1,5 +1,4 @@
 #include "../include/Server.hpp"
-#include "../include/Socket.hpp"
 #include "../include/utility.hpp"
 #include "../include/Config.hpp"
 
@@ -27,7 +26,8 @@ int main(int argc, char **argv) {
 
 
 // while going over the vector of config files... ---> run each of them 
-		ws::Server server(configData.getConfigData());
+		// ws::Server server(configData.getConfigData());
+		ws::Server server(configData.getAllConfigData());
 
 
 		server.listen(BACKLOG);

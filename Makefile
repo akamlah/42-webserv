@@ -26,7 +26,6 @@ INCLUDE_DIR = ./include/
 
 CLASSES_NAME = \
 	Server \
-	Socket \
 	Request \
 	Response \
 	Config \
