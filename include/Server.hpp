@@ -11,6 +11,7 @@
 
 #include "utility.hpp"
 #include "Poll.hpp"
+#include "Config.hpp"
 #include "Connection.hpp"
 
 #include <arpa/inet.h> // htons etc

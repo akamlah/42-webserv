@@ -32,8 +32,8 @@ CLASSES_NAME = \
 	Config \
 	Poll \
 	CGI \
-	Connection
-
+	Connection 
+	
 OTHER_CPPFILES = \
 
 INTERFACES = \

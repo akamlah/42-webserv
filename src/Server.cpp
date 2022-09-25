@@ -20,9 +20,10 @@ const char* Server::SystemError::what() const throw() {
 
 Server::Server(config_data& configData) {
     int temp = 1;
+    s_address address;
 
     for (std::vector<int>::const_iterator iter = configData.ports.cbegin(); iter < configData.ports.cend(); ++iter)
-        _listening_sockets.insert(std::make_pair(Socket(AF_INET6, SOCK_STREAM, 0, *iter), s_address()));
+        _listening_sockets.insert(std::make_pair(Socket(AF_INET6, SOCK_STREAM, 0, *iter), address));
 
     for(std::map<Socket, s_address>::iterator iter = _listening_sockets.begin(); iter != _listening_sockets.end(); ++iter)
     {
@@ -162,14 +163,14 @@ void Server::accept_new_connections(const int poll_index)
         }
         _poll.add_to_poll(incoming.fd(), POLLIN);
         _connections.insert(std::make_pair(incoming.fd(), incoming));
-        if (DEBUG) {
-            std::cout << "NEW MAP:" << std::endl;
-            std::map<int, http::Connection>::iterator it;
-            for (it = _connections.begin(); it != _connections.end(); it++){
-                std::cout << "fd:" << it->first << " conn status " << it->second.status() << std::endl;
-            }
-            std::cout << std::endl;
-        }
+        // if (DEBUG) {
+        //     std::cout << "NEW MAP:" << std::endl;
+        //     std::map<int, http::Connection>::iterator it;
+        //     for (it = _connections.begin(); it != _connections.end(); it++){
+        //         std::cout << "fd:" << it->first << " conn status " << it->second.status() << std::endl;
+        //     }
+        //     std::cout << std::endl;
+        // }
     } while (incoming.is_good());
 }
 

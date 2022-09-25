@@ -17,16 +17,6 @@
 
 namespace ws {
 
-typedef struct address_struct
-{
-    struct sockaddr_in6 _address;
-    address_struct()
-    {
-        memset(&_address, 0, sizeof(_address));
-        memcpy(&_address.sin6_addr, &in6addr_any, sizeof(in6addr_any));
-    }
-}s_address;
-
 typedef struct Pollfd
 {
     struct pollfd elem;

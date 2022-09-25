@@ -8,7 +8,6 @@
 # define __Connection_HPP__
 
 #include "utility.hpp"
-#include "Socket.hpp"
 #include "http_type_traits.hpp"
 #include "Request.hpp"
 #include "Response.hpp"
@@ -46,9 +45,10 @@ class Connection {
 
         int _fd;
         int _status;
-        struct sockaddr_in6 _address; // ??
+        s_address _address;
         bool _is_persistent;
         Request _request;
+        // const config_data& _server;
 
 }; // CLASS Connection
 
