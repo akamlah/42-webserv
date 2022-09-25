@@ -50,6 +50,14 @@ Server::Server(const std::vector<ws::config_data>& all_config) : _all_config(all
             _port_server.insert(std::make_pair(fd, i));
         }
     }
+    if (DEBUG){
+        for (std::map<int,int>::iterator it = _port_server.begin(); it != _port_server.end(); ++it)
+        {
+            std::cout << "fd: " << it->first << "\tport: " 
+            << ntohs(_listening_ports.find(it->first)->second._address.sin6_port) 
+            << "\tblock: " << it->second << std::endl;
+        }
+    }
 }
 
 

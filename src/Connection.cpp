@@ -24,8 +24,7 @@ Connection::Connection(const Connection& other)
         _is_persistent(other._is_persistent), _request(other._request), 
         _tokens(other._tokens), _config(other._config)
 {
-    if (DEBUG)
-        std::cout << "Connection cpy constr" << std::endl;
+    
 }
 
 // Connection& Connection::operator=(const Connection& other) {
