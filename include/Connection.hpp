@@ -27,8 +27,8 @@ class Connection {
         //         virtual const char* what() const throw();
         // };
 
-        Connection(const int fd);
-        Connection();
+        Connection(const int fd, const http::Tokens& tokens);
+        Connection(const http::Tokens& tokens);
 
         Connection(const Connection& other);
         Connection& operator=(const Connection& other);
@@ -49,6 +49,7 @@ class Connection {
         struct sockaddr_in6 _address; // ??
         bool _is_persistent;
         Request _request;
+        Tokens _tokens;
 
 }; // CLASS Connection
 
