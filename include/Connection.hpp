@@ -26,8 +26,8 @@ class Connection {
         //         virtual const char* what() const throw();
         // };
 
-        Connection(const int fd);
-        Connection();
+        Connection(const int fd, const http::Tokens& tokens);
+        Connection(const http::Tokens& tokens);
 
         Connection(const Connection& other);
         Connection& operator=(const Connection& other);

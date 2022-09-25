@@ -128,7 +128,11 @@ namespace ws {
 		// std::string temp = helpCheckContent(configDataString, "port:", true);
 		// std::cout << temp << std::endl;
 		config_data temp;
-		temp.port = std::stoi(helpCheckContent(configDataString, "port:", true));
+
+		// temp.port = std::stoi(helpCheckContent(configDataString, "port:", true)); // old version
+
+		temp.ports = helpChecPorts(configDataString, "port:"); // new multiple ports.
+
 		temp.limit_body = std::stoi(helpCheckContent(configDataString, "limit_body:", true));
 		temp.server_name = helpCheckContent(configDataString, "server_name:", false);
 		temp.error = helpCheckContent(configDataString, "error:", false);
@@ -137,15 +141,76 @@ namespace ws {
 		temp.index = helpCheckContent(configDataString, "index:", false);
 		temp.http_redirects = helpCheckContent(configDataString, "http_redirects:", false);
 		temp.download = helpCheckContent(configDataString, "download:", false);
+
+		temp.http_methods = helpCheckHTTPmethods(configDataString, "http_methods:");
+
 		temp.cgi = helpCheckContent(configDataString, "cgi:", false);
 		if (temp.cgi.find("non") == std::string::npos)
 			temp.isCgiOn = true;
 		else
 			temp.isCgiOn = false;
+
 		temp.directory_listing = helpGetDirecotry_listing(configDataString, "directory_listing:");
-		std::cout << "inside: " << temp.port << std::endl;
+		// std::cout << "inside: " << temp.port << std::endl;
 		configDataAll.push_back(temp);
 	}
+
+	std::vector<int> Config::helpChecPorts(std::string const &  configDataString, std::string const & checkThis )
+	{
+		std::vector<int> vectorTemp;
+		std::string::size_type portPlace = configDataString.find(checkThis);
+		if (portPlace == std::string::npos)
+			throw ConfigFileError("ERROR: " + checkThis + " Missing from config file!");
+		std::string temp;
+		portPlace += checkThis.length();
+		while (!(std::isprint(configDataString[portPlace])) || configDataString[portPlace] == ' ')
+			portPlace++;
+		for (std::string::size_type i = portPlace; configDataString[i] != ';'; i++)
+		{
+			while (!(std::isprint(configDataString[i])) || configDataString[i] == ' ')
+				i++;
+			if (configDataString[i] == ',')
+			{
+				vectorTemp.push_back(std::stoi(temp));
+				temp.clear();
+			}
+			else if (std::isdigit(configDataString[i]))
+				temp += configDataString[i];
+			else
+				throw ConfigFileError("ERROR: " + checkThis + " wrong format in config file!");
+		}
+		vectorTemp.push_back(std::stoi(temp));
+		return (vectorTemp);
+	}
+
+	std::vector<std::string> Config::helpCheckHTTPmethods(std::string const &  configDataString, std::string const & checkThis )
+	{
+		std::vector<std::string> vectorTemp;
+		std::string::size_type portPlace = configDataString.find(checkThis);
+		if (portPlace == std::string::npos)
+			throw ConfigFileError("ERROR: " + checkThis + " Missing from config file!");
+		std::string temp;
+		portPlace += checkThis.length();
+		while (!(std::isprint(configDataString[portPlace])) || configDataString[portPlace] == ' ')
+			portPlace++;
+		for (std::string::size_type i = portPlace; configDataString[i] != ';'; i++)
+		{
+			while (!(std::isprint(configDataString[i])) || configDataString[i] == ' ')
+				i++;
+			if (configDataString[i] == ',')
+			{
+				vectorTemp.push_back(temp);
+				temp.clear();
+			}
+			else if (std::isprint(configDataString[i]))
+				temp += configDataString[i];
+			else
+				throw ConfigFileError("ERROR: " + checkThis + " wrong format in config file!");
+		}
+		vectorTemp.push_back(temp);
+		return (vectorTemp);
+	}
+	
 	
 	void Config::setConfigData() {
 

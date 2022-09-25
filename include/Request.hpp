@@ -100,6 +100,8 @@ class Request {
         std::string error_msg;
         int _status;
 
+        // stringstream (_body)
+
 }; // CLASS Request
 
 } // NAMESPACE http

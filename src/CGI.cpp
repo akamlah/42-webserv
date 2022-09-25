@@ -124,6 +124,7 @@ namespace ws {
 					close(fd[1]);
 					close(fd[0]);
 			execl("/usr/bin/php", "php", phpfile.c_str(), NULL);
+			exit(0);
 			// throw error....
 		}
 		else
