@@ -155,7 +155,8 @@ int parser::parse(Request& request, int fd) {
     if (!host_fields)
         return (error_status(request, WS_400_BAD_REQUEST, "No host field provided"));
     buffer[msg_length] = '\0';
-            std::cout << msg_length << std::endl;
+    if (DEBUG)
+        std::cout << "request msg length after parse: " << msg_length << std::endl;
     // std::cout << CYAN << "PARSER: Message recieved: ---------\n\n" << NC << buffer;
     // std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
     if (DEBUG)
@@ -193,6 +194,7 @@ int parser::__parse_previous_line(Request& request, const char* line) {
     else if (header_done && (line_length == 2 && buffer[msg_length - 2] == CR_int)) { // final CRLF
         if (DEBUG)
             std::cout << "final CRLF" << std::endl;
+        // -> body 
         // from here later start parsing mesasge BODY if any, else stop.
         return (0);
     }
