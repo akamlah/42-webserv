@@ -63,9 +63,7 @@ void Connection::handle() {
         }
         Response response(_request, _tokens);
         _is_persistent = _request.is_persistent();
-        response.send(_fd);
-        system("leaks webserv | tail -3");
-        // system("leaks webserv");
+        response.send(_fd); //argument config file
     }
     catch (ws::exception& e) {
         std::cout << RED << "unforeseen exception req-resp" << NC << std::endl;

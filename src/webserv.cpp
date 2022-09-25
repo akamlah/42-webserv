@@ -9,54 +9,39 @@
 
 int main(int argc, char **argv) {
 
-    if (argc != 2)
-    {
-        std::cout << "Wrong number of argument!.. try: ./webserv [configuration file]\n";
-        return (0);
-    }
-    try
-    {
+	if (argc != 2)
+	{
+		std::cout << "Wrong number of argument!.. try: ./webserv [configuration file]\n";
+		return (0);
+	}
+	try
+	{
+		ws::Config configData(argv[1]);
+		configData.setConfigData();
 
-        ws::Config configData(argv[1]);
-        configData.setConfigData();
-
-        // std::cout << "port in 0: " << configData.getAllConfigData()[0].port << std::endl;
-        // std::cout << "port in 1: " << configData.getAllConfigData()[1].port << std::endl;
-        // std::cout << "port in 2: " << configData.getAllConfigData()[2].port << std::endl;
-        std::cout << "number of server: " << configData.getnumberOfServers() <<  std::endl;
-
-        // ws::Socket server_socket(AF_INET6, SOCK_STREAM, 0); // these might better be server parameters ?
-        // ws::Socket server_socket1(AF_INET6, SOCK_STREAM, 0, PORT); // these might better be server parameters ?
-
-        ws::Server server(configData.getConfigData());
-        // ws::Server server(server_socket1, PORT);
-        try {
-                server.listen(BACKLOG);
-                // server1.listen(BACKLOG);
-        /* also bind */ }
-        catch (ws::exception& e) { std::cout << e.what() << std::endl; return (-1); }
-
-        // all of next code in a "server run" function ?
+		// std::cout << "port in 0: " << configData.getAllConfigData()[1].http_methods[0] << std::endl;
+		// std::cout << "port in 1: " << configData.getAllConfigData()[1].http_methods[1] << std::endl;
+		// std::cout << "port in 1: " << configData.getAllConfigData()[1].port << std::endl;
+		// std::cout << "port in 2: " << configData.getAllConfigData()[2].port << std::endl;
+		std::cout << "number of server: " << configData.getnumberOfServers() <<  std::endl;
 
 
-            #if __APPLE__ //then use kqueue, else epoll ?
-                // -> multiplexing -> handle inside server class ?
+// while going over the vector of config files... ---> run each of them 
+		ws::Server server(configData.getConfigData());
 
-                try {
-                     server.run(); 
-                }
-                catch (ws::exception& e) { std::cout << e.what() << std::endl; return -1; }
 
-              #endif
+		server.listen(BACKLOG);
 
-    }
-    catch(const std::exception& e)
-    {
-        std::cerr << e.what() << '\n';
-        return (-1);
-    }
-    #if DEBUG
-    system("leaks webserv | tail - 3");
-    #endif
-    return (0);
+
+
+	}
+	catch(const std::exception& e)
+	{
+		std::cerr << e.what() << '\n';
+		return (-1);
+	}
+	#if DEBUG
+	system("leaks webserv | tail - 3");
+	#endif
+	return (0);
 }

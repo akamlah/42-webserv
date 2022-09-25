@@ -57,9 +57,11 @@ class Server {
         Poll    _poll;
         int _number_of_listening_ports;
         std::map<int, http::Connection> _connections;
-        
+        config_data myConfigdata;
+
         // init token maps here to do it just once and not every time they are called.
         http::Tokens _tokens;
+
 
 }; // Class Server
 
