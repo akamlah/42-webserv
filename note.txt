@@ -1,3 +1,7 @@
+test
+2T2 T
+2S6 S
+6AA A
 
 // goes through byte by byte and at every newline reads the previous line into the data structure.
 int Request::parse(Request& request, int fd) {

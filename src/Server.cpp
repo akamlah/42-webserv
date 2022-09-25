@@ -6,6 +6,7 @@
 
 #include "../include/Server.hpp"
 #include "../include/utility.hpp"
+#include "../include/CGI.hpp"
 
 bool trythis = true;
 

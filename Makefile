@@ -31,7 +31,7 @@ CLASSES_NAME = \
 	Response \
 	Config \
 	Poll \
-	Kqueue \
+	CGI \
 	Connection
 
 OTHER_CPPFILES = \
