@@ -52,7 +52,6 @@ typedef struct address_struct
     struct sockaddr_in6 _address;
     address_struct()
 	{
-		printf("Called default constructor.\n");
 		memset(&_address, 0, sizeof(_address));
 		memcpy(&_address.sin6_addr, &in6addr_any, sizeof(in6addr_any));
 	}
