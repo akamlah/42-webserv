@@ -18,6 +18,10 @@ int main(int argc, char **argv) {
         ws::Config configData(argv[1]);
         configData.setConfigData();
 
+        // std::cout << "port in 0: " << configData.getAllConfigData()[0].port << std::endl;
+        // std::cout << "port in 1: " << configData.getAllConfigData()[1].port << std::endl;
+        // std::cout << "port in 2: " << configData.getAllConfigData()[2].port << std::endl;
+        std::cout << "number of server: " << configData.getnumberOfServers() <<  std::endl;
 
         // ws::Socket server_socket(AF_INET6, SOCK_STREAM, 0); // these might better be server parameters ?
         // ws::Socket server_socket1(AF_INET6, SOCK_STREAM, 0, PORT); // these might better be server parameters ?
@@ -37,7 +41,7 @@ int main(int argc, char **argv) {
                 // -> multiplexing -> handle inside server class ?
 
                 try {
-                     server.run(3 * 60 * 1000); 
+                     server.run(); 
                 }
                 catch (ws::exception& e) { std::cout << e.what() << std::endl; return -1; }
 
@@ -49,5 +53,8 @@ int main(int argc, char **argv) {
         std::cerr << e.what() << '\n';
         return (-1);
     }
+    #if DEBUG
+    system("leaks webserv | tail - 3");
+    #endif
     return (0);
 }
