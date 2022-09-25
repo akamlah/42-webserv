@@ -26,14 +26,13 @@ INCLUDE_DIR = ./include/
 
 CLASSES_NAME = \
 	Server \
-	Socket \
 	Request \
 	Response \
 	Config \
 	Poll \
 	CGI \
-	Connection
-
+	Connection 
+	
 OTHER_CPPFILES = \
 
 INTERFACES = \
