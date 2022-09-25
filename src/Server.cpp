@@ -18,7 +18,7 @@ const char* Server::SystemError::what() const throw() {
 
 // --------------------------------------------------------------------------------------------------------
 
-Server::Server(config_data& configData) {
+Server::Server(config_data& configData): _tokens() {
     int temp = 1;
 
     for (std::vector<int>::const_iterator iter = configData.ports.cbegin(); iter < configData.ports.cend(); ++iter)
@@ -44,7 +44,7 @@ Server::Server(config_data& configData) {
     _number_of_listening_ports = _listening_sockets.size();
 }
 
-Server::Server(Socket& server_socket, int port) {
+Server::Server(Socket& server_socket, int port): _tokens() {
     int temp = 1;
 
     server_socket.port = port;
@@ -137,7 +137,7 @@ void Server::handle_events()
 
 void Server::accept_new_connections(const int poll_index)
 {
-    http::Connection incoming;
+    http::Connection incoming(_tokens);
     int listening_fd = _poll.get_fd(poll_index);
 
     if (DEBUG)
@@ -177,8 +177,10 @@ void Server::handle_connection(const int poll_index)
 {
     // + timeout ?
     // + try catch ?
-    _connections[_poll.get_fd(poll_index)].handle();
-    if (!_connections[_poll.get_fd(poll_index)].is_persistent()) {
+    _connections.find(_poll.get_fd(poll_index))->second.handle();
+    // _connections[_poll.get_fd(poll_index)].handle(); // this used cpy constructor, with find not
+    if (!_connections.find(_poll.get_fd(poll_index))->second.is_persistent()) {
+    // if (!_connections[_poll.get_fd(poll_index)].is_persistent()) {
         close_connection(poll_index);
         if (DEBUG)
             std::cout << "--->>>> Connection closed" << std::endl;
