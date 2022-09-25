@@ -24,8 +24,7 @@ Connection::Connection(const Connection& other)
         _is_persistent(other._is_persistent), _request(other._request), 
         _tokens(other._tokens), _config(other._config)
 {
-    if (DEBUG)
-        std::cout << "Connection cpy constr" << std::endl;
+    
 }
 
 // Connection& Connection::operator=(const Connection& other) {
@@ -48,10 +47,8 @@ void Connection::establish(const int fd) {
     socklen_t address_length = sizeof(_address._address);
     _fd = ::accept(fd, (struct sockaddr *)&_address._address, &address_length);
 
-    if (_fd < 1)
-        std::cout << "failed <<<<<--------- could not establish connection on fd " << _fd << " from fd: " << fd << std::endl;
     if (DEBUG && _fd > 0)
-        std::cout << "successfully <<<<<--------- established connection on fd " << _fd << " from fd: " << fd << std::endl;
+        std::cout << "<<<<<<<<<<<<<<<  successfully <<<<<--------- established connection on fd " << _fd << " from fd: " << fd << std::endl;
 }
 
 void Connection::handle() {

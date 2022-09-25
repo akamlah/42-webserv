@@ -50,6 +50,14 @@ Server::Server(const std::vector<ws::config_data>& all_config) : _all_config(all
             _port_server.insert(std::make_pair(fd, i));
         }
     }
+    if (DEBUG){
+        for (std::map<int,int>::iterator it = _port_server.begin(); it != _port_server.end(); ++it)
+        {
+            std::cout << "fd: " << it->first << "\tport: " 
+            << ntohs(_listening_ports.find(it->first)->second._address.sin6_port) 
+            << "\tblock: " << it->second << std::endl;
+        }
+    }
 }
 
 
@@ -101,11 +109,8 @@ void Server::handle_events()
 
     for (size_t poll_index = 0; poll_index < current_size; ++poll_index)
     {
-        if (_poll.fds[poll_index].elem.revents == 0) {
-            if (DEBUG)
-                std::cout << "revents = 0" << std::endl;
+        if (_poll.fds[poll_index].elem.revents == 0)
             continue;
-        }
         if (_poll.fds[poll_index].elem.revents != POLLIN)
         {
             if (DEBUG)
@@ -136,7 +141,6 @@ void Server::accept_new_connections(const int poll_index)
     {
         http::Connection incoming(_tokens, _all_config[_port_server.find(listening_fd)->second]);
         incoming.establish(listening_fd);
-        std::cerr << "fd " << listening_fd << " Port " << ntohs(_listening_ports.find(listening_fd)->second._address.sin6_port) << " has been checked from array" << std::endl;
         if (!incoming.is_good()) {
             if (errno != EWOULDBLOCK) {
                 if (DEBUG) {
@@ -179,7 +183,7 @@ void Server::close_connection(const int poll_index)
 {
     int fd = _poll.get_fd(poll_index);
     if (DEBUG)
-        std::cout << "CLOSE ! fd: " << fd << std::endl;
+        std::cout << "\n >>>>>>>>   CLOSE ! fd: " << fd << std::endl;
     _connections.erase(fd);
     close(fd);
     _poll.fds[poll_index].elem.fd = -1;
