@@ -30,23 +30,9 @@ int main(int argc, char **argv) {
         // ws::Server server(server_socket1, PORT);
         try {
                 server.listen(BACKLOG);
-                // server1.listen(BACKLOG);
+                server.run(); 
         /* also bind */ }
         catch (ws::exception& e) { std::cout << e.what() << std::endl; return (-1); }
-
-        // all of next code in a "server run" function ?
-
-
-            #if __APPLE__ //then use kqueue, else epoll ?
-                // -> multiplexing -> handle inside server class ?
-
-                try {
-                     server.run(); 
-                }
-                catch (ws::exception& e) { std::cout << e.what() << std::endl; return -1; }
-
-              #endif
-
     }
     catch(const std::exception& e)
     {
