@@ -22,7 +22,7 @@ int main(int argc, char **argv) {
 		// std::cout << "port in 1: " << configData.getAllConfigData()[1].http_methods[1] << std::endl;
 		// std::cout << "port in 1: " << configData.getAllConfigData()[1].port << std::endl;
 		// std::cout << "port in 2: " << configData.getAllConfigData()[2].port << std::endl;
-		std::cout << "number of server: " << configData.getnumberOfServers() <<  std::endl;
+		// std::cout << "number of server: " << configData.getnumberOfServers() <<  std::endl;
 
 
 // while going over the vector of config files... ---> run each of them 

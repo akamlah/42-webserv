@@ -55,9 +55,6 @@ class Config {
 		int								numberOfServers;
 
 		// end new structure
-
-
-
 		std::vector<int>				_ports;
 		int	port;
 		std::string	host;

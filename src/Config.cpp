@@ -130,6 +130,7 @@ namespace ws {
 		config_data temp;
 
 		// temp.port = std::stoi(helpCheckContent(configDataString, "port:", true)); // old version
+		// temp.port = 4444; // old version
 
 		temp.ports = helpChecPorts(configDataString, "port:"); // new multiple ports.
 
