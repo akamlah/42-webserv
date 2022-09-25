@@ -86,6 +86,7 @@ void Response::__set_target_path() {
     std::string root;
     std::string file;
     if (status() == WS_200_OK) {
+        
         root = "./example_sites/example2";
         // root = config.root
         // if (!root) -> defaoult root

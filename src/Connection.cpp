@@ -62,7 +62,7 @@ void Connection::handle() {
         }
         Response response(_request);
         _is_persistent = _request.is_persistent();
-        response.send(_fd);
+        response.send(_fd); //argument config file
     }
     catch (ws::exception& e) {
         std::cout << RED << "unforeseen exception req-resp" << NC << std::endl;
