@@ -25,6 +25,8 @@ namespace ws {
 #define GREEN "\033[0;32m"
 #define NC "\033[0m"
 
+
+
 #ifndef DEBUG
 #define DEBUG 0 // rule "make dbg" defines this at compiletime
 #endif
