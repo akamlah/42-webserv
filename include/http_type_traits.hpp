@@ -7,6 +7,9 @@
 #ifndef __TRAITS_HPP__
 # define __TRAITS_HPP__
 
+#include <string>
+#include <map>
+
 namespace ws {
 namespace http {
 
@@ -155,6 +158,100 @@ class StatusPhrase {
             status_code[511] = "511 (NETWORK AUTHENTICATION REQUIRE)";
         }
 }; // CLASS StatusPhrase
+
+// mapps extensions to type field eg ".ico" to "image/x-icon"
+class ExtensionsToType {
+public :
+    std::map<std::string, std::string> typemap;
+    ExtensionsToType(const ExtensionsToType& other): typemap(other.typemap) {}
+    ExtensionsToType& operator=(const ExtensionsToType& other) { typemap = other.typemap; return(*this); }
+    ExtensionsToType() {
+        typemap.insert(std::make_pair<std::string, std::string>(  "aac",    "audio/aac"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "abw",    "application/x-abiword"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "arc",    "application/x-freearc"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "avif",   "image/avif"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "avi",    "video/x-msvideo"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "azw",    "application/vnd.amazon.ebook"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "bin",    "application/octet-stream"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "bmp",    "image/bmp"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "bz",     "application/x-bzip"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "bz2",    "application/x-bzip2"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "cda",    "application/x-cdf"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "csh",    "application/x-csh"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "css",    "text/css"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "csv",    "text/csv"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "doc",    "application/msword"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "docx",   "application/vnd.openxmlformats-officedocument.wordprocessingml.document"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "eot",    "application/vnd.ms-fontobject"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "epub",   "application/epub+zip"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "gz",     "application/gzip"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "gif",    "image/gif"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "html",   "text/html"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "htm",    "text/html"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "ico",    "image/x-icon"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "ics",    "text/calendar"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "jar",    "application/java-archive"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "jpg",    "image/jpeg"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "jpeg",   "image/jpeg"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "js",     "text/javascript"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "json",   "application/json"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "jsonld", "application/ld+json"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "mid",    "audio/midi"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "midi",   "audio/midi"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "mjs",    "text/javascript"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "mp3",    "audio/mpeg"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "mp4",    "video/mp4"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "mpeg",   "video/mpeg"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "mpkg",   "application/vnd.apple.installer+xml"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "odp",    "application/vnd.oasis.opendocument.presentation"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "ods",    "application/vnd.oasis.opendocument.spreadsheet"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "odt",    "application/vnd.oasis.opendocument.text"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "oga",    "audio/ogg"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "ogv",    "video/ogg"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "ogx",    "application/ogg"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "opus",   "audio/opus"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "otf",    "font/otf"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "png",    "image/png"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "pdf",    "application/pdf"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "php",    "text/event-stream"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "ppt",    "application/vnd.ms-powerpoint"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "pptx",   "application/vnd.openxmlformats-officedocument.presentationml.presentation"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "rar",    "application/vnd.rar"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "rtf",    "application/rtf"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "sh",     "application/x-sh"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "svg",    "image/svg+xml"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "tar",    "application/x-tar"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "tiff",   "image/tiff"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "tif",    "image/tiff"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "ts",     "video/mp2t"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "ttf",    "font/ttf"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "txt",    "text/plain"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "vsd",    "application/vnd.visio"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "wav",    "audio/wav"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "weba",   "audio/webm"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "webm",   "video/webm"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "webp",   "image/webp"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "woff",   "font/woff"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "woff2",  "font/woff2"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "xhtml",  "application/xhtml+xml"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "xls",    "application/vnd.ms-excel"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "xlsx",   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "xml",    "application/xml"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "xul",    "application/vnd.mozilla.xul+xml"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "zip",    "application/zip"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "3gp",    "video/3gpp"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "3g2",    "video/3gpp2"));
+        typemap.insert(std::make_pair<std::string, std::string>(  "7z",     "application/x-7z-compressed"));
+    } // constructor ExtensionsToType();
+    ~ExtensionsToType() {}
+
+};
+
+class Tokens {
+    public:
+        StatusPhrase ststus_phrases;
+        ExtensionsToType extensions;
+};
 
 } // NAMESPACE http
 } // NAMESPACE ws

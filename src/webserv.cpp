@@ -6,6 +6,7 @@
 #define PORT 8001
 #define BACKLOG 100
 
+
 int main(int argc, char **argv) {
 
 	if (argc != 2)
@@ -30,7 +31,7 @@ int main(int argc, char **argv) {
 
 
 		server.listen(BACKLOG);
-
+        server.run();
 
 
 	}

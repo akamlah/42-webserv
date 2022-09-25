@@ -13,13 +13,13 @@ namespace http {
 //     return ("");
 // }
 
-Connection::Connection(const int fd): _fd(fd), _status(0), _is_persistent(true) { }
+Connection::Connection(const int fd, const http::Tokens& tokens): _fd(fd), _status(0), _is_persistent(true), _tokens(tokens) { }
 
-Connection::Connection(): _fd(-1), _status(0), _is_persistent(true) { }
+Connection::Connection(const http::Tokens& tokens): _fd(-1), _status(0), _is_persistent(true), _tokens(tokens) { }
 
 Connection::Connection(const Connection& other)
     : _fd(other._fd), _status(other._status), _address(other._address),
-        _is_persistent(other._is_persistent), _request(other._request) 
+        _is_persistent(other._is_persistent), _request(other._request), _tokens(other._tokens)
 {
     if (DEBUG)
         std::cout << "Connection cpy constr" << std::endl;
@@ -55,12 +55,13 @@ void Connection::handle() {
         try {
             _request.parse(_fd);
             _status = _request.status();
+            // system("leaks webserv | tail - 3");
         }
         catch (http::Request::EofReached& e) { // <- very hacky, might become a problem, we'll see
             std::cout << "EOF" << std::endl;
             _is_persistent = false;
         }
-        Response response(_request);
+        Response response(_request, _tokens);
         _is_persistent = _request.is_persistent();
         response.send(_fd); //argument config file
     }

@@ -18,15 +18,14 @@
 namespace ws {
 namespace http {
 
+struct Resource {
+    std::string path;
+    std::string type;
+    std::string subtype;
+    std::string extension;
+};
+
 class Response {
-
-    // private:
-
-    //     typedef struct s_header {
-    //         std::string method;
-    //         std::string target;
-    //         std::string version;
-    //     } header_t;    public:
 
     public:
 
@@ -37,7 +36,8 @@ class Response {
 
         // + exceptions
 
-        Response(const Request& request);
+        Response(const Tokens& tokens);
+        Response(const Request& request, const Tokens& tokens);
         // + cpy constr
         // + cpy assign ope
         ~Response();
@@ -45,11 +45,6 @@ class Response {
         int status() const { return (_status); }
         void send(const int fd);
         bool is_persistent() const;
-
-        void runSendCig( const std::string & path );
-        void sendPicResp( const std::string & path );
-        void createFieldStream();
-
 
     private:
         const char* throw_status(int status, const char* msg = NULL) const ;
@@ -60,16 +55,12 @@ class Response {
         int _status;
         bool _is_persistent;
 
-        std::string _path;
-        std::stringstream _fields_stream;
-        std::stringstream _body;
-
-        std::string _type;
-        std::string _subtype;
-        std::string _extension;
-
+        Resource _resource;
+        std::stringstream _fields_stream; // buffered header fields
+        std::stringstream _body; // buffered resource body if any
         std::string _response_str; // the whole response
 
+        const Tokens _tokens;
 
     private:
         
@@ -77,13 +68,16 @@ class Response {
         void __set_type(const std::string& type, const std::string& subtype = "");
 
         std::string __generate_status_line() const;
-        void __set_target_path();
-        void __set_content_type_field();
+
+        void __identify_resource(); // calls :
+            void __identify_resource_path();
+            void __extract_resource_extension();
+            void __identify_resource_type();
+
         void __handle_type();
         void __buffer_target_body();
         void __decide_persistency();
         void __generate_response();
-        
 
 }; // CLASS Response
 

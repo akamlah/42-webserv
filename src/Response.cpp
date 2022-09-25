@@ -13,33 +13,29 @@ const char* Response::ResponseException::what() const throw() {
     return ("Response error");
 }
 
-Response::Response(const Request& request): _request(request), _status(request.status()),
-    _is_persistent(request._is_persistent) {
-    
+Response::Response(const Request& request, const Tokens& tokens): _request(request), _status(request.status()),
+    _is_persistent(request._is_persistent), _tokens(tokens) {
     // todo: distinguish methids! for now it is just GET
-    
     __add_field("Server", "ZHero serv/1.0");
     // chunked request: ?
     // Transfer-Encoding: chunked ...
-    __set_target_path();
-    __set_content_type_field();
+    __identify_resource();
     __handle_type(); // TODO: map function pointers ? have a decision tree system.
     __decide_persistency();
     __generate_response();
 }
 
+Response::Response(const Tokens& tokens): _tokens(tokens) {}
+
 Response::~Response() {}
 
 bool Response::is_persistent() const { return (_is_persistent); }
 
-void Response::send(const int fd) { // more error handeling here too
-    // &(*(_response_str.begin()))
+void Response::send(const int fd) { // more error handeling here too [ + ]
     if (DEBUG)
         std::cout << "SENDING RESPONSE:\n" << _response_str;
-
     if (::send(fd, _response_str.c_str(), _response_str.length(), 0) < 0)
         throw_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
-
     std::cout << CYAN << "Response class: Server sent data" << NC << std::endl;
 }
 
@@ -58,20 +54,15 @@ const char* Response::throw_status(int status, const char* msg) const {
 
 // utilities
 
+// adds a string formatted as <'field name': 'value'> to the header stream buffer
 void Response::__add_field(const std::string& field_name, const std::string& value) {
     _fields_stream << field_name << ": " << value << CRLF;
 }
 
-static std::string __extension(const std::string& target) {
-    size_t pos = target.rfind('.');
-    if (pos != target.npos)
-        return (target.substr(pos + 1));
-    return ("");
-}
-
+// sets type and subtype of a resource in one function call for more readibility.
 void Response::__set_type(const std::string& type, const std::string& subtype) {
-    _type = type;
-    _subtype = subtype;
+    _resource.type = type;
+    _resource.subtype = subtype;
 }
 
 // main funcitonalities
@@ -82,24 +73,46 @@ std::string Response::__generate_status_line() const {
     return (stream_status_line.str());
 }
 
-void Response::__set_target_path() {
+// identifies target path and type and adds content-type field to header
+void Response::__identify_resource() {
+    __identify_resource_path();
+    __extract_resource_extension();
+    __identify_resource_type();
+}
+
+void Response::__identify_resource_path() {
     std::string root;
     std::string file;
     if (status() == WS_200_OK) {
         root = "./example_sites/example2";
+
+        // __find_site_root();    [ + ]
+
+        // root = "./example_sites/phptestsite";
+        // root = "./example_sites/example2";
         // root = config.root
         // if (!root) -> defaoult root
+        // #include <fcntl.h>
+        // #include <unistd.h>
         if (_request.header.target == "/") {
             file = "/index.html";
+            // file = "/index.php"; //     [ + ]
+
+            // if (open((root + file).c_str(), O_RDWR) < 0) .... some way to check if one exists !
+            //     std::cout << "no such file" << std::endl;
             // file = config.index (try them all out)
         }
         else
             file = _request.header.target;
     }
     else { // assuming any other thing besides 200 ok is wrong for now (rdr?)
+
+        // __find_error_root();    [ + ]
+
         root = "./default_pages/errors";
         // root = config.error_root
         // if (!root) -> defaoult root
+
         std::stringstream stream_file;
         if (_request.header.target == "/") {
             stream_file << "/error_" << status() << ".html";
@@ -109,46 +122,55 @@ void Response::__set_target_path() {
             file = _request.header.target;
     }
     // sets member attribute to full path to use in system calls
-    _path = root + file;
+    _resource.path = root + file;
+    std::cout << "PATH: " << _resource.path << std::endl;
 }
 
-void Response::__set_content_type_field() {
-    _extension = __extension(_path);
-    if (_extension == "html")
-        __set_type("text", "html");
-    else if (_extension == "css")
-        __set_type("text", "css");
-    else if (_extension == "php")
-        __set_type("text", "event-stream");
-    else if (_extension == "jpg" || _extension == "jpeg" || _extension == "jfif" || _extension == "pjpeg" || _extension == "pjp")
-        __set_type("image", "jpeg");
-    else if (_extension == "png" || _extension == "avif" || _extension == "webp")
-        __set_type("image", _extension);
-    else if (_extension == "svg")
-        __set_type("image", "svg+xml");
-    else if (_extension == "ico")
-        __set_type("image", "x-icon");
+void Response::__extract_resource_extension() {
+    size_t pos = _resource.path.rfind('.');
+    if (pos != _resource.path.npos)
+        _resource.extension = _resource.path.substr(pos + 1);
     else
-        __set_type("application", _extension); // +
+    _resource.extension = "";
+}
 
-    __add_field("Content-type", _type + "/" + _subtype);
+// only if the extesion is mapped in 'tokens' content-type field is set.
+// if not found type is set to extension.
+void Response::__identify_resource_type() {
+    std::map<std::string, std::string>::const_iterator it = _tokens.extensions.typemap.find(_resource.extension);
+    if (it == _tokens.extensions.typemap.end()) {
+        _resource.type = _resource.extension;
+        return ;
+    }
+    size_t separator_pos = it->second.find('/');
+    _resource.type = it->second.substr(0, separator_pos);
+    if (separator_pos < it->second.npos)
+        _resource.subtype = it->second.substr(separator_pos + 1);
+    __add_field("Content-type", _resource.subtype.empty() ? _resource.type
+        : (_resource.type + "/" + _resource.subtype));
 }
 
 void Response::__handle_type() {
     // temporarily handles every type, later have a decision tree
-    if (_extension == "php") {
+    if (_resource.extension == "php") { // and cgi in general -> ADD THE OTHER CASES    [ + ]
         __add_field("Cache-Control", "no-cache");
         // CALL CGI HERE - - - -- - - - - 
+        	Cgi test;
+            std::string phpresp;
+            phpresp +=  test.executeCgi(_resource.path);
+            _body << phpresp;
+            return ;
     }
+    else
     // are there other cases ?
     __buffer_target_body();
 }
 
 void Response::__buffer_target_body() { // + error handeling & target check here !
     if (DEBUG)
-        std::cout << "BUFFERING BODY FROM TARGET: " << _path << std::endl;
+        std::cout << "BUFFERING BODY FROM TARGET: " << _resource.path << std::endl;
     try {
-        std::ifstream fin(_path, std::ios::in);
+        std::ifstream fin(_resource.path, std::ios::in);
         // if (!page_file.is_open()) ...
         _body << fin.rdbuf();
         if (!_body.str().empty())
@@ -177,26 +199,6 @@ void Response::__generate_response() {
         << _body.str() << CRLF;
     _response_str = response.str();
 }
-
-// void Response::runSendCig( const std::string & path )
-// {
-// 	Cgi test;
-// 	std::string phpresp;
-// 	// phpresp = "HTTP/1.1 200 OK\nContent-Type: text/event-stream\nCache-Control: no-cache\n";
-// 	// phpresp +=  test.executeCgi("./example_sites/phptestsite/send_sse.php");
-// 	phpresp +=  test.executeCgi(path);
-// 	std::stringstream buffer;
-
-// 	buffer << _status_line << fields_stream.str() << CHAR_CR << CHAR_LF;
-// 	std::string _response_str = buffer.str();
-
-// 	buffer << phpresp << CHAR_CR << CHAR_LF; // write php data in
-
-// 	_response_str = buffer.str();
-// 	if (send(client_socket.fd, _response_str.c_str(), strlen(_response_str.c_str()), 0) < 0)
-// 	throw_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
-// 	std::cout << CYAN << "Response class: Server sent data" << NC << std::endl;
-// }
 
 } // NAMESPACE http
 } // NAMESPACE ws
