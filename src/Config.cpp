@@ -82,6 +82,10 @@ namespace ws {
 			portPlace++;
 		for (std::string::size_type i = portPlace; configDataString[i] != ';'; i++)
 		{
+			while (!(std::isprint(configDataString[i])) || configDataString[i] == ' ')
+				i++;
+			if (configDataString[i] == ';')
+				break;
 			if (isNumber && std::isdigit(configDataString[i]))
 				temp += configDataString[i];
 			else if (std::isprint(configDataString[i]))
@@ -89,6 +93,8 @@ namespace ws {
 			else
 				throw ConfigFileError("ERROR: " + checkThis + " wrong format in config file!");
 		}
+		if (temp.empty())
+			throw ConfigFileError("ERROR: Missing " + checkThis);
 		return (temp);
 	}
 
@@ -103,11 +109,15 @@ namespace ws {
 			portPlace++;
 		for (std::string::size_type i = portPlace; configDataString[i] != ';'; i++)
 		{
-				temp += configDataString[i];
+			while (!(std::isprint(configDataString[i])) || configDataString[i] == ' ')
+				i++;
+			if (configDataString[i] == ';')
+				break;
+			temp += configDataString[i];
 		}
-		if (temp.compare("on"))
+		if (temp == "on")
 			return (true);
-		else if (temp.compare("off"))
+		else if (temp == "off")
 			return (false);
 		else
 			throw ConfigFileError("ERROR: " + checkThis + " wrong format in config file!");
@@ -136,9 +146,7 @@ namespace ws {
 			temp.isCgiOn = true;
 		else
 			temp.isCgiOn = false;
-
 		temp.directory_listing = helpGetDirecotry_listing(configDataString, "directory_listing:");
-		// std::cout << "inside: " << temp.port << std::endl;
 		configDataAll.push_back(temp);
 	}
 
@@ -226,5 +234,6 @@ namespace ws {
 	}
 	
 	std::vector<ws::config_data> const & Config::getAllConfigData() const { return (configDataAll); }
+	config_data const & Config::getNumberConfigData(int number) const { return (configDataAll[number]);}
 
 } // namspace ws
