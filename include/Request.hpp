@@ -39,6 +39,8 @@ class parser {
         bool start_content;
         bool request_line_done;
         bool header_done;
+        bool start_fields;
+        bool body_done;
         //  A server that receives a method longer than any that it implements SHOULD 
         //  respond with a 501 (Not Implemented) status code -> BUFFER SIZES -> [ ! ] centralise later
         unsigned char buffer[BUFFER_SIZE];
@@ -47,10 +49,11 @@ class parser {
 
         bool __is_method(const char *word, size_t word_length) const;
         int __get_byte(Request& request, int fd);
-        int __parse_previous_line(Request& request, const char* line);
+        int __parse_previous_line(Request& request, const char* line, const int fd);
         int __parse_request_line(Request& request, const char* line);
         int __parse_next_word_request_line(Request& request, int i, int skip);
         int __parse_field_line(Request& request, const char* line);
+        void __parse_body(Request& request, int fd);
 }; // CLASS parser
 
 /*
@@ -99,7 +102,7 @@ class Request {
         std::string error_msg;
         int _status;
 
-        // stringstream (_body)
+        std::stringstream _body;
 
 }; // CLASS Request
 
