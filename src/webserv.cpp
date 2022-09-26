@@ -16,22 +16,7 @@ int main(int argc, char **argv) {
 	try
 	{
 		ws::Config configData(argv[1]);
-<<<<<<< HEAD
-		configData.setConfigData();
-
-		// std::cout << "port in 0: " << configData.getAllConfigData()[1].http_methods[0] << std::endl;
-		// std::cout << "port in 1: " << configData.getAllConfigData()[1].http_methods[1] << std::endl;
-		// std::cout << "port in 1: " << configData.getAllConfigData()[1].port << std::endl;
-		// std::cout << "port in 2: " << configData.getAllConfigData()[2].port << std::endl;
-		// std::cout << "number of server: " << configData.getnumberOfServers() <<  std::endl;
-
-
-// while going over the vector of config files... ---> run each of them 
-		ws::Server server(configData.getConfigData());
-
-=======
 		ws::Server server(configData.getAllConfigData());
->>>>>>> master
 
 		server.listen(BACKLOG);
         server.run();

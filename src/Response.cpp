@@ -93,30 +93,9 @@ void Response::__identify_resource_path() {
     std::string root;
     std::string file;
     if (status() == WS_200_OK) {
-<<<<<<< HEAD
-        root = "./example_sites/phptestsite";
-        // root = "./example_sites/example2";
-
-        // __find_site_root();    [ + ]
-
-        // root = "./example_sites/example2";
-        // root = config.root
-        // if (!root) -> defaoult root
-        // #include <fcntl.h>
-        // #include <unistd.h>
-        if (_request.header.target == "/") {
-            file = "/index.html";
-            // file = "/index.php"; //     [ + ]
-
-            // if (open((root + file).c_str(), O_RDWR) < 0) .... some way to check if one exists !
-            //     std::cout << "no such file" << std::endl;
-            // file = config.index (try them all out)
-        }
-=======
         root = _config.root;
         if (_request.header.target == "/")
             file = "/" + _config.index; // is it always "/" or are there other formats? [ + ]
->>>>>>> master
         else
             file = _request.header.target;
     }

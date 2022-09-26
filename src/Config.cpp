@@ -33,7 +33,6 @@ namespace ws {
 	{
 		if (!argv)
 			return (false);
-
 		std::string temp = argv;
 		if (temp.size() <= 0)
 			return (false);
@@ -60,13 +59,8 @@ namespace ws {
 		std::string::size_type startsignLoc = 0;
 		do
 		{
-			// std::cout << "I'm here\n";
 			closingsingLoc++;
 			closingsingLoc = fullConfile.find('}', closingsingLoc);
-
-			// std::cout << "post }; " << closingsingLoc << std::endl;
-			// std::cout << "caracter after " << fullConfile[closingsingLoc + 1] << std::endl;
-			
 			if (closingsingLoc == std::string::npos )
 				return (false);
 			checkContent(fullConfile.substr(startsignLoc, closingsingLoc - startsignLoc));
@@ -74,9 +68,6 @@ namespace ws {
 			numberOfServers++;
 		}
 		while (fullConfile[closingsingLoc + 9] == '{');
-
-		// checkContent(buffer.str());
-
 		return (true);
 	}
 
@@ -125,12 +116,7 @@ namespace ws {
 
 	void Config::checkContent(std::string const & configDataString)
 	{
-		// std::string temp = helpCheckContent(configDataString, "port:", true);
-		// std::cout << temp << std::endl;
 		config_data temp;
-
-		// temp.port = std::stoi(helpCheckContent(configDataString, "port:", true)); // old version
-		// temp.port = 4444; // old version
 
 		temp.ports = helpChecPorts(configDataString, "port:"); // new multiple ports.
 
@@ -159,6 +145,7 @@ namespace ws {
 	std::vector<int> Config::helpChecPorts(std::string const &  configDataString, std::string const & checkThis )
 	{
 		std::vector<int> vectorTemp;
+		int port = 0;
 		std::string::size_type portPlace = configDataString.find(checkThis);
 		if (portPlace == std::string::npos)
 			throw ConfigFileError("ERROR: " + checkThis + " Missing from config file!");
@@ -170,22 +157,38 @@ namespace ws {
 		{
 			while (!(std::isprint(configDataString[i])) || configDataString[i] == ' ')
 				i++;
+			if (configDataString[i] == ';')
+				break;
 			if (configDataString[i] == ',')
 			{
-				vectorTemp.push_back(std::stoi(temp));
+				if (temp.empty())
+					throw ConfigFileError("ERROR: Missing port.");
+				port = std::stoi(temp);
+				if (port < 0 || port > 65535)
+					throw ConfigFileError("ERROR: invalid port.");
+				vectorTemp.push_back(port);
 				temp.clear();
 			}
 			else if (std::isdigit(configDataString[i]))
 				temp += configDataString[i];
 			else
+			{
+				std::cout << configDataString[i];
 				throw ConfigFileError("ERROR: " + checkThis + " wrong format in config file!");
+			}
 		}
-		vectorTemp.push_back(std::stoi(temp));
+		if (temp.empty())
+			throw ConfigFileError("ERROR: Missing port.");
+		port = std::stoi(temp);
+		if (port < 0 || port > 65535)
+			throw ConfigFileError("ERROR: invalid port.");
+		vectorTemp.push_back(port);
 		return (vectorTemp);
 	}
 
 	std::vector<std::string> Config::helpCheckHTTPmethods(std::string const &  configDataString, std::string const & checkThis )
 	{
+		std::string methods("GET POST PUT HEAD DELETE PATCH OPTIONS CONNECT TRACE");
 		std::vector<std::string> vectorTemp;
 		std::string::size_type portPlace = configDataString.find(checkThis);
 		if (portPlace == std::string::npos)
@@ -198,8 +201,14 @@ namespace ws {
 		{
 			while (!(std::isprint(configDataString[i])) || configDataString[i] == ' ')
 				i++;
+			if (configDataString[i] == ';')
+				break;
 			if (configDataString[i] == ',')
 			{
+				if (temp.empty())
+					throw ConfigFileError("ERROR: Missing " + checkThis);
+				if (methods.find(temp) == std::string::npos)
+					throw ConfigFileError("ERROR: Wrong " + checkThis + " " + temp);
 				vectorTemp.push_back(temp);
 				temp.clear();
 			}
@@ -208,6 +217,10 @@ namespace ws {
 			else
 				throw ConfigFileError("ERROR: " + checkThis + " wrong format in config file!");
 		}
+		if (temp.empty())
+			throw ConfigFileError("ERROR: Missing " + checkThis);
+		if (methods.find(temp) == std::string::npos)
+			throw ConfigFileError("ERROR: Wrong " + checkThis + " " + temp);
 		vectorTemp.push_back(temp);
 		return (vectorTemp);
 	}
