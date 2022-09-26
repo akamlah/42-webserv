@@ -12,9 +12,23 @@ namespace ws {
 	{
 		return (msg.c_str());
 	}
-	Config::Config() {}
 
-	Config::Config(char *argv)
+	Config::Config() {
+		std::ifstream confFile;
+		confFile.open("./default/default.conf", std::ios::in);
+		if (confFile.fail())
+			throw ConfigFileError("ERROR: Couldn't open config file");
+		std::stringstream buffer;
+		buffer << confFile.rdbuf();
+		std::string fullConfile;
+		fullConfile = buffer.str();
+		numberOfServers = 1;
+		std::string::size_type closingsingLoc = 0;
+		std::string::size_type startsignLoc = 0;
+		checkContent(fullConfile.substr(startsignLoc, closingsingLoc - startsignLoc));
+	}
+
+	Config::Config(std::string const & argv)
 	{
 		if (Config::checkValid(argv))
 		{
@@ -29,9 +43,9 @@ namespace ws {
 
 	Config::~Config() {}
 
-	bool Config::checkValid(char *argv)
+	bool Config::checkValid(std::string const & argv)
 	{
-		if (!argv)
+		if (argv.empty())
 			return (false);
 		std::string temp = argv;
 		if (temp.size() <= 0)

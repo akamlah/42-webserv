@@ -33,9 +33,10 @@ typedef struct c_data {
 
 class Config {
 	public:
-		Config(char *argv);
+		Config();
+		Config(std::string const & argv);
 		~Config();
-	bool checkValid(char *argv);
+	bool checkValid(std::string const & argv);
 	void checkContent(std::string const & configDataString);
 	std::string helpCheckContent(std::string const & , std::string const &, bool );
 	
@@ -59,8 +60,6 @@ class Config {
 	};
 
 	private:
-		Config(); // pdf says that it has to run with argv so we dont have defult?
-
 		std::vector<ws::config_data>	configDataAll;
 		int								numberOfServers;
 
