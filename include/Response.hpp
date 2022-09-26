@@ -65,8 +65,13 @@ class Response {
         std::string         _response_str; // the whole response
 
     private:
-        
-        void __add_field(const std::string& field_name, const std::string& value);        
+
+        void __build_response();
+        void __respond_to_error();
+        void __respond_get();
+        void __respond_post();
+
+        void __add_field(const std::string& field_name, const std::string& value);
         void __add_formatted_timestamp();
         std::string __generate_status_line() const;
         void __identify_resource(); // calls :
@@ -77,7 +82,7 @@ class Response {
         void __handle_type();
         void __buffer_target_body();
         void __decide_persistency();
-        void __generate_response();
+        void __response_to_string();
 
 }; // CLASS Response
 
