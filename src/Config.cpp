@@ -12,7 +12,7 @@ namespace ws {
 	{
 		return (msg.c_str());
 	}
-	Config::Config(): port(4200), root("html"), index("inex.html") {}
+	Config::Config() {}
 
 	Config::Config(char *argv)
 	{
@@ -225,18 +225,6 @@ namespace ws {
 		return (vectorTemp);
 	}
 	
-	
-	void Config::setConfigData() {
-
-		_data.ports.push_back(54000);
-		_data.ports.push_back(18000);
-		_data.ports.push_back(8001);
-/////
-
-	}
-
-	config_data& Config::getConfigData() { return (_data); }
-
 	std::vector<ws::config_data> const & Config::getAllConfigData() const { return (configDataAll); }
 
 } // namspace ws
