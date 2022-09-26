@@ -16,7 +16,7 @@ namespace ws {
 typedef struct c_data {
 	std::vector<int>			ports; /// note dublication? same port in confi file how to handle.
 	
-	int							port;
+	// int							port;
 	int							limit_body;
 	std::string 				server_name;
 	std::string					error;
@@ -44,14 +44,10 @@ class Config {
 	bool helpGetDirecotry_listing(std::string const & configDataString, std::string const & checkThis);
 
 	std::vector<ws::config_data> const & getAllConfigData() const;
-	// std::map<int, ws::config_data> const & getAllConfigData() const;
 	config_data const & getNumberConfigData(int number) const;
 	
-	config_data & getConfigData();
-
+	
 	int getnumberOfServers() const {return (numberOfServers);};
-
-	void setConfigData();
 	
 	class ConfigFileError: public std::exception {
 		private:
@@ -64,24 +60,10 @@ class Config {
 
 	private:
 		Config(); // pdf says that it has to run with argv so we dont have defult?
-	protected:
-		config_data configData; // delted
-		// std::map<int, ws::config_data &>	configDataAll;
 
-		// new structure
 		std::vector<ws::config_data>	configDataAll;
 		int								numberOfServers;
 
-		// end new structure
-
-
-
-		std::vector<int>				_ports;
-		int	port;
-		std::string	host;
-		std::string	root;
-		std::string	index;
-		config_data	_data;
 }; // class Config
 
 } //namespase ws

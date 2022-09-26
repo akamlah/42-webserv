@@ -16,6 +16,20 @@ int main(int argc, char **argv) {
 	try
 	{
 		ws::Config configData(argv[1]);
+		#if DEBUG
+			std::cout << configData.getNumberConfigData(0).cgi << std::endl;
+			std::cout << std::boolalpha << "direcotry listing: " << configData.getNumberConfigData(0).directory_listing << std::endl;
+			std::cout << configData.getNumberConfigData(0).download << std::endl;
+			std::cout << configData.getNumberConfigData(0).error << std::endl;
+			std::cout << configData.getNumberConfigData(0).host << std::endl;
+			std::cout << configData.getNumberConfigData(0).http_methods[0] << std::endl;
+			std::cout << configData.getNumberConfigData(0).http_redirects << std::endl;
+			std::cout << configData.getNumberConfigData(0).index << std::endl;
+			std::cout << std::boolalpha << configData.getNumberConfigData(0).isCgiOn << std::endl;
+			std::cout << configData.getNumberConfigData(0).limit_body << std::endl;
+			std::cout << configData.getNumberConfigData(0).ports[0] << std::endl;
+		#endif
+		
 		ws::Server server(configData.getAllConfigData());
 
 		server.listen(BACKLOG);
