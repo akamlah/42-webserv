@@ -13,10 +13,16 @@ const char* Response::ResponseException::what() const throw() {
     return ("Response error");
 }
 
-Response::Response(const Request& request, const Tokens& tokens): _request(request), _status(request.status()),
-    _is_persistent(request._is_persistent), _tokens(tokens) {
+
+Response::Response(const Request& request, const config_data& config, const Tokens& tokens):
+    _request(request), _config(config), _tokens(tokens), _status(request.status()),
+    _is_persistent(request._is_persistent) {
+
     // todo: distinguish methids! for now it is just GET
+
     __add_field("Server", "ZHero serv/1.0");
+    __add_formatted_timestamp();
+    __add_field("accept-ranges", "bytes");
     // chunked request: ?
     // Transfer-Encoding: chunked ...
     __identify_resource();
@@ -25,7 +31,7 @@ Response::Response(const Request& request, const Tokens& tokens): _request(reque
     __generate_response();
 }
 
-Response::Response(const Tokens& tokens): _tokens(tokens) {}
+// Response::Response(const Tokens& tokens): _tokens(tokens) {}
 
 Response::~Response() {}
 
@@ -35,19 +41,19 @@ void Response::send(const int fd) { // more error handeling here too [ + ]
     if (DEBUG)
         std::cout << "SENDING RESPONSE:\n" << _response_str;
     if (::send(fd, _response_str.c_str(), _response_str.length(), 0) < 0)
-        throw_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
+        error_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
     std::cout << CYAN << "Response class: Server sent data" << NC << std::endl;
 }
 
-const char* Response::throw_status(int status, const char* msg) const {
-    #if DEBUG
-    if (msg)
-        std::cout << RED << msg << ": " << NC;
-    std::cout << RED << "Error: " << StatusPhrase()[status] << NC << std::endl;
-    #endif
-    (void)status;
-    (void)msg;
-    throw Response::ResponseException();
+int Response::error_status(int status, const char* msg) {
+    if (DEBUG) {
+        if (msg)
+            std::cout << RED << msg << ": " << NC;
+        std::cout << RED << "Error: " << _tokens.status_phrases[status] << NC << std::endl;
+    }
+    // throw Response::ResponseException();
+    _status = status;
+    return (status);
 }
 
 // - - - - - - - - - - - PRIVATE - - - - - - - - - - - - - 
@@ -59,10 +65,13 @@ void Response::__add_field(const std::string& field_name, const std::string& val
     _fields_stream << field_name << ": " << value << CRLF;
 }
 
-// sets type and subtype of a resource in one function call for more readibility.
-void Response::__set_type(const std::string& type, const std::string& subtype) {
-    _resource.type = type;
-    _resource.subtype = subtype;
+// field format example: "date: Mon, 26 Sep 2022 09:14:21 GMT"
+void Response::__add_formatted_timestamp() {
+    std::stringstream s;
+    std::time_t t = std::time(0);
+    std::tm* now = std::localtime(&t);
+    s << std::put_time(now, "%a, %d %b %Y %T %Z");
+    __add_field("Date", s.str());
 }
 
 // main funcitonalities
@@ -84,6 +93,7 @@ void Response::__identify_resource_path() {
     std::string root;
     std::string file;
     if (status() == WS_200_OK) {
+<<<<<<< HEAD
         root = "./example_sites/phptestsite";
         // root = "./example_sites/example2";
 
@@ -102,17 +112,16 @@ void Response::__identify_resource_path() {
             //     std::cout << "no such file" << std::endl;
             // file = config.index (try them all out)
         }
+=======
+        root = _config.root;
+        if (_request.header.target == "/")
+            file = "/" + _config.index; // is it always "/" or are there other formats? [ + ]
+>>>>>>> master
         else
             file = _request.header.target;
     }
     else { // assuming any other thing besides 200 ok is wrong for now (rdr?)
-
-        // __find_error_root();    [ + ]
-
         root = "./default_pages/errors";
-        // root = config.error_root
-        // if (!root) -> defaoult root
-
         std::stringstream stream_file;
         if (_request.header.target == "/") {
             stream_file << "/error_" << status() << ".html";
@@ -123,7 +132,25 @@ void Response::__identify_resource_path() {
     }
     // sets member attribute to full path to use in system calls
     _resource.path = root + file;
-    std::cout << "PATH: " << _resource.path << std::endl;
+    if (DEBUG)
+        std::cout << "PATH: " << _resource.path << std::endl;
+    // - - - -TARGET CHECK - - - - - 
+    __validate_target();
+}
+
+void Response::__validate_target() {
+    int tmp_fd;
+    // check also for W in POST ?
+    // [ + ] system to send error pages accordingly
+    if ((tmp_fd = open(_resource.path.c_str(), O_RDONLY)) < 0) {
+        if (errno == ENOENT)
+            error_status(WS_404_NOT_FOUND, strerror(errno));
+        else if (errno == EACCES)
+            error_status(WS_403_FORBIDDEN, strerror(errno));
+        else
+            error_status(WS_500_INTERNAL_SERVER_ERROR, strerror(errno));
+    }
+    close(tmp_fd);
 }
 
 void Response::__extract_resource_extension() {
@@ -177,19 +204,15 @@ void Response::__buffer_target_body() { // + error handeling & target check here
             __add_field("Content-length", std::to_string(_body.str().length()));
     } catch (std::exception& e) {
         std::cout << e.what() << std::endl;
-        throw_status(WS_500_INTERNAL_SERVER_ERROR);
+        error_status(WS_500_INTERNAL_SERVER_ERROR);
     }
 }
 
 void Response::__decide_persistency() {
-    if (_request._is_persistent == true && (_request.field_is_value("connection", "keep-alive")
-        || _request.field_is_value("connection", "chunked"))) {
+    if (_request._is_persistent == true
+        && (_request.field_is_value("connection", "keep-alive")
+            || _request.field_is_value("connection", "chunked")))
         _is_persistent = true;
-        if ((_request.fields.find("connection"))->second == "keep-alive")
-            std::cout << "KEEP ALIVE" << std::endl;
-        else
-            std::cout << "not keep alive" << std::endl;
-        }
 }
 
 void Response::__generate_response() {

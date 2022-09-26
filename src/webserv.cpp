@@ -1,5 +1,4 @@
 #include "../include/Server.hpp"
-#include "../include/Socket.hpp"
 #include "../include/utility.hpp"
 #include "../include/Config.hpp"
 
@@ -17,6 +16,7 @@ int main(int argc, char **argv) {
 	try
 	{
 		ws::Config configData(argv[1]);
+<<<<<<< HEAD
 		configData.setConfigData();
 
 		// std::cout << "port in 0: " << configData.getAllConfigData()[1].http_methods[0] << std::endl;
@@ -29,11 +29,12 @@ int main(int argc, char **argv) {
 // while going over the vector of config files... ---> run each of them 
 		ws::Server server(configData.getConfigData());
 
+=======
+		ws::Server server(configData.getAllConfigData());
+>>>>>>> master
 
 		server.listen(BACKLOG);
         server.run();
-
-
 	}
 	catch(const std::exception& e)
 	{

@@ -8,10 +8,10 @@
 # define __Connection_HPP__
 
 #include "utility.hpp"
-#include "Socket.hpp"
 #include "http_type_traits.hpp"
 #include "Request.hpp"
 #include "Response.hpp"
+#include "Config.hpp"
 
 #include <string>
 #include <iostream>
@@ -27,11 +27,11 @@ class Connection {
         //         virtual const char* what() const throw();
         // };
 
-        Connection(const int fd, const http::Tokens& tokens);
-        Connection(const http::Tokens& tokens);
+        Connection(const int fd, const http::Tokens& tokens, const config_data& config);
+        Connection(const http::Tokens& tokens, const config_data& config);
 
         Connection(const Connection& other);
-        Connection& operator=(const Connection& other);
+        // Connection& operator=(const Connection& other); // class can't be assigned because of const attributes
         ~Connection();
 
         int fd() const;
@@ -46,10 +46,11 @@ class Connection {
 
         int _fd;
         int _status;
-        struct sockaddr_in6 _address; // ??
+        s_address _address;
         bool _is_persistent;
         Request _request;
-        Tokens _tokens;
+        const Tokens& _tokens;
+        const config_data& _config;
 
 }; // CLASS Connection
 

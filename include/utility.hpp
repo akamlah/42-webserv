@@ -14,26 +14,9 @@
 #include <sstream>
 #include <cctype>
 #include <vector>
+#include <netinet/in.h>
 
 namespace ws {
-
-typedef struct c_data {
-	std::vector<int>			ports; /// note dublication? same port in confi file how to handle.
-	
-	int							port;
-	int							limit_body;
-	std::string 				server_name;
-	std::string					error;
-	std::string					host;
-	std::string					root;
-	std::string					index;
-	std::string					http_redirects;
-	std::string					download;
-	std::string					cgi;
-	bool						isCgiOn;
-	bool						directory_listing;
-	std::vector<std::string>	http_methods;
-} config_data;
 
 // some colors for output
 #define RED "\033[0;31m"
@@ -41,6 +24,8 @@ typedef struct c_data {
 #define YELLOW "\033[0;33m"
 #define GREEN "\033[0;32m"
 #define NC "\033[0m"
+
+
 
 #ifndef DEBUG
 #define DEBUG 0 // rule "make dbg" defines this at compiletime
@@ -61,6 +46,26 @@ void throw_print_error(const Exception& e, const char* message = NULL) {
     std::cout << RED << strerror(errno) << NC << std::endl;
     throw e;
 }
+
+typedef struct address_struct
+{
+    struct sockaddr_in6 _address;
+    address_struct()
+	{
+		memset(&_address, 0, sizeof(_address));
+		memcpy(&_address.sin6_addr, &in6addr_any, sizeof(in6addr_any));
+	}
+	address_struct(const address_struct& other) : _address(other._address)
+	{
+		// printf("Called copy constructor.\n");
+	}
+	address_struct& operator=(const address_struct& other)
+	{
+		if (this != &other)
+			_address = other._address;
+		return *this;
+	} 
+}s_address;
 
 } // NAMESPACE ws
 
