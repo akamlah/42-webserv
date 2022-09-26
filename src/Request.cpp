@@ -99,7 +99,8 @@ int parser::error_status(Request& request, const int status, const char* msg) co
     #if DEBUG
     if (msg)
         std::cout << RED << msg << ": " << NC;
-    std::cout << RED << "Error: " << StatusPhrase()[status] << NC << std::endl; // temporary
+    std::cout << RED << "Error: " << StatusPhrase()[status] \
+        << NC << std::endl; // temporary
     #endif
 
     request.error_msg = msg;

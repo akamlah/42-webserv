@@ -249,7 +249,7 @@ public :
 
 class Tokens {
     public:
-        StatusPhrase ststus_phrases;
+        StatusPhrase status_phrases;
         ExtensionsToType extensions;
 };
 
