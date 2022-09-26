@@ -18,17 +18,7 @@ Response::Response(const Request& request, const config_data& config, const Toke
     _request(request), _config(config), _tokens(tokens), _status(request.status()),
     _is_persistent(request._is_persistent) {
 
-    // todo: distinguish methids! for now it is just GET
-
-    __add_field("Server", "ZHero serv/1.0");
-    __add_formatted_timestamp();
-    __add_field("accept-ranges", "bytes");
-    // chunked request: ?
-    // Transfer-Encoding: chunked ...
-    __identify_resource();
-    __handle_type(); // TODO: map function pointers ? have a decision tree system.
-    __decide_persistency();
-    __generate_response();
+    __build_response();
 }
 
 // Response::Response(const Tokens& tokens): _tokens(tokens) {}
@@ -53,33 +43,93 @@ int Response::error_status(int status, const char* msg) {
     }
     // throw Response::ResponseException();
     _status = status;
+    // __respond_to_error(); ?
     return (status);
 }
 
 // - - - - - - - - - - - PRIVATE - - - - - - - - - - - - - 
 
-// utilities
-
-// adds a string formatted as <'field name': 'value'> to the header stream buffer
-void Response::__add_field(const std::string& field_name, const std::string& value) {
-    _fields_stream << field_name << ": " << value << CRLF;
+static bool is_success_code(const int n) {
+    if (n >= 200 && n < 300)
+        return (true);
+    return (false);
 }
 
-// field format example: "date: Mon, 26 Sep 2022 09:14:21 GMT"
-void Response::__add_formatted_timestamp() {
-    std::stringstream s;
-    std::time_t t = std::time(0);
-    std::tm* now = std::localtime(&t);
-    s << std::put_time(now, "%a, %d %b %Y %T %Z");
-    __add_field("Date", s.str());
+void Response::__build_response() {
+    __add_field("Server", "ZHero serv/1.0");
+    __add_formatted_timestamp();
+    __add_field("accept-ranges", "bytes");
+    if (_status == WS_200_OK) {
+        __identify_resource();
+        if (_request.header.method == "GET")
+            __respond_get();
+        if (_request.header.method == "POST")
+            __respond_post();
+    }
+    else
+        __respond_to_error();
 }
 
-// main funcitonalities
+// for now exact same a get, but later specialize this [ + ]
+void Response::__respond_to_error() {
+    // __fetch_error_page_path(); ?
+    __handle_type(); // TODO: map function pointers ? have a decision tree system.
+    __decide_persistency();
+    __response_to_string();
+    // send error page
+    // write this s.t. if an error occurs during this process one can
+    // re-call this function and respond with new status coda
+}
 
-std::string Response::__generate_status_line() const {
-    std::stringstream stream_status_line;
-    stream_status_line << WS_HTTP_VERSION << SP << StatusPhrase()[status()];
-    return (stream_status_line.str());
+void Response::__respond_get() {
+    // chunked request: ?
+    // Transfer-Encoding: chunked ...
+    __handle_type(); // TODO: map function pointers ? have a decision tree system.
+    __decide_persistency();
+    __response_to_string();
+    // status 200
+}
+
+
+// PARSED HEADER:
+// 	Method: POST
+// 	Target: /?action=save
+// 	Version: HTTP/1.1
+// PARSED FIELDS:
+
+// accept|text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9
+// accept-encoding|gzip, deflate, br
+// accept-language|en-gb,en-us;q=0.9,en;q=0.8
+// cache-control|max-age=0
+// connection|keep-alive
+// content-length|12
+// content-type|application/x-www-form-urlencoded
+// host|localhost:9999
+// origin|http://localhost:9999
+// referer|http://localhost:9999/
+// sec-ch-ua|"google chrome";v="105", "not)a;brand";v="8", "chromium";v="105"
+// sec-ch-ua-mobile|?0
+// sec-ch-ua-platform|"macos"
+// sec-fetch-dest|document
+// sec-fetch-mode|navigate
+// sec-fetch-site|same-origin
+// sec-fetch-user|?1
+// upgrade-insecure-requests|1
+// user-agent|mozilla/5.0 (macintosh; intel mac os x 10_15_7) applewebkit/537.36 (khtml, like gecko) chrome/105.0.0.0 safari/537.36
+
+// The data that you send in a POST request must adhere to specific formatting requirements.
+// You can send only the following content types in a POST request to Media Server:
+
+// application/x-www-form-urlencoded
+// multipart/form-data
+
+// https://httpwg.org/specs/rfc9110.html#POST
+void Response::__respond_post() {
+    // read content-type field
+    // read content-length field
+    // send 201 created
+    // create location header with resource
+
 }
 
 // identifies target path and type and adds content-type field to header
@@ -92,7 +142,7 @@ void Response::__identify_resource() {
 void Response::__identify_resource_path() {
     std::string root;
     std::string file;
-    if (status() == WS_200_OK) {
+    if (is_success_code(_status)) {
         root = _config.root;
         if (_request.header.target == "/")
             file = "/" + _config.index; // is it always "/" or are there other formats? [ + ]
@@ -145,7 +195,7 @@ void Response::__extract_resource_extension() {
 void Response::__identify_resource_type() {
     std::map<std::string, std::string>::const_iterator it = _tokens.extensions.typemap.find(_resource.extension);
     if (it == _tokens.extensions.typemap.end()) {
-        _resource.type = _resource.extension;
+        _resource.type = _resource.extension; //    [ ? ]
         return ;
     }
     size_t separator_pos = it->second.find('/');
@@ -179,12 +229,24 @@ void Response::__buffer_target_body() { // + error handeling & target check here
         std::ifstream fin(_resource.path, std::ios::in);
         // if (!page_file.is_open()) ...
         _body << fin.rdbuf();
-        if (!_body.str().empty())
-            __add_field("Content-length", std::to_string(_body.str().length()));
     } catch (std::exception& e) {
         std::cout << e.what() << std::endl;
         error_status(WS_500_INTERNAL_SERVER_ERROR);
     }
+}
+
+// adds a string formatted as <'field name': 'value'CRLF> to the header stream buffer
+void Response::__add_field(const std::string& field_name, const std::string& value) {
+    _fields_stream << field_name << ": " << value << CRLF;
+}
+
+// field format example: "date: Mon, 26 Sep 2022 09:14:21 GMT"
+void Response::__add_formatted_timestamp() {
+    std::stringstream s;
+    std::time_t t = std::time(0);
+    std::tm* now = std::localtime(&t);
+    s << std::put_time(now, "%a, %d %b %Y %T %Z");
+    __add_field("Date", s.str());
 }
 
 void Response::__decide_persistency() {
@@ -194,7 +256,15 @@ void Response::__decide_persistency() {
         _is_persistent = true;
 }
 
-void Response::__generate_response() {
+std::string Response::__generate_status_line() const {
+    std::stringstream stream_status_line;
+    stream_status_line << WS_HTTP_VERSION << SP << _tokens.status_phrases[_status];
+    return (stream_status_line.str());
+}
+
+void Response::__response_to_string() {
+    if (!_body.str().empty())
+        __add_field("Content-length", std::to_string(_body.str().length()));
     std::stringstream response;
     response << __generate_status_line() << CRLF
         << _fields_stream.str() << CRLF

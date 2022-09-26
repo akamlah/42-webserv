@@ -86,7 +86,7 @@ Request::~Request() { /* free data ?*/ }
 
 parser::parser(): line_length(0), nb_lines(0), msg_length(0), nb_empty_lines_beginning(0),
     word_length(0), host_fields(0), word_count(0), start_content(false), request_line_done(false),
-    header_done(false)
+    header_done(false), start_fields(false), body_done(false)
 {
     bzero(buffer, BUFFER_SIZE);
     bzero(request_line, REQUEST_LINE_LENGTH);
@@ -125,21 +125,36 @@ bool parser::__is_method(const char *word, size_t word_length) const {
 // goes through byte by byte and at every newline reads the previous line into the data structure.
 int parser::parse(Request& request, int fd) {
     int status = WS_200_OK;
+    int body_length = 0;
     while (msg_length < BUFFER_SIZE) {
         if (!(status = __get_byte(request, fd))) {
-            std::cout << "get byte returned 0" << std::endl;
+            // std::cout << "get byte returned 0" << std::endl;
             break ;
         }
         if (buffer[msg_length] == '\0') {
-            throw Request::EofReached(); // not good
+            // std::cout << "EOF" << std::endl;
+            break ;
+            // throw Request::EofReached(); // not good
         }
         if (status != WS_200_OK)
             return (status) ; // if 0 it is end of file
+        if (header_done && !body_done) {
+            request._body << buffer[msg_length];
+            // or just save a ptr to buffer point and strcpy as body buffer to not use strstream, slow
+            body_length++;
+            // give error if content too long and exceeds buffer size (msg_length + content-length)
+            // + give error if no content type header field provided for security reasons
+            if (std::to_string(body_length) == request.get_field_value("content-length")) {
+                // std::cout << "DONE" << std::endl;
+                body_done = true;
+            }
+            // std::cout << CYAN << (int) << " " << NC;
+        }
         ++msg_length;
         ++line_length;
         if (buffer[msg_length - 1] == LF_int) { // if newline found:
             ++nb_lines;
-            if (!(status = __parse_previous_line(request, (char *)buffer + msg_length - line_length))) {
+            if (!(status = __parse_previous_line(request, (char *)buffer + msg_length - line_length, fd))) {
                 if (DEBUG)
                     std::cout << "final CRLF 2" << std::endl;
                 break ;
@@ -156,14 +171,15 @@ int parser::parse(Request& request, int fd) {
     if (!host_fields)
         return (error_status(request, WS_400_BAD_REQUEST, "No host field provided"));
     buffer[msg_length] = '\0';
-    if (DEBUG)
+    if (DEBUG) {
         std::cout << "request msg length after parse: " << msg_length << std::endl;
-    // std::cout << CYAN << "PARSER: Message recieved: ---------\n\n" << NC << buffer;
-    // std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
-    if (DEBUG)
+        std::cout << CYAN << "PARSER: Message recieved: ---------\n\n" << NC << buffer;
+        std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
+        std::cout << CYAN << "BODY IS:------------------------------\n" << request._body.str() << NC << std::endl;
+
         std::cout << "Going on: ";
-    if (DEBUG)
         std::cout << request._is_persistent << std::endl;
+    }
     return (status);
 }
 
@@ -183,34 +199,48 @@ int parser::__get_byte(Request& request, int fd) {
     return (WS_200_OK);
 }
 
+// void __parse_body(Request& request, int fd) {
+//     //  HERE   
+//     char body_buffer[BUFFER_SIZE];
+
+// }
+
 // chacks format and interprets line given
 // SKIP initial CRLF lines if nothing before it
 // Detect end of header with final CRLF
 // if not a CRLF line or a CRLF line that is neither at the end nor at the beginning of the request
 // if here in the middle ANY whitespace at line start is found -> reject
-int parser::__parse_previous_line(Request& request, const char* line) {
+int parser::__parse_previous_line(Request& request, const char* line, const int fd) {
+    (void)fd;
     int status = WS_200_OK;
+    // std::cout << "LINE: " << line << std::endl;
     if (!start_content && (line_length == 2 && line[line_length - 2] == CR_int))
         ++nb_empty_lines_beginning;
-    else if (header_done && (line_length == 2 && buffer[msg_length - 2] == CR_int)) { // final CRLF
+    else if (start_fields && (line_length == 2 && buffer[msg_length - 2] == CR_int)) { // final CRLF
         if (DEBUG)
-            std::cout << "final CRLF" << std::endl;
-        // -> body 
-        // from here later start parsing mesasge BODY if any, else stop.
-        return (0);
+            std::cout << "final CRLF after fields" << std::endl;
+        header_done = true; // [ ! ]
+        if (!(request.header.method == "POST")) {
+            // std::cout << "here" << std::endl;
+            body_done = true;
+        }
+        if (body_done) {
+            // std::cout << "here ret" << std::endl;
+            return (0);
+        }
+        // std::cout << "still here, status = " << status << std::endl;
     }
     else {
         start_content = true;
-        if (isspace(line[0]))
+        if (isspace(line[0]) && !header_done)
             return (error_status(request, WS_400_BAD_REQUEST, "Whitespace at line begin"));
-        if (!request_line_done) {
+        if (!request_line_done && !header_done) {
             if ((status = __parse_request_line(request, line)) != WS_200_OK)
                 return (status);
             request_line_done = true;
         }
         else
             __parse_field_line(request, line);
-        header_done = true;
     }
     line_length = 0;
     return (WS_200_OK);
@@ -294,6 +324,7 @@ static void str_tolower(char * str) {
 //  If the target URI includes an authority component, then a client MUST send a
 // field value for Host that is identical to that authority component
 int parser::__parse_field_line(Request& request, const char* line) {
+    start_fields = true;
     char field_line_tmp[5000];
     bzero(field_line_tmp, 5000);
     strlcpy(field_line_tmp, line, line_length + 1);
