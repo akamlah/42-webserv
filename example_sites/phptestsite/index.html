@@ -18,6 +18,7 @@
 	<script type="text/javascript">
 		if(typeof(EventSource)!=="undefined") {
 			//create an object, passing it the name and location of the server side script
+			// var eSource = new EventSource("secondperl.pl");
 			var eSource = new EventSource("send_sse.php");
 			//detect message receipt
 			eSource.onmessage = function(event) {

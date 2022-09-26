@@ -123,7 +123,10 @@ namespace ws {
 			dup2(fd[1],STDOUT_FILENO);
 					close(fd[1]);
 					close(fd[0]);
-			execl("/usr/bin/php", "php", phpfile.c_str(), NULL);
+			if (phpfile.back() == 'p')
+				execl("/usr/bin/php", "php", phpfile.c_str(), NULL);
+			else
+				execl("/usr/local/bin/perl", "perl", phpfile.c_str(), NULL);
 			exit(0);
 			// throw error....
 		}
