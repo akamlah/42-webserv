@@ -55,6 +55,8 @@ static bool is_success_code(const int n) {
     return (false);
 }
 
+// main blocks - - - - - - - - -
+
 void Response::__build_response() {
     __add_field("Server", "ZHero serv/1.0");
     __add_formatted_timestamp();
@@ -90,47 +92,25 @@ void Response::__respond_get() {
     // status 200
 }
 
-
-// PARSED HEADER:
-// 	Method: POST
-// 	Target: /?action=save
-// 	Version: HTTP/1.1
-// PARSED FIELDS:
-
-// accept|text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9
-// accept-encoding|gzip, deflate, br
-// accept-language|en-gb,en-us;q=0.9,en;q=0.8
-// cache-control|max-age=0
-// connection|keep-alive
-// content-length|12
-// content-type|application/x-www-form-urlencoded
-// host|localhost:9999
-// origin|http://localhost:9999
-// referer|http://localhost:9999/
-// sec-ch-ua|"google chrome";v="105", "not)a;brand";v="8", "chromium";v="105"
-// sec-ch-ua-mobile|?0
-// sec-ch-ua-platform|"macos"
-// sec-fetch-dest|document
-// sec-fetch-mode|navigate
-// sec-fetch-site|same-origin
-// sec-fetch-user|?1
-// upgrade-insecure-requests|1
-// user-agent|mozilla/5.0 (macintosh; intel mac os x 10_15_7) applewebkit/537.36 (khtml, like gecko) chrome/105.0.0.0 safari/537.36
-
 // The data that you send in a POST request must adhere to specific formatting requirements.
 // You can send only the following content types in a POST request to Media Server:
-
 // application/x-www-form-urlencoded
 // multipart/form-data
-
 // https://httpwg.org/specs/rfc9110.html#POST
 void Response::__respond_post() {
     // read content-type field
     // read content-length field
     // send 201 created
     // create location header with resource
+    
+    // for now:
+    __handle_type(); // TODO: map function pointers ? have a decision tree system.
+    __decide_persistency();
+    __response_to_string();
 
 }
+
+// - - - - - Subfunctions - - - - 
 
 // identifies target path and type and adds content-type field to header
 void Response::__identify_resource() {
@@ -139,26 +119,35 @@ void Response::__identify_resource() {
     __identify_resource_type();
 }
 
+// [ + ] extensive URI parsing TODO !
 void Response::__identify_resource_path() {
     std::string root;
     std::string file;
     if (is_success_code(_status)) {
         root = _config.root;
-        if (_request.header.target == "/")
-            file = "/" + _config.index; // is it always "/" or are there other formats? [ + ]
-        else
+        if (_request.header.target == "/") 
+            file = "/" + _config.index;
+        else {
             file = _request.header.target;
-    }
-    else { // assuming any other thing besides 200 ok is wrong for now (rdr?)
-        root = "./default_pages/errors";
-        std::stringstream stream_file;
-        if (_request.header.target == "/") {
-            stream_file << "/error_" << status() << ".html";
-            file = stream_file.str();
+            size_t query_pos;
+            if ((query_pos = file.find('?')) != file.npos) {
+                file = file.substr(0, query_pos);
+                // std::cout << "CUT THE QUERY" << std::endl;
+                if (file == "/")
+                    file = "/" + _config.index;
+            }
         }
-        else
-            file = _request.header.target;
     }
+    // else { // assuming any other thing besides 200 ok is wrong for now (rdr?)
+    //     root = "./default_pages/errors";
+    //     std::stringstream stream_file;
+    //     if (_request.header.target == "/") {
+    //         stream_file << "/error_" << status() << ".html";
+    //         file = stream_file.str();
+    //     }
+    //     else
+    //         file = _request.header.target;
+    // }
     // sets member attribute to full path to use in system calls
     _resource.path = root + file;
     if (DEBUG)
@@ -200,7 +189,7 @@ void Response::__identify_resource_type() {
     }
     size_t separator_pos = it->second.find('/');
     _resource.type = it->second.substr(0, separator_pos);
-    if (separator_pos < it->second.npos)
+    if (separator_pos != it->second.npos)
         _resource.subtype = it->second.substr(separator_pos + 1);
     __add_field("Content-type", _resource.subtype.empty() ? _resource.type
         : (_resource.type + "/" + _resource.subtype));
@@ -215,6 +204,15 @@ void Response::__handle_type() {
             std::string phpresp;
             phpresp +=  test.executeCgi(_resource.path);
             _body << phpresp;
+            return ;
+    }
+    if (_resource.extension == "html" && _config.isCgiOn) {
+        	Cgi test;
+            // std::string phpresp;
+            // phpresp +=  test.executeCgi(_resource.path);
+            test.readHTML(_resource.path);
+            _resource.path = "./response.html"; //tmp
+            // _body << phpresp;
             return ;
     }
     else
@@ -263,12 +261,19 @@ std::string Response::__generate_status_line() const {
 }
 
 void Response::__response_to_string() {
-    if (!_body.str().empty())
-        __add_field("Content-length", std::to_string(_body.str().length()));
     std::stringstream response;
-    response << __generate_status_line() << CRLF
-        << _fields_stream.str() << CRLF
-        << _body.str() << CRLF;
+    response << __generate_status_line() << CRLF;
+    if (!is_success_code(_status)) {
+        __add_field("Content-length", std::to_string(strlen(_tokens.status_phrases[_status]) + 1));
+        response << _fields_stream.str() << CRLF;
+        response << _tokens.status_phrases[_status] << CRLF;
+    }
+    else {
+        if (!_body.str().empty())
+            __add_field("Content-length", std::to_string(_body.str().length()));
+        response << _fields_stream.str() << CRLF;
+        response << _body.str() << CRLF;
+    }
     _response_str = response.str();
 }
 

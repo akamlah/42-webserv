@@ -53,7 +53,6 @@ class parser {
         int __parse_request_line(Request& request, const char* line);
         int __parse_next_word_request_line(Request& request, int i, int skip);
         int __parse_field_line(Request& request, const char* line);
-        void __parse_body(Request& request, int fd);
 }; // CLASS parser
 
 /*

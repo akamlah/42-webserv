@@ -13,7 +13,7 @@ namespace http {
 const char* Request::BadRead::what() const throw() {
     return ("Bad read!");
 }
-const char* Request::EofReached::what() const throw() {
+const char* Request::EofReached::what() const throw() { // can be removed.
     return ("EOF reached!");
 }
 
@@ -138,7 +138,7 @@ int parser::parse(Request& request, int fd) {
         }
         if (status != WS_200_OK)
             return (status) ; // if 0 it is end of file
-        if (header_done && !body_done) {
+        if (header_done && !body_done) { // isolate this part
             request._body << buffer[msg_length];
             // or just save a ptr to buffer point and strcpy as body buffer to not use strstream, slow
             body_length++;
@@ -152,17 +152,20 @@ int parser::parse(Request& request, int fd) {
         }
         ++msg_length;
         ++line_length;
-        if (buffer[msg_length - 1] == LF_int) { // if newline found:
-            ++nb_lines;
-            if (!(status = __parse_previous_line(request, (char *)buffer + msg_length - line_length, fd))) {
-                if (DEBUG)
-                    std::cout << "final CRLF 2" << std::endl;
-                break ;
+        if (!header_done) {
+            if (buffer[msg_length - 1] == LF_int) { // if newline found:
+                ++nb_lines;
+                if (!(status = __parse_previous_line(request, (char *)buffer + msg_length - line_length, fd))) {
+                    if (DEBUG)
+                        std::cout << "final CRLF 2" << std::endl;
+                    break ;
+                }
+                if (status != WS_200_OK)
+                    return (status);
             }
-            if (status != WS_200_OK)
-                return (status);
         }
-    }
+    } // end loop
+
     // check that minimum was provided
     if (!start_content)
         return (error_status(request, WS_400_BAD_REQUEST, "Empty request header"));
@@ -175,8 +178,8 @@ int parser::parse(Request& request, int fd) {
         std::cout << "request msg length after parse: " << msg_length << std::endl;
         std::cout << CYAN << "PARSER: Message recieved: ---------\n\n" << NC << buffer;
         std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
-        std::cout << CYAN << "BODY IS:------------------------------\n" << request._body.str() << NC << std::endl;
-
+        std::cout << CYAN << "BODY IS:---------------------------\n" << request._body.str() << NC << std::endl;
+        std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
         std::cout << "Going on: ";
         std::cout << request._is_persistent << std::endl;
     }
@@ -199,12 +202,6 @@ int parser::__get_byte(Request& request, int fd) {
     return (WS_200_OK);
 }
 
-// void __parse_body(Request& request, int fd) {
-//     //  HERE   
-//     char body_buffer[BUFFER_SIZE];
-
-// }
-
 // chacks format and interprets line given
 // SKIP initial CRLF lines if nothing before it
 // Detect end of header with final CRLF
@@ -216,19 +213,14 @@ int parser::__parse_previous_line(Request& request, const char* line, const int 
     // std::cout << "LINE: " << line << std::endl;
     if (!start_content && (line_length == 2 && line[line_length - 2] == CR_int))
         ++nb_empty_lines_beginning;
-    else if (start_fields && (line_length == 2 && buffer[msg_length - 2] == CR_int)) { // final CRLF
-        if (DEBUG)
+    else if (start_fields && (line_length == 2 && buffer[msg_length - 2] == CR_int)) {
+        if (DEBUG)  // final CRLF
             std::cout << "final CRLF after fields" << std::endl;
-        header_done = true; // [ ! ]
-        if (!(request.header.method == "POST")) {
-            // std::cout << "here" << std::endl;
+        header_done = true;
+        if (!(request.header.method == "POST"))    // [ + ]
             body_done = true;
-        }
-        if (body_done) {
-            // std::cout << "here ret" << std::endl;
+        if (body_done)
             return (0);
-        }
-        // std::cout << "still here, status = " << status << std::endl;
     }
     else {
         start_content = true;
