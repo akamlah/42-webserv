@@ -31,59 +31,119 @@ void Response::send(const int fd) { // more error handeling here too [ + ]
     if (DEBUG)
         std::cout << "SENDING RESPONSE:\n" << _response_str;
     if (::send(fd, _response_str.c_str(), _response_str.length(), 0) < 0)
-        error_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
+        throw_error_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
     std::cout << CYAN << "Response class: Server sent data" << NC << std::endl;
 }
 
-int Response::error_status(int status, const char* msg) {
+int Response::throw_error_status(int status, const char* msg) {
     if (DEBUG) {
         if (msg)
             std::cout << RED << msg << ": " << NC;
         std::cout << RED << "Error: " << _tokens.status_phrases[status] << NC << std::endl;
     }
-    // throw Response::ResponseException();
     _status = status;
-    // __respond_to_error(); ?
+    throw Response::ResponseException();
+
     return (status);
 }
 
 // - - - - - - - - - - - PRIVATE - - - - - - - - - - - - - 
 
-static bool is_success_code(const int n) {
-    if (n >= 200 && n < 300)
-        return (true);
-    return (false);
+// static bool is_success_code(const int n) {
+//     if (n >= 200 && n < 300)
+//         return (true);
+//     return (false);
+// }
+
+std::string Response::__generate_status_line() const {
+    std::stringstream stream_status_line;
+    stream_status_line << WS_HTTP_VERSION << SP << _tokens.status_phrases[_status];
+    return (stream_status_line.str());
+}
+
+// adds a string formatted as <'field name': 'value'CRLF> to the header stream buffer
+void Response::__add_field(const std::string& field_name, const std::string& value) {
+    _fields_stream << field_name << ": " << value << CRLF;
+}
+
+// field format example: "date: Mon, 26 Sep 2022 09:14:21 GMT"
+void Response::__add_formatted_timestamp() {
+    std::stringstream s;
+    std::time_t t = std::time(0);
+    std::tm* now = std::localtime(&t);
+    s << std::put_time(now, "%a, %d %b %Y %T %Z");
+    __add_field("Date", s.str());
+}
+
+void Response::__decide_persistency() {
+    if (_request._is_persistent == true
+        && (_request.field_is_value("connection", "keep-alive")
+            || _request.field_is_value("connection", "chunked")))
+        _is_persistent = true;
 }
 
 // main blocks - - - - - - - - -
 
+void Response::__response_to_string() {
+    std::stringstream response;
+    if (!_body.str().empty())
+        __add_field("Content-length", std::to_string(_body.str().length()));
+    response << __generate_status_line() << CRLF;
+    response << _fields_stream.str() << CRLF;
+    response << _body.str() << CRLF;
+    _response_str = response.str();
+}
+
 void Response::__build_response() {
+    if (_status != WS_200_OK) {
+        __respond_to_error();
+        return ;
+    }
     __add_field("Server", "ZHero serv/1.0");
     __add_formatted_timestamp();
-    __add_field("accept-ranges", "bytes");
-    if (_status == WS_200_OK) {
-        __identify_resource();
+    try {
+        // not implemented is checked by request parser already
+        __identify_resource(); // map function pointers to avoid if else statements
         if (_request.header.method == "GET")
             __respond_get();
         if (_request.header.method == "POST")
             __respond_post();
     }
-    else
-        __respond_to_error();
+    catch (ResponseException& e) {
+        __respond_to_error(); // will build error response
+    }
+    // anything else like stringstream errors etc: MEANS STATUS STILL OK and has to be set to not okay
+    catch (std::exception& e) {
+        if (DEBUG) { std::cout << "unforeseen exception in response: " << e.what() << std::endl; }
+        _status = WS_500_INTERNAL_SERVER_ERROR;
+        __respond_to_error(); // will build error response
+    }
 }
 
-// for now exact same a get, but later specialize this [ + ]
+// - - - - - - METHODS - - - - - - - -
+
+// implement custom error pages fetching
+//     root = "./default_pages/errors";
+// assuming any other thing besides 200 ok is wrong for now (rdr?)
 void Response::__respond_to_error() {
-    // __fetch_error_page_path(); ?
-    __handle_type(); // TODO: map function pointers ? have a decision tree system.
+    _body.str(std::string());;
+    _fields_stream.str(std::string());
+    _response_str = std::string();
+    __add_field("Server", "ZHero serv/1.0");
+    __add_formatted_timestamp();
     __decide_persistency();
+    _body << "<!DOCTYPE html>\n<html lang=\"en\">\n"
+        << "<head><title>Error " << _status << "</title></head>\n"
+        << "<body body style=\"background-color:black;"
+        << "font-family: 'Courier New', Courier, monospace; color:rgb(209, 209, 209)\">"
+        << "<h3> Zhero serv 1.0: Error</h3>\n"
+        << "<h1>" << _tokens.status_phrases[_status] << "</h1>"
+        << "</body>\r\n";
     __response_to_string();
-    // send error page
-    // write this s.t. if an error occurs during this process one can
-    // re-call this function and respond with new status coda
 }
 
 void Response::__respond_get() {
+    __add_field("accept-ranges", "bytes");
     // chunked request: ?
     // Transfer-Encoding: chunked ...
     __handle_type(); // TODO: map function pointers ? have a decision tree system.
@@ -114,67 +174,68 @@ void Response::__respond_post() {
 
 // identifies target path and type and adds content-type field to header
 void Response::__identify_resource() {
-    __identify_resource_path();
+    __parse_uri();
     __extract_resource_extension();
     __identify_resource_type();
 }
 
 // [ + ] extensive URI parsing TODO !
-void Response::__identify_resource_path() {
-    std::string root;
-    std::string file;
-    if (is_success_code(_status)) {
-        root = _config.root;
-        if (_request.header.target == "/") 
-            file = "/" + _config.index;
-        else {
-            file = _request.header.target;
-            size_t query_pos;
-            if ((query_pos = file.find('?')) != file.npos) {
-                file = file.substr(0, query_pos);
-                // std::cout << "CUT THE QUERY" << std::endl;
-                if (file == "/")
-                    file = "/" + _config.index;
-            }
-        }
+void Response::__parse_uri() {
+
+    _resource.root = _config.root; // always ?
+
+    size_t uri_end = _request.header.target.npos;
+    size_t query_pos = _request.header.target.find('?');
+    size_t fragment_pos = _request.header.target.find('#');
+
+    _resource.path = _request.header.target.substr(0, query_pos);
+    if (query_pos != uri_end)
+        _resource.query = _request.header.target.substr(query_pos + 1, fragment_pos);
+    if (fragment_pos != uri_end)
+        _resource.fragment = _request.header.target.substr(fragment_pos + 1);
+
+    if (DEBUG) {
+        std::cout << "Separated URI components:" << std::endl;
+        std::cout << "path: " << _resource.path << std::endl;
+        std::cout << "query: " << _resource.query << std::endl;
+        std::cout << "fragment: " << _resource.fragment << std::endl;
     }
-    // else { // assuming any other thing besides 200 ok is wrong for now (rdr?)
-    //     root = "./default_pages/errors";
-    //     std::stringstream stream_file;
-    //     if (_request.header.target == "/") {
-    //         stream_file << "/error_" << status() << ".html";
-    //         file = stream_file.str();
-    //     }
-    //     else
-    //         file = _request.header.target;
-    // }
-    // sets member attribute to full path to use in system calls
-    _resource.path = root + file;
-    if (DEBUG)
-        std::cout << "PATH: " << _resource.path << std::endl;
+
+    if (_resource.path == "/")
+        _resource.file = "/" + _config.index;
+    else
+        _resource.file = _resource.path;
+
+    // (_resource.root.rfind('/') == (_resource.root.npos - 1)) ?
+        _resource.abs_path = _resource.root + _resource.file;
+        // : _resource.abs_path = _resource.root + "/" + _resource.file;
+
+    if (DEBUG) { std::cout << "PATH: " << _resource.abs_path << std::endl; }
+
     // - - - -TARGET CHECK - - - - - 
-    __validate_target();
+    // if get only ?
+    __validate_target_abs_path();
 }
 
-void Response::__validate_target() {
+void Response::__validate_target_abs_path() {
     int tmp_fd;
     // check also for W in POST ?
     // [ + ] system to send error pages accordingly
-    if ((tmp_fd = open(_resource.path.c_str(), O_RDONLY)) < 0) {
+    if ((tmp_fd = open(_resource.abs_path.c_str(), O_RDONLY)) < 0) {
         if (errno == ENOENT)
-            error_status(WS_404_NOT_FOUND, strerror(errno));
+            throw_error_status(WS_404_NOT_FOUND, strerror(errno));
         else if (errno == EACCES)
-            error_status(WS_403_FORBIDDEN, strerror(errno));
+            throw_error_status(WS_403_FORBIDDEN, strerror(errno));
         else
-            error_status(WS_500_INTERNAL_SERVER_ERROR, strerror(errno));
+            throw_error_status(WS_500_INTERNAL_SERVER_ERROR, strerror(errno));
     }
     close(tmp_fd);
 }
 
 void Response::__extract_resource_extension() {
-    size_t pos = _resource.path.rfind('.');
-    if (pos != _resource.path.npos)
-        _resource.extension = _resource.path.substr(pos + 1);
+    size_t pos = _resource.abs_path.rfind('.');
+    if (pos != _resource.abs_path.npos)
+        _resource.extension = _resource.abs_path.substr(pos + 1);
     else
     _resource.extension = "";
 }
@@ -182,7 +243,8 @@ void Response::__extract_resource_extension() {
 // only if the extesion is mapped in 'tokens' content-type field is set.
 // if not found type is set to extension.
 void Response::__identify_resource_type() {
-    std::map<std::string, std::string>::const_iterator it = _tokens.extensions.typemap.find(_resource.extension);
+    std::map<std::string, std::string>::const_iterator it \
+        = _tokens.extensions.typemap.find(_resource.extension);
     if (it == _tokens.extensions.typemap.end()) {
         _resource.type = _resource.extension; //    [ ? ]
         return ;
@@ -202,79 +264,35 @@ void Response::__handle_type() {
         // CALL CGI HERE - - - -- - - - - 
         	Cgi test;
             std::string phpresp;
-            phpresp +=  test.executeCgi(_resource.path);
+            phpresp +=  test.executeCgi(_resource.abs_path);
             _body << phpresp;
             return ;
     }
-    if (_resource.extension == "html" && _config.isCgiOn) {
-        	Cgi test;
-            // std::string phpresp;
-            // phpresp +=  test.executeCgi(_resource.path);
-            test.readHTML(_resource.path);
-            _resource.path = "./response.html"; //tmp
-            // _body << phpresp;
-            return ;
-    }
+    // if (_resource.extension == "html" && _config.isCgiOn) {
+    //     	Cgi test;
+    //         // std::string phpresp;
+    //         // phpresp +=  test.executeCgi(_resource.abs_path);
+    //         test.readHTML(_resource.abs_path);
+    //         _resource.abs_path = "./response.html"; //tmp
+    //         // _body << phpresp;
+    //         return ;
+    // }
     else
     // are there other cases ?
-    __buffer_target_body();
+    __upload_file();
 }
 
-void Response::__buffer_target_body() { // + error handeling & target check here !
+void Response::__upload_file() { // + error handeling & target check here !
     if (DEBUG)
-        std::cout << "BUFFERING BODY FROM TARGET: " << _resource.path << std::endl;
+        std::cout << "BUFFERING BODY FROM TARGET: " << _resource.abs_path << std::endl;
     try {
-        std::ifstream fin(_resource.path, std::ios::in);
+        std::ifstream fin(_resource.abs_path, std::ios::in);
         // if (!page_file.is_open()) ...
         _body << fin.rdbuf();
     } catch (std::exception& e) {
         std::cout << e.what() << std::endl;
-        error_status(WS_500_INTERNAL_SERVER_ERROR);
+        throw_error_status(WS_500_INTERNAL_SERVER_ERROR, strerror(errno));
     }
-}
-
-// adds a string formatted as <'field name': 'value'CRLF> to the header stream buffer
-void Response::__add_field(const std::string& field_name, const std::string& value) {
-    _fields_stream << field_name << ": " << value << CRLF;
-}
-
-// field format example: "date: Mon, 26 Sep 2022 09:14:21 GMT"
-void Response::__add_formatted_timestamp() {
-    std::stringstream s;
-    std::time_t t = std::time(0);
-    std::tm* now = std::localtime(&t);
-    s << std::put_time(now, "%a, %d %b %Y %T %Z");
-    __add_field("Date", s.str());
-}
-
-void Response::__decide_persistency() {
-    if (_request._is_persistent == true
-        && (_request.field_is_value("connection", "keep-alive")
-            || _request.field_is_value("connection", "chunked")))
-        _is_persistent = true;
-}
-
-std::string Response::__generate_status_line() const {
-    std::stringstream stream_status_line;
-    stream_status_line << WS_HTTP_VERSION << SP << _tokens.status_phrases[_status];
-    return (stream_status_line.str());
-}
-
-void Response::__response_to_string() {
-    std::stringstream response;
-    response << __generate_status_line() << CRLF;
-    if (!is_success_code(_status)) {
-        __add_field("Content-length", std::to_string(strlen(_tokens.status_phrases[_status]) + 1));
-        response << _fields_stream.str() << CRLF;
-        response << _tokens.status_phrases[_status] << CRLF;
-    }
-    else {
-        if (!_body.str().empty())
-            __add_field("Content-length", std::to_string(_body.str().length()));
-        response << _fields_stream.str() << CRLF;
-        response << _body.str() << CRLF;
-    }
-    _response_str = response.str();
 }
 
 } // NAMESPACE http

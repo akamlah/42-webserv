@@ -23,7 +23,15 @@ namespace ws {
 namespace http {
 
 struct Resource {
-    std::string path;
+    // as in URI:
+    std::string path; // everything between '/' and '?'
+    std::string query; // everything between '?' and '#'
+    std::string fragment; // from '#' to end
+    // matched:
+    std::string root; // as in config
+    std::string file; // as in uri, or config in case of idex.html/.php
+    std::string abs_path; // root + file -> ready for syscall open
+    // interpreted:
     std::string type;
     std::string subtype;
     std::string extension;
@@ -51,7 +59,7 @@ class Response {
         bool is_persistent() const;
 
     private:
-        int error_status(int status, const char* msg = NULL) ;
+        int throw_error_status(int status, const char* msg = NULL) ;
         // mainly for target check (fstream open error handeling)
 
         const Request&      _request;
@@ -75,12 +83,12 @@ class Response {
         void __add_formatted_timestamp();
         std::string __generate_status_line() const;
         void __identify_resource(); // calls :
-            void __identify_resource_path();
-                void __validate_target();
+            void __parse_uri();
+                void __validate_target_abs_path();
             void __extract_resource_extension();
             void __identify_resource_type();
         void __handle_type();
-        void __buffer_target_body();
+        void __upload_file();
         void __decide_persistency();
         void __response_to_string();
 
