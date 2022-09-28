@@ -23,10 +23,35 @@ namespace ws {
 namespace http {
 
 struct Resource {
-    std::string path;
+    // as in URI:
+    std::string path; // everything between '/' and '?'
+    std::string query; // everything between '?' and '#'
+    std::string fragment; // from '#' to end
+    // matched:
+    std::string root; // as in config
+    std::string file; // as in uri, or config in case of idex.html/.php
+    std::string abs_path; // root + file -> ready for syscall open
+    // interpreted:
     std::string type;
     std::string subtype;
     std::string extension;
+};
+
+// CGI ENV builder - - - - - - - - - - - - - - - - - - - - - - - - - 
+// query format: x_www_form_urlencoded
+// http://localhost:9999/data/mytext.txt?abc&def&hij&klm&nop&qrs&tuv&wxy
+class CgiEnv_FormUrlencoded {
+public:
+    CgiEnv_FormUrlencoded();
+    CgiEnv_FormUrlencoded(const std::string& query_str);
+    CgiEnv_FormUrlencoded(const CgiEnv_FormUrlencoded& other);
+    CgiEnv_FormUrlencoded& operator=(const CgiEnv_FormUrlencoded& other);
+    ~CgiEnv_FormUrlencoded();
+    char** env;
+private:
+    void __copy_env(const CgiEnv_FormUrlencoded& other);
+    void __delete_env();
+    int _nb_tokens;
 };
 
 class Response {
@@ -49,9 +74,11 @@ class Response {
         int status() const { return (_status); }
         void send(const int fd);
         bool is_persistent() const;
+        static void append_slash(std::string& path);
+        static void remove_leading_slash(std::string& path);
 
     private:
-        int error_status(int status, const char* msg = NULL) ;
+        int throw_error_status(int status, const char* msg = NULL) ;
         // mainly for target check (fstream open error handeling)
 
         const Request&      _request;
@@ -64,6 +91,8 @@ class Response {
         std::stringstream   _body; // buffered resource body if any
         std::string         _response_str; // the whole response
 
+        std::string error_msg;
+
     private:
 
         void __build_response();
@@ -75,12 +104,12 @@ class Response {
         void __add_formatted_timestamp();
         std::string __generate_status_line() const;
         void __identify_resource(); // calls :
-            void __identify_resource_path();
-                void __validate_target();
+            void __interpret_target();
+            void __validate_target_abs_path();
             void __extract_resource_extension();
             void __identify_resource_type();
         void __handle_type();
-        void __buffer_target_body();
+        void __upload_file();
         void __decide_persistency();
         void __response_to_string();
 

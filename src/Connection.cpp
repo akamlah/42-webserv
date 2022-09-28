@@ -71,6 +71,7 @@ void Connection::handle() {
     catch (ws::exception& e) {
         std::cout << RED << "unforeseen exception req-resp" << NC << std::endl;
     }
+    system("leaks webserv");
 }
 
 Connection::~Connection() { /* free data ?*/ }
