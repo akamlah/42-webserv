@@ -37,9 +37,30 @@ struct Resource {
     std::string extension;
 };
 
+// CGI ENV builder - - - - - - - - - - - - - - - - - - - - - - - - - 
+// query format: x_www_form_urlencoded
+// http://localhost:9999/data/mytext.txt?abc&def&hij&klm&nop&qrs&tuv&wxy
+class CgiEnv_FormUrlencoded {
+public:
+    CgiEnv_FormUrlencoded();
+    CgiEnv_FormUrlencoded(const std::string& query_str);
+    CgiEnv_FormUrlencoded(const CgiEnv_FormUrlencoded& other);
+    CgiEnv_FormUrlencoded& operator=(const CgiEnv_FormUrlencoded& other);
+    ~CgiEnv_FormUrlencoded();
+    char** env;
+private:
+    void __copy_env(const CgiEnv_FormUrlencoded& other);
+    void __delete_env();
+    int _nb_tokens;
+};
+
 class Response {
 
     public:
+        class BadUri: public ws::exception {
+            public:
+                virtual const char* what() const throw();
+        };
 
         class ResponseException: public ws::exception {
             public:
@@ -57,6 +78,9 @@ class Response {
         int status() const { return (_status); }
         void send(const int fd);
         bool is_persistent() const;
+        static void replace_placeholders(std::string& token);
+        static void append_slash(std::string& path);
+        static void remove_leading_slash(std::string& path);
 
     private:
         int throw_error_status(int status, const char* msg = NULL) ;
@@ -84,7 +108,7 @@ class Response {
         std::string __generate_status_line() const;
         void __identify_resource(); // calls :
             void __parse_uri();
-                void __validate_target_abs_path();
+            void __validate_target_abs_path();
             void __extract_resource_extension();
             void __identify_resource_type();
         void __handle_type();

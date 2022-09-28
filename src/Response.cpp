@@ -13,6 +13,9 @@ const char* Response::ResponseException::what() const throw() {
     return ("Response error");
 }
 
+const char* Response::BadUri::what() const throw() {
+    return ("Response error");
+}
 
 Response::Response(const Request& request, const config_data& config, const Tokens& tokens):
     _request(request), _config(config), _tokens(tokens), _status(request.status()),
@@ -45,6 +48,47 @@ int Response::throw_error_status(int status, const char* msg) {
     throw Response::ResponseException();
 
     return (status);
+}
+
+// find '%', replace patterns [(%hh or)?] %HH with corresponding ascii character
+// TEST: http://localhost:9999/data/mytext.txt?ab c&d ef&hij&k  lm&nop&qrs&tuv &wxy%hh
+// exceptions:
+// 1 -> "bad request" if end of uri: '%x', '%' or '%xx', where 'xx' != hexadecimal number
+// 2 -> "bad request" if found in uri: '%xx', where 'xx' != hexadecimal number
+void Response::replace_placeholders(std::string& token) {
+    std::string character;
+    size_t i = 0;
+    size_t delimiter_pos = 0;
+    size_t prev_delimiter_pos = 0;
+    while ((delimiter_pos = token.find('%', prev_delimiter_pos)) != std::string::npos) {
+        if (delimiter_pos > token.length() - 3) {
+            token.erase(delimiter_pos, std::string::npos);
+            throw Response::BadUri(); // 1 : will lead to a 400
+            break ;
+        }
+        character = token.substr(delimiter_pos + 1, 2);
+        try {
+            std::string repl;
+            repl += (char)std::stoi(character, nullptr, 16);
+            token = token.replace(delimiter_pos, 3, repl);
+            i++;
+        }
+        catch (std::exception& e) {
+            throw Response::BadUri(); // 2
+        }
+    }
+}
+
+void Response::append_slash(std::string& path) {
+    if (!path.empty())
+        if (path.rfind('/') != path.npos)
+            path = path + "/";
+}
+
+void Response::remove_leading_slash(std::string& path) {
+    if (!path.empty())
+        if (path[0] == '/')
+            path.erase(0, 1);
 }
 
 // - - - - - - - - - - - PRIVATE - - - - - - - - - - - - - 
@@ -102,8 +146,8 @@ void Response::__build_response() {
     __add_field("Server", "ZHero serv/1.0");
     __add_formatted_timestamp();
     try {
-        // not implemented is checked by request parser already
-        __identify_resource(); // map function pointers to avoid if else statements
+        __identify_resource();
+        // map function pointers to avoid if else statements [ ? ]
         if (_request.header.method == "GET")
             __respond_get();
         if (_request.header.method == "POST")
@@ -175,46 +219,44 @@ void Response::__respond_post() {
 // identifies target path and type and adds content-type field to header
 void Response::__identify_resource() {
     __parse_uri();
+    __validate_target_abs_path(); // maybe only in get ?
     __extract_resource_extension();
     __identify_resource_type();
 }
 
-// [ + ] extensive URI parsing TODO !
 void Response::__parse_uri() {
-
-    _resource.root = _config.root; // always ?
-
-    size_t uri_end = _request.header.target.npos;
-    size_t query_pos = _request.header.target.find('?');
-    size_t fragment_pos = _request.header.target.find('#');
-
-    _resource.path = _request.header.target.substr(0, query_pos);
-    if (query_pos != uri_end)
-        _resource.query = _request.header.target.substr(query_pos + 1, fragment_pos);
-    if (fragment_pos != uri_end)
-        _resource.fragment = _request.header.target.substr(fragment_pos + 1);
-
+    std::string uri = _request.header.target;
+    try {
+        replace_placeholders(uri);
+        size_t uri_end = uri.npos;
+        size_t query_pos = uri.find('?');
+        size_t fragment_pos = uri.find('#');
+        _resource.path = uri.substr(0, query_pos);
+        if (query_pos != uri_end)
+            _resource.query = uri.substr(query_pos + 1, fragment_pos);
+        if (fragment_pos != uri_end)
+            _resource.fragment = uri.substr(fragment_pos + 1);
+    }
+    catch (Response::BadUri& e) {
+        throw_error_status(WS_400_BAD_REQUEST, "Uri could not be parsed, format error");
+    }
+    catch (std::exception& e) {
+        throw_error_status(WS_500_INTERNAL_SERVER_ERROR, "Uri could not be parsed, format error");
+    }
     if (DEBUG) {
         std::cout << "Separated URI components:" << std::endl;
         std::cout << "path: " << _resource.path << std::endl;
         std::cout << "query: " << _resource.query << std::endl;
         std::cout << "fragment: " << _resource.fragment << std::endl;
     }
-
-    if (_resource.path == "/")
-        _resource.file = "/" + _config.index;
-    else
-        _resource.file = _resource.path;
-
-    // (_resource.root.rfind('/') == (_resource.root.npos - 1)) ?
-        _resource.abs_path = _resource.root + _resource.file;
-        // : _resource.abs_path = _resource.root + "/" + _resource.file;
-
-    if (DEBUG) { std::cout << "PATH: " << _resource.abs_path << std::endl; }
-
-    // - - - -TARGET CHECK - - - - - 
-    // if get only ?
-    __validate_target_abs_path();
+    _resource.root = _config.root; // always ?
+    (_resource.path == "/") ? _resource.file = _config.index : _resource.path;
+    append_slash(_resource.root);
+    remove_leading_slash(_resource.file);
+    // -> root always ends in '/' and file never starts with '/'
+    _resource.abs_path = _resource.root + _resource.file;
+    if (DEBUG)
+        std::cout << "PATH: " << _resource.abs_path << std::endl;
 }
 
 void Response::__validate_target_abs_path() {
@@ -237,7 +279,7 @@ void Response::__extract_resource_extension() {
     if (pos != _resource.abs_path.npos)
         _resource.extension = _resource.abs_path.substr(pos + 1);
     else
-    _resource.extension = "";
+    _resource.extension = std::string();
 }
 
 // only if the extesion is mapped in 'tokens' content-type field is set.
@@ -257,8 +299,18 @@ void Response::__identify_resource_type() {
         : (_resource.type + "/" + _resource.subtype));
 }
 
+// temporarily handles every type, later have a decision tree or similar
 void Response::__handle_type() {
-    // temporarily handles every type, later have a decision tree
+    // if format = x form url encoded [ + ] - else ignore query ?
+    if (!_resource.query.empty()) {
+        CgiEnv_FormUrlencoded cgi_env(_resource.query);
+        if (DEBUG)  {
+            std::cout << YELLOW << "ENV for cgi:" << NC << std::endl;
+            for (int i = 0; cgi_env.env[i] != NULL; i++) {
+                std::cout << YELLOW << i << "    " << cgi_env.env[i] << NC << std::endl;
+            }
+        }
+    }
     if (_resource.extension == "php") { // and cgi in general -> ADD THE OTHER CASES    [ + ]
         __add_field("Cache-Control", "no-cache");
         // CALL CGI HERE - - - -- - - - - 
@@ -293,6 +345,82 @@ void Response::__upload_file() { // + error handeling & target check here !
         std::cout << e.what() << std::endl;
         throw_error_status(WS_500_INTERNAL_SERVER_ERROR, strerror(errno));
     }
+}
+
+
+// __________________________________________________________________________________________________________
+// 
+// CGI ENV builder
+// __________________________________________________________________________________________________________
+
+// - - - - - -  constr/destr - - - - - - - - 
+
+// delimiter = '&', placeholders %HH, split, replace and copy to char** ready for execve() call in cgi
+CgiEnv_FormUrlencoded::CgiEnv_FormUrlencoded(const std::string& query_str) {
+    _nb_tokens = 0;
+    std::string token;
+    size_t i = 0;
+    size_t delimiter_pos = 0;
+    size_t prev_delimiter_pos = 0;
+    try {
+        while ((delimiter_pos = query_str.find('&', prev_delimiter_pos)) != std::string::npos)
+            { prev_delimiter_pos = delimiter_pos + 1; i++; }
+        env = new char*[i + 2];
+        i = 0;
+        delimiter_pos = 0;
+        prev_delimiter_pos = 0;
+        while (i < query_str.size()) {
+            delimiter_pos = query_str.find('&', prev_delimiter_pos);
+            token = query_str.substr(prev_delimiter_pos, delimiter_pos - prev_delimiter_pos);
+            env[i] = new char[token.size() + 2];
+            _nb_tokens++;
+            strlcpy(env[i], token.c_str(), token.size() + 1);
+            if (delimiter_pos == std::string::npos)
+                break ;
+            prev_delimiter_pos = delimiter_pos + 1;
+            i++;
+        }
+        env[_nb_tokens] = NULL;
+    }
+    catch (std::exception& e) {
+        __delete_env();
+        throw e; // will result in 500 in Request::__parse_uri catch block
+    }
+}
+
+CgiEnv_FormUrlencoded::CgiEnv_FormUrlencoded(const CgiEnv_FormUrlencoded& other) {
+    __copy_env(other);
+}
+
+CgiEnv_FormUrlencoded& CgiEnv_FormUrlencoded::operator=(const CgiEnv_FormUrlencoded& other) {
+    __delete_env();
+    __copy_env(other);
+    return (*this);
+}
+
+CgiEnv_FormUrlencoded::~CgiEnv_FormUrlencoded() {
+    __delete_env();
+}
+
+// - - - - - -  subfunctions - - - - - - - - 
+
+void CgiEnv_FormUrlencoded::__copy_env(const CgiEnv_FormUrlencoded& other) {
+    _nb_tokens = other._nb_tokens;
+    env = new char*[_nb_tokens + 1];
+    for (int i = 0; i < _nb_tokens; i++) {
+        env[i] = new char[strlen(other.env[i]) + 2];
+        strlcpy(env[i], other.env[i], strlen(other.env[i]) + 1);
+    }
+    env[_nb_tokens] = NULL;
+}
+
+void CgiEnv_FormUrlencoded::__delete_env() {
+    int i = 0;
+    while (i < _nb_tokens) {
+        delete env[i];
+        i++;
+    }
+    delete[] env;
 }
 
 } // NAMESPACE http
