@@ -73,12 +73,16 @@ class Request {
 
     public:
 
-        class BadRead: public ws::exception {
-                virtual const char* what() const throw();
-        };
+        // class BadRead: public ws::exception {
+        //         virtual const char* what() const throw();
+        // };
         class EofReached: public ws::exception {
                 virtual const char* what() const throw();
         };
+        // class BadUri: public ws::exception {
+        //     public:
+        //         virtual const char* what() const throw();
+        // };
 
         Request();
         Request(const Request& other);
@@ -90,6 +94,7 @@ class Request {
         std::string get_field_value(const char* field_name) const;
         int status() const;
         bool is_persistent() const;
+        static bool replace_placeholders(std::string& token);
 
     private:
 

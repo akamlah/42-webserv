@@ -13,10 +13,6 @@ const char* Response::ResponseException::what() const throw() {
     return ("Response error");
 }
 
-const char* Response::BadUri::what() const throw() {
-    return ("Response error");
-}
-
 Response::Response(const Request& request, const config_data& config, const Tokens& tokens):
     _request(request), _config(config), _tokens(tokens), _status(request.status()),
     _is_persistent(request._is_persistent) {
@@ -39,6 +35,7 @@ void Response::send(const int fd) { // more error handeling here too [ + ]
 }
 
 int Response::throw_error_status(int status, const char* msg) {
+    error_msg = msg;
     if (DEBUG) {
         if (msg)
             std::cout << RED << msg << ": " << NC;
@@ -46,37 +43,7 @@ int Response::throw_error_status(int status, const char* msg) {
     }
     _status = status;
     throw Response::ResponseException();
-
     return (status);
-}
-
-// find '%', replace patterns [(%hh or)?] %HH with corresponding ascii character
-// TEST: http://localhost:9999/data/mytext.txt?ab c&d ef&hij&k  lm&nop&qrs&tuv &wxy%hh
-// exceptions:
-// 1 -> "bad request" if end of uri: '%x', '%' or '%xx', where 'xx' != hexadecimal number
-// 2 -> "bad request" if found in uri: '%xx', where 'xx' != hexadecimal number
-void Response::replace_placeholders(std::string& token) {
-    std::string character;
-    size_t i = 0;
-    size_t delimiter_pos = 0;
-    size_t prev_delimiter_pos = 0;
-    while ((delimiter_pos = token.find('%', prev_delimiter_pos)) != std::string::npos) {
-        if (delimiter_pos > token.length() - 3) {
-            token.erase(delimiter_pos, std::string::npos);
-            throw Response::BadUri(); // 1 : will lead to a 400
-            break ;
-        }
-        character = token.substr(delimiter_pos + 1, 2);
-        try {
-            std::string repl;
-            repl += (char)std::stoi(character, nullptr, 16);
-            token = token.replace(delimiter_pos, 3, repl);
-            i++;
-        }
-        catch (std::exception& e) {
-            throw Response::BadUri(); // 2
-        }
-    }
 }
 
 void Response::append_slash(std::string& path) {
@@ -182,6 +149,8 @@ void Response::__respond_to_error() {
         << "font-family: 'Courier New', Courier, monospace; color:rgb(209, 209, 209)\">"
         << "<h3> Zhero serv 1.0: Error</h3>\n"
         << "<h1>" << _tokens.status_phrases[_status] << "</h1>"
+        << "<h3>" << _request.error_msg << "</h3>\n"
+        << "<h3>" << error_msg << "</h3>\n"
         << "</body>\r\n";
     __response_to_string();
 }
@@ -218,16 +187,17 @@ void Response::__respond_post() {
 
 // identifies target path and type and adds content-type field to header
 void Response::__identify_resource() {
-    __parse_uri();
+    __interpret_target();
     __validate_target_abs_path(); // maybe only in get ?
     __extract_resource_extension();
     __identify_resource_type();
 }
 
-void Response::__parse_uri() {
+// separate uri components, decoding done in request parser
+// -> root always ends in '/' and file never starts with '/'
+void Response::__interpret_target() {
     std::string uri = _request.header.target;
     try {
-        replace_placeholders(uri);
         size_t uri_end = uri.npos;
         size_t query_pos = uri.find('?');
         size_t fragment_pos = uri.find('#');
@@ -236,9 +206,6 @@ void Response::__parse_uri() {
             _resource.query = uri.substr(query_pos + 1, fragment_pos);
         if (fragment_pos != uri_end)
             _resource.fragment = uri.substr(fragment_pos + 1);
-    }
-    catch (Response::BadUri& e) {
-        throw_error_status(WS_400_BAD_REQUEST, "Uri could not be parsed, format error");
     }
     catch (std::exception& e) {
         throw_error_status(WS_500_INTERNAL_SERVER_ERROR, "Uri could not be parsed, format error");
@@ -250,10 +217,9 @@ void Response::__parse_uri() {
         std::cout << "fragment: " << _resource.fragment << std::endl;
     }
     _resource.root = _config.root; // always ?
-    (_resource.path == "/") ? _resource.file = _config.index : _resource.path;
+    _resource.file = (_resource.path == "/") ? _config.index : _resource.path;
     append_slash(_resource.root);
     remove_leading_slash(_resource.file);
-    // -> root always ends in '/' and file never starts with '/'
     _resource.abs_path = _resource.root + _resource.file;
     if (DEBUG)
         std::cout << "PATH: " << _resource.abs_path << std::endl;
@@ -384,7 +350,7 @@ CgiEnv_FormUrlencoded::CgiEnv_FormUrlencoded(const std::string& query_str) {
     }
     catch (std::exception& e) {
         __delete_env();
-        throw e; // will result in 500 in Request::__parse_uri catch block
+        throw e; // will result in 500 in Request::__interpret_target catch block
     }
 }
 

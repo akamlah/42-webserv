@@ -57,10 +57,6 @@ private:
 class Response {
 
     public:
-        class BadUri: public ws::exception {
-            public:
-                virtual const char* what() const throw();
-        };
 
         class ResponseException: public ws::exception {
             public:
@@ -78,7 +74,6 @@ class Response {
         int status() const { return (_status); }
         void send(const int fd);
         bool is_persistent() const;
-        static void replace_placeholders(std::string& token);
         static void append_slash(std::string& path);
         static void remove_leading_slash(std::string& path);
 
@@ -96,6 +91,8 @@ class Response {
         std::stringstream   _body; // buffered resource body if any
         std::string         _response_str; // the whole response
 
+        std::string error_msg;
+
     private:
 
         void __build_response();
@@ -107,7 +104,7 @@ class Response {
         void __add_formatted_timestamp();
         std::string __generate_status_line() const;
         void __identify_resource(); // calls :
-            void __parse_uri();
+            void __interpret_target();
             void __validate_target_abs_path();
             void __extract_resource_extension();
             void __identify_resource_type();

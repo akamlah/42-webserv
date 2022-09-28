@@ -10,12 +10,16 @@
 namespace ws {
 namespace http {
 
-const char* Request::BadRead::what() const throw() {
-    return ("Bad read!");
-}
+// const char* Request::BadRead::what() const throw() {
+//     return ("Bad read!");
+// }
 const char* Request::EofReached::what() const throw() { // can be removed.
     return ("EOF reached!");
 }
+
+// const char* Request::BadUri::what() const throw() {
+//     return ("Response error");
+// }
 
 // Request::Request(const Socket& client): client_socket(client), keep_alive(true) { }
 // Request::Request(const int fd): fd(fd), keep_alive(true) { }
@@ -79,6 +83,43 @@ int Request::parse(const int fd) {
 }
 
 Request::~Request() { /* free data ?*/ }
+
+static void str_tolower(char * str) {
+    int i = 0;
+    while(str[i]) {
+        str[i] = tolower(str[i]);
+        i++;
+    }
+}
+
+// find '%', replace patterns [(%hh or)?] %HH with corresponding ascii character
+// TEST: http://localhost:9999/data/mytext.txt?ab c&d ef&hij&k  lm&nop&qrs&tuv &wxy%hh
+// errors:
+// 1 -> "bad request" if end of uri: '%x', '%' or '%xx', where 'xx' != hexadecimal number
+// 2 -> "bad request" if found in uri: '%xx', where 'xx' != hexadecimal number
+bool Request::replace_placeholders(std::string& token) {
+    std::string character;
+    size_t i = 0;
+    size_t delimiter_pos = 0;
+    size_t prev_delimiter_pos = 0;
+    while ((delimiter_pos = token.find('%', prev_delimiter_pos)) != std::string::npos) {
+        if (delimiter_pos > token.length() - 3) {
+            token.erase(delimiter_pos, std::string::npos);
+            return (false); // 1 : will lead to a 400
+        }
+        character = token.substr(delimiter_pos + 1, 2);
+        try {
+            std::string repl;
+            repl += (char)std::stoi(character, nullptr, 16);
+            token = token.replace(delimiter_pos, 3, repl);
+            i++;
+        }
+        catch (std::exception& e) {
+            return (false); // 2
+        }
+    }
+    return (true);
+}
 
 // --------------------------------------------------------------------------------------------------------
 // HTTP REQUEST PARSER
@@ -291,22 +332,17 @@ int parser::__parse_next_word_request_line(Request& request, int i, int skip) {
             return (error_status(request, WS_501_NOT_IMPLEMENTED, "Unknown method"));
         request.header.method = word;
     }
-    if (word_count == 2)
+    if (word_count == 2) {
         request.header.target = word; // see later if it is valid
+        if (!Request::replace_placeholders(request.header.target))
+            return (error_status(request, WS_400_BAD_REQUEST, "Bad format uri"));
+    }
     if (word_count == 3) {
         if ((strlen(word) != strlen(WS_HTTP_VERSION) || strncmp(WS_HTTP_VERSION, word, strlen(WS_HTTP_VERSION))))
             return (error_status(request, WS_400_BAD_REQUEST, "Bad version name"));
         request.header.version = word;
     }
     return (WS_200_OK);
-}
-
-static void str_tolower(char * str) {
-    int i = 0;
-    while(str[i]) {
-        str[i] = tolower(str[i]);
-        i++;
-    }
 }
 
 // A server MUST respond with a 400 (Bad Request) status code to any HTTP/1.1 request message
