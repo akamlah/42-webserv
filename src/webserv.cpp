@@ -8,14 +8,21 @@
 
 int main(int argc, char **argv) {
 
-	if (argc != 2)
+	if (argc > 2)
 	{
 		std::cout << "Wrong number of argument!.. try: ./webserv [configuration file]\n";
 		return (0);
 	}
 	try
 	{
-		ws::Config configData(argv[1]);
+		std::string pagename;
+		if (argc == 2)
+			pagename = argv[1];
+		else
+			pagename = "./default/default.conf";
+		
+		ws::Config configData(pagename);
+
 		#if DEBUG
 			std::cout << configData.getNumberConfigData(0).cgi << std::endl;
 			std::cout << std::boolalpha << "direcotry listing: " << configData.getNumberConfigData(0).directory_listing << std::endl;
