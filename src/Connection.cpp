@@ -27,17 +27,6 @@ Connection::Connection(const Connection& other)
     
 }
 
-// Connection& Connection::operator=(const Connection& other) {
-//     if (DEBUG)
-//         std::cout << "Connection assign ope =" << std::endl;
-//     _fd = other._fd;
-//     _status = other._status;
-//     _address = other._address;
-//     _is_persistent = other._is_persistent;
-//     _request = other._request;
-//     return (*this);
-// }
-
 int Connection::fd() const { return (_fd); }
 bool Connection::is_good() const { return (_fd < 0 ? false : true); }
 bool Connection::is_persistent() const { return (_is_persistent);}
@@ -71,7 +60,7 @@ void Connection::handle() {
     catch (ws::exception& e) {
         std::cout << RED << "unforeseen exception req-resp" << NC << std::endl;
     }
-    system("leaks webserv");
+    // system("leaks webserv");
 }
 
 Connection::~Connection() { /* free data ?*/ }

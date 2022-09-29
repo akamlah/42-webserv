@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
 		return (-1);
 	}
 	#if DEBUG
-	system("leaks webserv | tail - 3");
+	// system("leaks webserv | tail - 3");
 	#endif
 	return (0);
 }
