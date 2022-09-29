@@ -125,6 +125,7 @@ namespace ws {
 					close(fd[0]);
 			if (phpfile.back() == 'p')
 				execl("/usr/bin/php", "php", phpfile.c_str(), NULL);
+				// [ + ] execve + env TODO
 			else
 				execl("/usr/local/bin/perl", "perl", phpfile.c_str(), NULL);
 			exit(0);

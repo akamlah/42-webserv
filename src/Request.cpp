@@ -10,12 +10,16 @@
 namespace ws {
 namespace http {
 
-const char* Request::BadRead::what() const throw() {
-    return ("Bad read!");
-}
-const char* Request::EofReached::what() const throw() {
+// const char* Request::BadRead::what() const throw() {
+//     return ("Bad read!");
+// }
+const char* Request::EofReached::what() const throw() { // can be removed.
     return ("EOF reached!");
 }
+
+// const char* Request::BadUri::what() const throw() {
+//     return ("Response error");
+// }
 
 // Request::Request(const Socket& client): client_socket(client), keep_alive(true) { }
 // Request::Request(const int fd): fd(fd), keep_alive(true) { }
@@ -80,6 +84,43 @@ int Request::parse(const int fd) {
 
 Request::~Request() { /* free data ?*/ }
 
+static void str_tolower(char * str) {
+    int i = 0;
+    while(str[i]) {
+        str[i] = tolower(str[i]);
+        i++;
+    }
+}
+
+// find '%', replace patterns [(%hh or)?] %HH with corresponding ascii character
+// TEST: http://localhost:9999/data/mytext.txt?ab c&d ef&hij&k  lm&nop&qrs&tuv &wxy%hh
+// errors:
+// 1 -> "bad request" if end of uri: '%x', '%' or '%xx', where 'xx' != hexadecimal number
+// 2 -> "bad request" if found in uri: '%xx', where 'xx' != hexadecimal number
+bool Request::replace_placeholders(std::string& token) {
+    std::string character;
+    size_t i = 0;
+    size_t delimiter_pos = 0;
+    size_t prev_delimiter_pos = 0;
+    while ((delimiter_pos = token.find('%', prev_delimiter_pos)) != std::string::npos) {
+        if (delimiter_pos > token.length() - 3) {
+            token.erase(delimiter_pos, std::string::npos);
+            return (false); // 1 : will lead to a 400
+        }
+        character = token.substr(delimiter_pos + 1, 2);
+        try {
+            std::string repl;
+            repl += (char)std::stoi(character, nullptr, 16);
+            token = token.replace(delimiter_pos, 3, repl);
+            i++;
+        }
+        catch (std::exception& e) {
+            return (false); // 2
+        }
+    }
+    return (true);
+}
+
 // --------------------------------------------------------------------------------------------------------
 // HTTP REQUEST PARSER
 // --------------------------------------------------------------------------------------------------------
@@ -138,7 +179,7 @@ int parser::parse(Request& request, int fd) {
         }
         if (status != WS_200_OK)
             return (status) ; // if 0 it is end of file
-        if (header_done && !body_done) {
+        if (header_done && !body_done) { // isolate this part
             request._body << buffer[msg_length];
             // or just save a ptr to buffer point and strcpy as body buffer to not use strstream, slow
             body_length++;
@@ -152,17 +193,20 @@ int parser::parse(Request& request, int fd) {
         }
         ++msg_length;
         ++line_length;
-        if (buffer[msg_length - 1] == LF_int) { // if newline found:
-            ++nb_lines;
-            if (!(status = __parse_previous_line(request, (char *)buffer + msg_length - line_length, fd))) {
-                if (DEBUG)
-                    std::cout << "final CRLF 2" << std::endl;
-                break ;
+        if (!header_done) {
+            if (buffer[msg_length - 1] == LF_int) { // if newline found:
+                ++nb_lines;
+                if (!(status = __parse_previous_line(request, (char *)buffer + msg_length - line_length, fd))) {
+                    if (DEBUG)
+                        std::cout << "final CRLF 2" << std::endl;
+                    break ;
+                }
+                if (status != WS_200_OK)
+                    return (status);
             }
-            if (status != WS_200_OK)
-                return (status);
         }
-    }
+    } // end loop
+
     // check that minimum was provided
     if (!start_content)
         return (error_status(request, WS_400_BAD_REQUEST, "Empty request header"));
@@ -175,8 +219,8 @@ int parser::parse(Request& request, int fd) {
         std::cout << "request msg length after parse: " << msg_length << std::endl;
         std::cout << CYAN << "PARSER: Message recieved: ---------\n\n" << NC << buffer;
         std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
-        std::cout << CYAN << "BODY IS:------------------------------\n" << request._body.str() << NC << std::endl;
-
+        std::cout << CYAN << "BODY IS:---------------------------\n" << request._body.str() << NC << std::endl;
+        std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
         std::cout << "Going on: ";
         std::cout << request._is_persistent << std::endl;
     }
@@ -199,12 +243,6 @@ int parser::__get_byte(Request& request, int fd) {
     return (WS_200_OK);
 }
 
-// void __parse_body(Request& request, int fd) {
-//     //  HERE   
-//     char body_buffer[BUFFER_SIZE];
-
-// }
-
 // chacks format and interprets line given
 // SKIP initial CRLF lines if nothing before it
 // Detect end of header with final CRLF
@@ -216,19 +254,14 @@ int parser::__parse_previous_line(Request& request, const char* line, const int 
     // std::cout << "LINE: " << line << std::endl;
     if (!start_content && (line_length == 2 && line[line_length - 2] == CR_int))
         ++nb_empty_lines_beginning;
-    else if (start_fields && (line_length == 2 && buffer[msg_length - 2] == CR_int)) { // final CRLF
-        if (DEBUG)
+    else if (start_fields && (line_length == 2 && buffer[msg_length - 2] == CR_int)) {
+        if (DEBUG)  // final CRLF
             std::cout << "final CRLF after fields" << std::endl;
-        header_done = true; // [ ! ]
-        if (!(request.header.method == "POST")) {
-            // std::cout << "here" << std::endl;
+        header_done = true;
+        if (!(request.header.method == "POST"))    // [ + ]
             body_done = true;
-        }
-        if (body_done) {
-            // std::cout << "here ret" << std::endl;
+        if (body_done)
             return (0);
-        }
-        // std::cout << "still here, status = " << status << std::endl;
     }
     else {
         start_content = true;
@@ -299,22 +332,17 @@ int parser::__parse_next_word_request_line(Request& request, int i, int skip) {
             return (error_status(request, WS_501_NOT_IMPLEMENTED, "Unknown method"));
         request.header.method = word;
     }
-    if (word_count == 2)
+    if (word_count == 2) {
         request.header.target = word; // see later if it is valid
+        if (!Request::replace_placeholders(request.header.target))
+            return (error_status(request, WS_400_BAD_REQUEST, "Bad format uri"));
+    }
     if (word_count == 3) {
         if ((strlen(word) != strlen(WS_HTTP_VERSION) || strncmp(WS_HTTP_VERSION, word, strlen(WS_HTTP_VERSION))))
             return (error_status(request, WS_400_BAD_REQUEST, "Bad version name"));
         request.header.version = word;
     }
     return (WS_200_OK);
-}
-
-static void str_tolower(char * str) {
-    int i = 0;
-    while(str[i]) {
-        str[i] = tolower(str[i]);
-        i++;
-    }
 }
 
 // A server MUST respond with a 400 (Bad Request) status code to any HTTP/1.1 request message

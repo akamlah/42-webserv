@@ -53,7 +53,6 @@ class parser {
         int __parse_request_line(Request& request, const char* line);
         int __parse_next_word_request_line(Request& request, int i, int skip);
         int __parse_field_line(Request& request, const char* line);
-        void __parse_body(Request& request, int fd);
 }; // CLASS parser
 
 /*
@@ -74,12 +73,16 @@ class Request {
 
     public:
 
-        class BadRead: public ws::exception {
-                virtual const char* what() const throw();
-        };
+        // class BadRead: public ws::exception {
+        //         virtual const char* what() const throw();
+        // };
         class EofReached: public ws::exception {
                 virtual const char* what() const throw();
         };
+        // class BadUri: public ws::exception {
+        //     public:
+        //         virtual const char* what() const throw();
+        // };
 
         Request();
         Request(const Request& other);
@@ -91,6 +94,7 @@ class Request {
         std::string get_field_value(const char* field_name) const;
         int status() const;
         bool is_persistent() const;
+        static bool replace_placeholders(std::string& token);
 
     private:
 
