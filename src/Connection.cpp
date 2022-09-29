@@ -54,10 +54,13 @@ void Connection::establish(const int fd) {
 void Connection::handle() {
     // start timer if first call
     // else check timer
+    std::cout << YELLOW << "CONNECTION.HANDLE" << NC << std::endl;
     try {
         try {
             _request.parse(_fd);
             _status = _request.status();
+            if (_request._waiting_for_chunks)
+                return ;
             // system("leaks webserv | tail - 3");
         }
         catch (http::Request::EofReached& e) { // <- very hacky, might become a problem, we'll see

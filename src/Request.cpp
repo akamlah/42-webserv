@@ -10,22 +10,15 @@
 namespace ws {
 namespace http {
 
-// const char* Request::BadRead::what() const throw() {
-//     return ("Bad read!");
-// }
 const char* Request::EofReached::what() const throw() { // can be removed.
     return ("EOF reached!");
 }
 
-// const char* Request::BadUri::what() const throw() {
-//     return ("Response error");
-// }
+Request::Request(): _is_persistent(true), _status(WS_200_OK),
+    _is_chunked(false), _waiting_for_chunks(false) { }
 
-// Request::Request(const Socket& client): client_socket(client), keep_alive(true) { }
-// Request::Request(const int fd): fd(fd), keep_alive(true) { }
-Request::Request(): _is_persistent(true), _status(WS_200_OK) { }
-
-Request::Request(const Request& other): _is_persistent(true), _status(WS_200_OK) {
+Request::Request(const Request& other): _is_persistent(true), _status(WS_200_OK),
+    _is_chunked(false), _waiting_for_chunks(false) {
     header.method = other.header.method;
     header.target = other.header.target;
     header.version = other.header.version;
@@ -39,6 +32,8 @@ Request& Request::operator=(const Request& other) {
     header.version = other.header.version;
     fields = other.fields;
     _status = other._status;
+    _is_chunked = other._is_chunked;
+    _waiting_for_chunks = other._waiting_for_chunks;
     return (*this);
 }
 
@@ -59,30 +54,28 @@ int Request::status() const { return (_status); }
 bool Request::is_persistent() const { return (_is_persistent);}
 
 int Request::parse(const int fd) {
-    if (DEBUG)
-        std::cout << "about to parse a new request on fd: " << fd << std::endl;
-
-    parser parser;
-    _status = WS_200_OK;
-    parser.parse(*this, fd);
-
-    #if DEBUG
-    std::cout << RED << "PARSED REQUEST STATUS: " << _status << NC << std::endl;
-    std::cout << CYAN << "PARSED HEADER:\n" \
-    << "\tMethod: " << header.method << "\n" \
-    << "\tTarget: " << header.target << "\n" \
-    << "\tVersion: " << header.version << NC << std::endl;
-    std::cout << CYAN << "PARSED FIELDS:\n";
-    for (std::map<std::string, std::string>::iterator it = fields.begin(); it != fields.end(); it++) {
-        std::cout << it->first << "|" << it->second << std::endl;
+    if (!_waiting_for_chunks) {
+        _parser.parse(*this, fd);
+        if (DEBUG) {
+            std::cout << RED << "PARSED REQUEST STATUS: " << _status << NC << std::endl;
+            std::cout << CYAN << "PARSED HEADER:\n" \
+            << "\tMethod: " << header.method << "\n" \
+            << "\tTarget: " << header.target << "\n" \
+            << "\tVersion: " << header.version << NC << std::endl;
+            std::cout << CYAN << "PARSED FIELDS:\n";
+            for (std::map<std::string, std::string>::iterator it = fields.begin(); it != fields.end(); it++) {
+                std::cout << it->first << "|" << it->second << std::endl;
+            }
+            std::cout << NC << std::endl;
+        }
     }
-    std::cout << NC << std::endl;
-    #endif
-
+    else {
+        _parser.parse_chunks(*this, fd);
+    }
     return (_status);
 }
 
-Request::~Request() { /* free data ?*/ }
+Request::~Request() { }
 
 static void str_tolower(char * str) {
     int i = 0;
@@ -163,9 +156,45 @@ bool parser::__is_method(const char *word, size_t word_length) const {
     return false;
 }
 
+// PARSE CHUNKS ---------------------------------------------------------------------------------
+
+int parser::parse_chunks(Request& request, int fd) {
+    std::cout << YELLOW << "parsing chunks! :D" << NC << std::endl;
+    int status = request._status;
+    while (msg_length < BUFFER_SIZE) {
+        if (!(status = __get_byte(request, fd))) {
+            // std::cout << "get byte returned 0" << std::endl;
+            break ;
+        }
+        if (buffer[msg_length] == '\0') {
+            // std::cout << "EOF" << std::endl;
+            break ;
+            // throw Request::EofReached(); // not good
+        }
+        if (status != WS_200_OK)
+            return (status) ; // if 0 it is end of file
+        std::cout << buffer[msg_length] << " ";
+        msg_length++;
+        ++line_length;
+        if (buffer[msg_length - 1] == LF_int) {
+            if (line_length > 1 && buffer[msg_length - 2] != CR_int)
+                return(error_status(request, WS_400_BAD_REQUEST, "no CR before LF"));
+            if (line_length == 2 && ((char *)buffer + msg_length - line_length)[line_length - 2] == CR_int)
+                std::cout << "empty line?" << std::endl;
+            
+        }
+    }
+    std::cout << std::endl;
+    return (status);
+}
+
+// PARSE FIRST (header & body if not chunked) ---------------------------------------------------------------------
+
 // goes through byte by byte and at every newline reads the previous line into the data structure.
 int parser::parse(Request& request, int fd) {
-    int status = WS_200_OK;
+    if (DEBUG)
+        std::cout << "about to parse a new request on fd: " << fd << std::endl;
+    int status = request._status;
     int body_length = 0;
     while (msg_length < BUFFER_SIZE) {
         if (!(status = __get_byte(request, fd))) {
@@ -179,7 +208,9 @@ int parser::parse(Request& request, int fd) {
         }
         if (status != WS_200_OK)
             return (status) ; // if 0 it is end of file
+
         if (header_done && !body_done) { // isolate this part
+            std::cout << YELLOW << "parsing body" << NC << std::endl;
             request._body << buffer[msg_length];
             // or just save a ptr to buffer point and strcpy as body buffer to not use strstream, slow
             body_length++;
@@ -189,8 +220,8 @@ int parser::parse(Request& request, int fd) {
                 // std::cout << "DONE" << std::endl;
                 body_done = true;
             }
-            // std::cout << CYAN << (int) << " " << NC;
         }
+
         ++msg_length;
         ++line_length;
         if (!header_done) {
@@ -249,6 +280,7 @@ int parser::__get_byte(Request& request, int fd) {
 // if not a CRLF line or a CRLF line that is neither at the end nor at the beginning of the request
 // if here in the middle ANY whitespace at line start is found -> reject
 int parser::__parse_previous_line(Request& request, const char* line, const int fd) {
+    std::cout << YELLOW << "parsing previous line" << NC << std::endl;
     (void)fd;
     int status = WS_200_OK;
     // std::cout << "LINE: " << line << std::endl;
@@ -258,7 +290,14 @@ int parser::__parse_previous_line(Request& request, const char* line, const int 
         if (DEBUG)  // final CRLF
             std::cout << "final CRLF after fields" << std::endl;
         header_done = true;
-        if (!(request.header.method == "POST"))    // [ + ]
+        if (request.field_is_value("transfer-encoding", "chunked")) { // there are more cases [ + ]
+            request._is_chunked = true;
+            request._waiting_for_chunks = true;
+            parse_chunks(request, fd); // start reading them already
+            // set body to done ?
+            return (0);
+        }
+        if (!(request.header.method == "POST"))    // POST not only case with body [ + ]
             body_done = true;
         if (body_done)
             return (0);
@@ -333,6 +372,7 @@ int parser::__parse_next_word_request_line(Request& request, int i, int skip) {
         request.header.method = word;
     }
     if (word_count == 2) {
+        // move this part back to response ? no whitespace allowed in target -> chack that
         request.header.target = word; // see later if it is valid
         if (!Request::replace_placeholders(request.header.target))
             return (error_status(request, WS_400_BAD_REQUEST, "Bad format uri"));
@@ -365,7 +405,7 @@ int parser::__parse_field_line(Request& request, const char* line) {
         if (field_line_tmp[i] == ':') {
             strlcpy(name, field_line_tmp, i + 1);
             if (!i || (i && name[i - 1] == ' '))
-                return (error_status(request, WS_400_BAD_REQUEST, "Space before ':'"));
+                return (error_status(request, WS_400_BAD_REQUEST, "Space before ':'")); // ok
             str_tolower(name);
             if (!strcmp("host", name))
                 ++host_fields;
@@ -373,7 +413,7 @@ int parser::__parse_field_line(Request& request, const char* line) {
                 return (error_status(request, WS_400_BAD_REQUEST, "Too many host fields"));
             i++;
             if (field_line_tmp[i] != ' ')
-                return (error_status(request, WS_400_BAD_REQUEST, "Missing space after ':'"));
+                return (error_status(request, WS_400_BAD_REQUEST, "Missing space after ':'")); // WRONG! space is optional
             while (field_line_tmp[i] == ' ')
                 i++;
             strlcpy(value, field_line_tmp + i, strlen(&field_line_tmp[0] + i) - 1);

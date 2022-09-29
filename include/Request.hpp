@@ -19,33 +19,50 @@ namespace http {
 
 class Request;
 
+// TODO:
+// class HeaderFields {
+// public:
+//     HeaderFields();
+//     HeaderFields();
+//     HeaderFields();
+//     ~HeaderFields();
+//     // separates key and value by firse ':' and values by ','
+//     make_field(const std::string& line);
+// private:
+//     std::map<std::string, std::list> _fields;
+// }
+
 class parser {
+
     public:
 
         parser();
         ~parser();
+
         int parse(Request& request, const int fd);
+        int parse_chunks(Request& request, const int fd);
         int error_status(Request& request, const int status, const char* msg = NULL) const ;
 
     private:
 
-        size_t line_length;
-        size_t nb_lines;
-        size_t msg_length;
-        size_t nb_empty_lines_beginning;
-        size_t word_length;
-        int host_fields;
-        int word_count;
-        bool start_content;
-        bool request_line_done;
-        bool header_done;
-        bool start_fields;
-        bool body_done;
+        size_t  line_length;
+        size_t  nb_lines;
+        size_t  msg_length;
+        size_t  nb_empty_lines_beginning;
+        size_t  word_length;
+        int     host_fields;
+        int     word_count;
+        bool    start_content;
+        bool    request_line_done;
+        bool    header_done;
+        bool    start_fields;
+        bool    body_done;
+
         //  A server that receives a method longer than any that it implements SHOULD 
         //  respond with a 501 (Not Implemented) status code -> BUFFER SIZES -> [ ! ] centralise later
-        unsigned char buffer[BUFFER_SIZE];
-        char request_line[REQUEST_LINE_LENGTH];
-        char word[10000];
+        unsigned char   buffer[BUFFER_SIZE];
+        char            request_line[REQUEST_LINE_LENGTH];
+        char            word[10000];
 
         bool __is_method(const char *word, size_t word_length) const;
         int __get_byte(Request& request, int fd);
@@ -55,11 +72,12 @@ class parser {
         int __parse_field_line(Request& request, const char* line);
 }; // CLASS parser
 
+
 /*
     only thing that remains to check for now after the parsing is the validity of the target
 */
 class Request {
-
+// RFC 9112 -> 
     private:
 
         typedef struct s_header {
@@ -73,16 +91,9 @@ class Request {
 
     public:
 
-        // class BadRead: public ws::exception {
-        //         virtual const char* what() const throw();
-        // };
         class EofReached: public ws::exception {
                 virtual const char* what() const throw();
         };
-        // class BadUri: public ws::exception {
-        //     public:
-        //         virtual const char* what() const throw();
-        // };
 
         Request();
         Request(const Request& other);
@@ -90,23 +101,30 @@ class Request {
         ~Request();
 
         int parse(const int fd);
-        bool field_is_value(const char* field_name, const char* value) const;
-        std::string get_field_value(const char* field_name) const;
+
         int status() const;
         bool is_persistent() const;
+        bool field_is_value(const char* field_name, const char* value) const;
+        std::string get_field_value(const char* field_name) const;
         static bool replace_placeholders(std::string& token);
 
     private:
 
-        static const char methods[4][10]; /* = {"GET", "HEAD", "POST", "DELETE"}; */
+        static const char                   methods[4][10];
+        /* = {"GET", "HEAD", "POST", "DELETE"}; */
 
-        header_t header;
-        std::map<std::string, std::string> fields;
-        bool _is_persistent;
-        std::string error_msg;
-        int _status;
-
-        std::stringstream _body;
+        parser                              _parser;
+        header_t                            header;
+        std::map<std::string, std::string>  fields;
+        // must be a list of parsed values split by comma -> have class
+        // to have find & search functions.
+        bool                                _is_persistent;
+        std::string                         error_msg;
+        int                                 _status;
+        bool                                _is_chunked;
+        std::stringstream                   _body;
+ public:
+        bool                                _waiting_for_chunks;
 
 }; // CLASS Request
 

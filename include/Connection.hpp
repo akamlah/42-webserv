@@ -23,15 +23,9 @@ class Connection {
 
     public:
 
-        // class : public ws::exception {
-        //         virtual const char* what() const throw();
-        // };
-
         Connection(const int fd, const http::Tokens& tokens, const config_data& config);
         Connection(const http::Tokens& tokens, const config_data& config);
-
         Connection(const Connection& other);
-        // Connection& operator=(const Connection& other); // class can't be assigned because of const attributes
         ~Connection();
 
         int fd() const;
