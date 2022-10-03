@@ -23,14 +23,12 @@ typedef struct Pollfd
     Pollfd(int fd = 0, short events = 0, short revents = 0);
 }new_Pollfd;
 
-class Poll
+struct Poll
 {
-public:
     std::vector<struct Pollfd>  fds;
     int                         timeout;
     bool                        compress_array;
 
-public:
     class PollError: public ws::exception {
         virtual const char* what() const throw();
     };

@@ -360,7 +360,7 @@ int parser::__parse_field_line(Request& request, const char* line) {
     char name[5000];
     bzero(name, 5000);
     char value[5000];
-    bzero(value, 5000); // [ ! ] TODO: clean up this buffer hell
+    bzero(value, 5000); // [ ! ] TODO: clean up this buffer hell // haha :D
     while (field_line_tmp[i]) {
         if (field_line_tmp[i] == ':') {
             strlcpy(name, field_line_tmp, i + 1);

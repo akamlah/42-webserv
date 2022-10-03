@@ -1,6 +1,8 @@
 #include "../include/Poll.hpp"
+#include <iostream>
 
 namespace ws {
+
 
 const char* Poll::PollError::what() const throw() {
     return ("Poll error");
@@ -44,6 +46,7 @@ void Poll::poll()
         throw_print_error(PollError(), "poll() failed");
     if (temp == 0)
         throw_print_error(PollError(), "poll() timed out.  End program.");
+    std::cout << CYAN << fds.size() << NC << std::endl;
 }
 
 void Poll::compress()

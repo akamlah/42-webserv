@@ -204,3 +204,9 @@ int Request::__parse_field_line(Request& request, const char* line) {
     }
     return (error_status(request, WS_400_BAD_REQUEST, "Missing ':' in field line"));
 }
+
+
+{
+    Do we have a "trailers" field in the header?
+    
+}
