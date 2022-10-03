@@ -3,7 +3,7 @@
 #include "../include/Config.hpp"
 
 #define PORT 8001
-#define BACKLOG 100
+
 
 
 int main(int argc, char **argv) {
@@ -39,7 +39,7 @@ int main(int argc, char **argv) {
 		
 		ws::Server server(configData.getAllConfigData());
 
-		server.listen(BACKLOG);
+		// server.run() starts by calling server.listen() 
         server.run();
 	}
 	catch(const std::exception& e)
