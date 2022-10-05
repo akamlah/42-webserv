@@ -12,12 +12,6 @@ namespace http {
 
 // --------------------------------------------------------------------------------------------------------
 
-// const char* Request::EofReached::what() const throw() { // can be removed.
-//     return ("EOF reached!");
-// }
-
-// --------------------------------------------------------------------------------------------------------
-
 Request::Request(): _is_persistent(true), _status(WS_200_OK),
     _is_chunked(false), _waiting_for_chunks(false) { }
 
@@ -43,16 +37,14 @@ Request& Request::operator=(const Request& other) {
 
 Request::~Request() { }
 
-// --------------------------------------------------------------------------------------------------------
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 bool Request::field_is_value(const std::string& field_name, const std::string& value) const {
     std::map<std::string, std::list<std::string> >::const_iterator ite = _fields._map.find(field_name);
-    if (ite != _fields._map.end()) {
-        for (std::list<std::string>::const_iterator lite = ite->second.begin(); lite != ite->second.end(); lite++) {
+    if (ite != _fields._map.end())
+        for (std::list<std::string>::const_iterator lite = ite->second.begin(); lite != ite->second.end(); lite++)
             if (*lite == value)
                 return (true);
-        }
-    }
     return (false);
 }
 
@@ -76,13 +68,16 @@ int Request::parse(const int fd) {
         _parser.parse(*this, fd);
         if (DEBUG) {
             std::cout << "\n\n\n" << std::endl;
-            std::cout << RED << "PARSED REQUEST STATUS: " << _status << NC << std::endl;
+            (_status < 400) ? std::cout << GREEN : std::cout << RED;
+            std::cout << "PARSED REQUEST STATUS: " << _status << NC << std::endl;
             std::cout << CYAN << "PARSED HEADER:\n" \
-            << "\tMethod: " << header.method << "\n" \
-            << "\tTarget: " << header.target << "\n" \
-            << "\tVersion: " << header.version << NC << std::endl;
+                << "\tMethod: " << header.method << "\n" \
+                << "\tTarget: " << header.target << "\n" \
+                << "\tVersion: " << header.version << NC << std::endl;
             std::cout << CYAN << "PARSED FIELDS:\n" << NC;
-            for (std::map<std::string, std::list<std::string> >::const_iterator it = _fields._map.begin(); it != _fields._map.end(); it++) {
+            for (std::map<std::string, std::list<std::string> >::const_iterator it = _fields._map.begin();
+                it != _fields._map.end(); it++)
+            {
                 std::cout << CYAN << it->first<< NC << "|" ;
                 for (std::list<std::string>::const_iterator itl = it->second.begin(); itl != it->second.end(); itl++)
                     std::cout << YELLOW << *itl << NC << "|";
@@ -106,14 +101,14 @@ int Request::parse(const int fd) {
     return (_status);
 }
 
-// --------------------------------------------------------------------------------------------------------
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 static void str_tolower(std::string& line) {
     for (std::string::iterator it = line.begin(); it != line.end(); it++)
         *it = tolower(*it);
 }
 
-// --------------------------------------------------------------------------------------------------------
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 // PUT THIS BACK TO REQUEST ?
 
@@ -161,12 +156,13 @@ parser::parser(): line_length(0), nb_lines(0), msg_length(0), nb_empty_lines_beg
 
 parser::~parser() {}
 
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
 int parser::error_status(Request& request, const int status, const char* msg) const {
     #if DEBUG
     if (msg)
         std::cout << RED << msg << ": " << NC;
-    std::cout << RED << "Error: " << StatusPhrase()[status] \
-        << NC << std::endl; // temporary
+    std::cout << RED << "Error: " << StatusPhrase()[status] << NC << std::endl; // temporary ?
     #endif
 
     request.error_msg = msg;
@@ -188,10 +184,10 @@ bool parser::__is_method(const char *word, size_t word_length) const {
     return false;
 }
 
-// PARSE CHUNKS ---------------------------------------------------------------------------------
+// PARSE CHUNKS - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 int parser::parse_chunks(Request& request, int fd) {
-    // std::cout << YELLOW << "parsing chunks! :D" << NC << std::endl;
+    std::cout << YELLOW << "parsing chunks! :D" << NC << std::endl;
     int status = request._status;
     while (msg_length < BUFFER_SIZE) {
         if (!(status = __get_byte(request, fd)))
@@ -215,89 +211,36 @@ int parser::parse_chunks(Request& request, int fd) {
     return (status);
 }
 
-// PARSE FIRST (header & body if not chunked) ---------------------------------------------------------------------
-
-// [ ! ] [ + ]
-// The presence of a message body in a request is signaled by a Content-Length 
-// or Transfer-Encoding header field. Request message framing is independent of method semantics.
-// A server MAY reject a request that contains both Content-Length and Transfer-Encoding
-//  or process such a request in accordance with the Transfer-Encoding alone.
-// For messages that do not include content, the Content-Length indicates the 
-// size of the selected representation (Section 8.6 of [HTTP]).
-int parser::__parse_body(Request& request, int fd) {
-    size_t body_length = 0;
-    int status = request._status;
-    // A server MAY reject a request that contains both Content-Length and Transfer-Encoding
-    if (request.has_field_of_name("content-length")) {
-        if (request.has_field_of_name("transfer-encoding")) // [ ? ]
-            return(error_status(request, WS_400_BAD_REQUEST, "Non compatible content-length and transfer-encoding fields detected"));
-        request._content_length = std::atoi(request.get_field_value("content-length").begin()->c_str());
-    }
-    if (!request.has_field_of_name("content-length")) {
-        if (!request.has_field_of_name("transfer-encoding")) // [ ? ]
-            return(error_status(request, WS_400_BAD_REQUEST, "Message content detected but no content-length or transfer-encoding fields provided"));
-        else {
-            // check TE
-            // request._waiting_for_chunks = true;
-            // and catch that in parser.parse() [ ! ]
-            return (status);
-        }
-    }
-    while (body_length <= request._content_length && msg_length < BUFFER_SIZE) {
-        if (!(status =  __get_byte(request, fd))) {
-            std::cout << "get byte returned 0" << std::endl;
-            break ;
-        }
-        // if (buffer[msg_length] != '\0') break ; ?
-        request._body << buffer[msg_length]; // adds byte to body
-        ++body_length;
-        ++msg_length;
-        // give error if content too long and exceeds buffer size (msg_length + content-length)
-    }
-    std::cout << GREEN << "DONE! :D" << NC << std::endl;
-    body_done = true;
-    return (status);
-}
+// PARSE FIRST (header & body if not chunked)  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 // goes through byte by byte and at every newline reads the previous line into the data structure.
 int parser::parse(Request& request, int fd) {
-    if (DEBUG)
-        std::cout << "about to parse a new request on fd: " << fd << std::endl;
+    if (DEBUG) std::cout << "about to parse a new request on fd: " << fd << std::endl;
     int status = request._status;
     while (msg_length < BUFFER_SIZE) {
-        if (!(status = __get_byte(request, fd)))
-            break ;
-
-    // keep BEFORE null byte check, bcs I want to check contet length field even if no body provided.
+        // keep BEFORE null byte check, bcs I want to check contet length field even if no body provided.
         if (header_done && !body_done) {
             status = __parse_body(request, fd);
             break ;
         }
+        if (!(status = __get_byte(request, fd)))
+            break ;
         // if (buffer[msg_length] == '\0') { // [ ! ]
         //     std::cout << "EOF" << std::endl;
         //     break ;
         // }
-
         // if (status != WS_200_OK) // NEED THIS [ ? ]
         //     return (status) ; // if 0 it is end of file
-
         ++msg_length;
         ++line_length;
-
-        if (!header_done) {
-            if (buffer[msg_length - 1] == LF_int) { // if newline found:
-                ++nb_lines;
-                if (!(status = __parse_previous_line(request, (char *)buffer + msg_length - line_length, fd))) {
-                    if (DEBUG)
-                        std::cout << "final CRLF 2" << std::endl;
-                    break ;
-                }
-                if (status != WS_200_OK)
-                    return (status);
-            }
+        if (!header_done && buffer[msg_length - 1] == LF_int) { // if newline found:
+            ++nb_lines;
+            if (!(status = __parse_previous_header_line(request, (char *)buffer + msg_length - line_length))) // final CRLF
+                break ;
         }
+        if (status != WS_200_OK)
+            return (status);
     } // end loop
-
     // check that minimum was provided
     if (!start_content)
         return (error_status(request, WS_400_BAD_REQUEST, "Empty request header"));
@@ -306,7 +249,6 @@ int parser::parse(Request& request, int fd) {
     if (!host_fields)
         return (error_status(request, WS_400_BAD_REQUEST, "No host field provided"));
     buffer[msg_length] = '\0';
-
     return (status);
 }
 
@@ -331,9 +273,8 @@ int parser::__get_byte(Request& request, int fd) {
 // Detect end of header with final CRLF
 // if not a CRLF line or a CRLF line that is neither at the end nor at the beginning of the request
 // if here in the middle ANY whitespace at line start is found -> reject
-int parser::__parse_previous_line(Request& request, const char* line, const int fd) {
+int parser::__parse_previous_header_line(Request& request, const char* line) {
     std::cout << YELLOW << "parsing previous line" << NC << std::endl;
-    (void)fd;
     int status = WS_200_OK; // [ - ]
     std::cout << "LINE: " << line << std::endl;
     if (!start_content && (line_length == 2 && line[line_length - 2] == CR_int))
@@ -342,17 +283,21 @@ int parser::__parse_previous_line(Request& request, const char* line, const int 
         if (DEBUG)  // final CRLF
             std::cout << "final CRLF after fields" << std::endl;
         header_done = true;
-        if (request.field_is_value("transfer-encoding", "chunked")) { // there are more cases [ + ]
-            request._is_chunked = true;
-            request._waiting_for_chunks = true;
-            parse_chunks(request, fd); // start reading them already
-            // set body to done ?
-            return (0);
-        }
-        if (!(request.header.method == "POST"))    // POST not only case with body [ + ]
-            body_done = true;
-        if (body_done)
-            return (0);
+
+// OMG - >put in main parser !
+        // if (request.field_is_value("transfer-encoding", "chunked")) { // there are more cases [ + ]
+        //     request._is_chunked = true;
+        //     request._waiting_for_chunks = true;
+        //     parse_chunks(request, fd); // start reading them already
+        //     // set body to done ?
+        //     return (0);
+        // }
+        // if (!(request.header.method == "POST"))    // POST not only case with body [ + ]
+        //     body_done = true;
+        // if (body_done)
+        //     return (0);
+// ***
+
     }
     else {
         start_content = true;
@@ -424,8 +369,10 @@ int parser::__parse_next_word_request_line(Request& request, int i, int skip) {
         request.header.method = word;
     }
     if (word_count == 2) {
-        // move this part back to response ? no whitespace allowed in target -> chack that
         request.header.target = word; // see later if it is valid
+        // No whitespace is allowed in the request-target [ ! ] [ + ]
+        // move this part back to response ? no whitespace allowed in target -> chack that.
+        // REPLACE PLACEHOLDERS ONLY IN QUERY!!
         if (!Request::replace_placeholders(request.header.target))
             return (error_status(request, WS_400_BAD_REQUEST, "Bad format uri"));
     }
@@ -462,20 +409,63 @@ int parser::__parse_field_line(Request& request, std::string line) {
         ++host_fields;
     if (host_fields > 1)
         return (error_status(request, WS_400_BAD_REQUEST, "Too many host fields"));
-    if (colon == line.length())
-        return (error_status(request, WS_400_BAD_REQUEST, "Empty field"));
-    if (line[colon + 1] == ' ') // optional whitespace
+    if (colon != line.length() && line[colon + 1] == ' ') // optional whitespace
         colon++;
-    if (colon == line.length())
-        return (error_status(request, WS_400_BAD_REQUEST, "Empty field"));
-    if (line[colon + 1] == ' ')
+    if (colon != line.length() && line[colon + 1] == ' ')
         return (error_status(request, WS_400_BAD_REQUEST, "Too many whitespaces after ':' in field line"));
-    values = line.substr(colon + 1);
+    values = (colon == line.length()) ? std::string() : line.substr(colon + 1);
     request._fields.make_field(name, values);
-    request.fields.insert(std::pair<std::string, std::string>(name, values)); // [ - ]
     return (WS_200_OK);
 }
 
+// [ ! ] [ + ]
+// The presence of a message body in a request is signaled by a Content-Length 
+// or Transfer-Encoding header field. Request message framing is independent of method semantics.
+// A server MAY reject a request that contains both Content-Length and Transfer-Encoding
+//  or process such a request in accordance with the Transfer-Encoding alone.
+// For messages that do not include content, the Content-Length indicates the 
+// size of the selected representation (Section 8.6 of [HTTP]).
+int parser::__parse_body(Request& request, int fd) {
+    size_t body_length = 0;
+    int status = request._status;
+    // A server MAY reject a request that contains both Content-Length and Transfer-Encoding
+    if (request.has_field_of_name("content-length")) {
+        if (request.has_field_of_name("transfer-encoding")) // [ ? ]
+            return(error_status(request, WS_400_BAD_REQUEST, "Non compatible content-length and transfer-encoding fields detected"));
+        request._content_length = std::atoi(request.get_field_value("content-length").begin()->c_str());
+    }
+    if (!request.has_field_of_name("content-length")) {
+        // A server MAY reject a request that contains a message body but not a 
+        // Content-Length by responding with 411 (Length Required).
+        if (!request.has_field_of_name("transfer-encoding"))
+            return(error_status(request, WS_411_LENGTH_REQUIRED, "Message content detected but no content-length or transfer-encoding fields provided"));
+        else {
+            // check TE - other options
+            if (request.field_is_value("transfer-encoding", "chunked"))
+            request._waiting_for_chunks = true;
+            // and catch that in parser.parse() [ ! ]
+            return (status);
+        }
+    }
+    // now parse body
+    while (body_length <= request._content_length && msg_length < BUFFER_SIZE) {
+        if (!(status =  __get_byte(request, fd))) {
+            std::cout << "get byte returned 0" << std::endl;
+            break ;
+        }
+        // if (buffer[msg_length] != '\0') break ;
+        request._body << buffer[msg_length]; // adds byte to body
+        ++body_length;
+        ++msg_length;
+        // give error if content too long and exceeds buffer size (msg_length + content-length)
+    }
+    std::cout << GREEN << "DONE! :D" << NC << std::endl;
+    body_done = true;
+    return (status);
+}
+
+// --------------------------------------------------------------------------------------------------------
+// Class HeaderFields
 // --------------------------------------------------------------------------------------------------------
 
 HeaderFields::HeaderFields(){}
@@ -494,7 +484,6 @@ void HeaderFields::make_field(const std::string& name, const std::string& values
     std::list<std::string> list;
     size_t delimiter_pos = 0;
     size_t prev_delimiter_pos = 0;
-
     while ((delimiter_pos = values.find(',', prev_delimiter_pos)) != std::string::npos) {
         while (prev_delimiter_pos != std::string::npos && values[prev_delimiter_pos] == ' ')
             prev_delimiter_pos++;
