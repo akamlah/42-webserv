@@ -11,26 +11,27 @@
 #include "http_type_traits.hpp"
 
 #include <string>
+#include <stdlib.h>
 #include <iostream>
 #include <map>
+#include <list>
 
 namespace ws {
 namespace http {
 
 class Request;
 
-// TODO:
-// class HeaderFields {
-// public:
-//     HeaderFields();
-//     HeaderFields();
-//     HeaderFields();
-//     ~HeaderFields();
-//     // separates key and value by firse ':' and values by ','
-//     make_field(const std::string& line);
-// private:
-//     std::map<std::string, std::list> _fields;
-// }
+class HeaderFields {
+    friend class Request;
+public:
+    HeaderFields();
+    HeaderFields(const HeaderFields& other);
+    HeaderFields& operator=(const HeaderFields& other);
+    ~HeaderFields();
+    void make_field(const std::string& name, const std::string& values);
+private:
+    std::map<std::string, std::list<std::string> > _map;
+};
 
 class parser {
 
@@ -43,7 +44,9 @@ class parser {
         int parse_chunks(Request& request, const int fd);
         int error_status(Request& request, const int status, const char* msg = NULL) const ;
 
+#if (!DEBUG)
     private:
+#endif
 
         size_t  line_length;
         size_t  nb_lines;
@@ -64,12 +67,17 @@ class parser {
         char            request_line[REQUEST_LINE_LENGTH];
         char            word[10000];
 
+#if (DEBUG)
+    private:
+#endif
+
         bool __is_method(const char *word, size_t word_length) const;
         int __get_byte(Request& request, int fd);
+        int __parse_body(Request& request, int fd);
         int __parse_previous_line(Request& request, const char* line, const int fd);
         int __parse_request_line(Request& request, const char* line);
         int __parse_next_word_request_line(Request& request, int i, int skip);
-        int __parse_field_line(Request& request, const char* line);
+        int __parse_field_line(Request& request, std::string line);
 }; // CLASS parser
 
 
@@ -77,7 +85,6 @@ class parser {
     only thing that remains to check for now after the parsing is the validity of the target
 */
 class Request {
-// RFC 9112 -> 
     private:
 
         typedef struct s_header {
@@ -91,10 +98,6 @@ class Request {
 
     public:
 
-        class EofReached: public ws::exception {
-                virtual const char* what() const throw();
-        };
-
         Request();
         Request(const Request& other);
         Request& operator=(const Request& other);
@@ -104,8 +107,9 @@ class Request {
 
         int status() const;
         bool is_persistent() const;
-        bool field_is_value(const char* field_name, const char* value) const;
-        std::string get_field_value(const char* field_name) const;
+        bool field_is_value(const std::string& field_name, const std::string& value) const;
+        bool has_field_of_name(const std::string& field_name) const;
+        std::list<std::string> get_field_value(const std::string& field_name) const;
         static bool replace_placeholders(std::string& token);
 
     private:
@@ -116,6 +120,7 @@ class Request {
         parser                              _parser;
         header_t                            header;
         std::map<std::string, std::string>  fields;
+        HeaderFields _fields;
         // must be a list of parsed values split by comma -> have class
         // to have find & search functions.
         bool                                _is_persistent;
@@ -123,6 +128,7 @@ class Request {
         int                                 _status;
         bool                                _is_chunked;
         std::stringstream                   _body;
+        size_t                              _content_length;
  public:
         bool                                _waiting_for_chunks;
 

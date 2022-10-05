@@ -47,26 +47,32 @@ void Connection::establish(const int fd) {
     socklen_t address_length = sizeof(_address._address);
     _fd = ::accept(fd, (struct sockaddr *)&_address._address, &address_length);
 
-    if (DEBUG && _fd > 0)
+    // if (DEBUG)
+    if (_fd > 0)
         std::cout << "<<<<<<<<<<<<<<<  successfully <<<<<--------- established connection on fd " << _fd << " from fd: " << fd << std::endl;
+    else
+        std::cout << "not valid fd: " << _fd << std::endl;
 }
 
 void Connection::handle() {
     // start timer if first call
     // else check timer
-    std::cout << YELLOW << "CONNECTION.HANDLE" << NC << std::endl;
+    // std::cout << YELLOW << "CONNECTION.HANDLE" << NC << std::endl;
     try {
-        try {
+        // try {
             _request.parse(_fd);
             _status = _request.status();
-            if (_request._waiting_for_chunks)
+            if (_request._waiting_for_chunks) {
+                if (DEBUG)
+                    std::cout << YELLOW << "WAITING for chnks -> return\n" << std::endl;
                 return ;
+            }
             // system("leaks webserv | tail - 3");
-        }
-        catch (http::Request::EofReached& e) { // <- very hacky, might become a problem, we'll see
-            std::cout << "EOF" << std::endl;
-            _is_persistent = false;
-        }
+        // }
+        // catch (http::Request::EofReached& e) { // <- very hacky, might become a problem, we'll see
+        //     std::cout << "EOF" << std::endl;
+        //     _is_persistent = false;
+        // }
         Response response(_request, _config, _tokens);
         _is_persistent = _request.is_persistent();
         response.send(_fd); //argument config file
@@ -74,7 +80,7 @@ void Connection::handle() {
     catch (ws::exception& e) {
         std::cout << RED << "unforeseen exception req-resp" << NC << std::endl;
     }
-    system("leaks webserv");
+    // system("leaks webserv");
 }
 
 Connection::~Connection() { /* free data ?*/ }

@@ -29,7 +29,7 @@ void Response::send(const int fd) { // more error handeling here too [ + ]
         std::cout << "SENDING RESPONSE:\n" << _response_str;
     if (::send(fd, _response_str.c_str(), _response_str.length(), 0) < 0)
         throw_error_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
-    std::cout << CYAN << "Response class: Server sent data" << NC << std::endl;
+    // std::cout << CYAN << "Response class: Server sent data" << NC << std::endl;
 }
 
 int Response::throw_error_status(int status, const char* msg) {
