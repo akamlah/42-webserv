@@ -23,13 +23,8 @@ class Connection {
 
     public:
 
-        // class : public ws::exception {
-        //         virtual const char* what() const throw();
-        // };
-
         Connection(const int fd, const http::Tokens& tokens, const config_data& config);
         Connection(const http::Tokens& tokens, const config_data& config);
-
         Connection(const Connection& other);
         ~Connection();
 

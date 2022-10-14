@@ -116,6 +116,13 @@ namespace ws {
 		int fd[2];
 		std::string temp;
 
+		char **env; // GET this one has a QUERY_STRING=?shjdhfgjh=dgdfgdg&fgdfgdfgd=dfgdf
+	// POST
+	// body --> ?dfgdfgdg=dgdfgdf&dgdfg=dgdg?
+	//php-cgi REQEST_METHOD=POST;
+	// env[] = "PATH_TERM=./cgi.php"
+	execve("php-cgi", NULL, env);
+
 		pipe(fd);
 		id = fork();
 		if (id == 0)

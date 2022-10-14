@@ -99,6 +99,8 @@ namespace http {
 // a 414 (URI Too Long) status code (see Section 15.5.15 of [HTTP]).
 #define TARGET_SIZE 1024
 
+#define MAX_FIELD_LENGTH 8192 // 8KB like Apache
+
 class StatusPhrase {
     public:
         StatusPhrase() { _map_codes(); }

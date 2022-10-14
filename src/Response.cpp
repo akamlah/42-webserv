@@ -20,8 +20,6 @@ Response::Response(const Request& request, const config_data& config, const Toke
     __build_response();
 }
 
-// Response::Response(const Tokens& tokens): _tokens(tokens) {}
-
 Response::~Response() {}
 
 bool Response::is_persistent() const { return (_is_persistent); }
@@ -31,7 +29,7 @@ void Response::send(const int fd) { // more error handeling here too [ + ]
         std::cout << "SENDING RESPONSE:\n" << _response_str;
     if (::send(fd, _response_str.c_str(), _response_str.length(), 0) < 0)
         throw_error_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
-    // std::cout << CYAN << "Response class: Server sent data" << NC << std::endl;
+    std::cout << "Response class: Server sent data on fd " << fd << std::endl;
 }
 
 int Response::throw_error_status(int status, const char* msg) {
@@ -99,6 +97,8 @@ void Response::__response_to_string() {
     std::stringstream response;
     if (!_body.str().empty())
         __add_field("Content-length", std::to_string(_body.str().length()));
+    if (this->is_persistent()) // [ + ] condition for chunked requests ?
+        __add_field("Connection", "keep-alive");
     response << __generate_status_line() << CRLF;
     response << _fields_stream.str() << CRLF;
     response << _body.str() << CRLF;
@@ -156,7 +156,7 @@ void Response::__respond_to_error() {
 }
 
 void Response::__respond_get() {
-    __add_field("accept-ranges", "bytes");
+    __add_field("Accept-Ranges", "bytes");
     // chunked request: ?
     // Transfer-Encoding: chunked ...
     __handle_type(); // TODO: map function pointers ? have a decision tree system.
@@ -200,12 +200,9 @@ void Response::__interpret_target() {
     try {
         size_t uri_end = uri.npos;
         size_t query_pos = uri.find('?');
-        size_t fragment_pos = uri.find('#');
         _resource.path = uri.substr(0, query_pos);
         if (query_pos != uri_end)
-            _resource.query = uri.substr(query_pos + 1, fragment_pos);
-        if (fragment_pos != uri_end)
-            _resource.fragment = uri.substr(fragment_pos + 1);
+            _resource.query = uri.substr(query_pos + 1);
     }
     catch (std::exception& e) {
         throw_error_status(WS_500_INTERNAL_SERVER_ERROR, "Uri could not be parsed, format error");
@@ -214,7 +211,6 @@ void Response::__interpret_target() {
         std::cout << "Separated URI components:" << std::endl;
         std::cout << "path: " << _resource.path << std::endl;
         std::cout << "query: " << _resource.query << std::endl;
-        std::cout << "fragment: " << _resource.fragment << std::endl;
     }
     _resource.root = _config.root; // always ?
     _resource.file = (_resource.path == "/") ? _config.index : _resource.path;
@@ -312,7 +308,6 @@ void Response::__upload_file() { // + error handeling & target check here !
         throw_error_status(WS_500_INTERNAL_SERVER_ERROR, strerror(errno));
     }
 }
-
 
 // __________________________________________________________________________________________________________
 // 
