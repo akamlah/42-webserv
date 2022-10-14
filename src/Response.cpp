@@ -29,7 +29,7 @@ void Response::send(const int fd) { // more error handeling here too [ + ]
         std::cout << "SENDING RESPONSE:\n" << _response_str;
     if (::send(fd, _response_str.c_str(), _response_str.length(), 0) < 0)
         throw_error_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
-    // std::cout << CYAN << "Response class: Server sent data" << NC << std::endl;
+    std::cout << "Response class: Server sent data on fd " << fd << std::endl;
 }
 
 int Response::throw_error_status(int status, const char* msg) {
@@ -97,6 +97,8 @@ void Response::__response_to_string() {
     std::stringstream response;
     if (!_body.str().empty())
         __add_field("Content-length", std::to_string(_body.str().length()));
+    if (this->is_persistent()) // [ + ] condition for chunked requests ?
+        __add_field("Connection", "keep-alive");
     response << __generate_status_line() << CRLF;
     response << _fields_stream.str() << CRLF;
     response << _body.str() << CRLF;
@@ -154,7 +156,7 @@ void Response::__respond_to_error() {
 }
 
 void Response::__respond_get() {
-    __add_field("accept-ranges", "bytes");
+    __add_field("Accept-Ranges", "bytes");
     // chunked request: ?
     // Transfer-Encoding: chunked ...
     __handle_type(); // TODO: map function pointers ? have a decision tree system.

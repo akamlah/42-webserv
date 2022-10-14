@@ -9,10 +9,6 @@
 namespace ws {
 namespace http {
 
-// const char* Connection::what() const throw() {
-//     return ("");
-// }
-
 Connection::Connection(const int fd, const http::Tokens& tokens, const config_data& config)
     : _fd(fd), _status(0), _is_persistent(true), _tokens(tokens), _config(config) { }
 
@@ -22,10 +18,7 @@ Connection::Connection(const http::Tokens& tokens, const config_data& config)
 Connection::Connection(const Connection& other)
     : _fd(other._fd), _status(other._status), _address(other._address),
         _is_persistent(other._is_persistent), _request(other._request), 
-        _tokens(other._tokens), _config(other._config)
-{
-    
-}
+        _tokens(other._tokens), _config(other._config) { }
 
 // Connection& Connection::operator=(const Connection& other) {
 //     if (DEBUG)
@@ -47,32 +40,24 @@ void Connection::establish(const int fd) {
     socklen_t address_length = sizeof(_address._address);
     _fd = ::accept(fd, (struct sockaddr *)&_address._address, &address_length);
 
-    // if (DEBUG)
     if (_fd > 0)
-        std::cout << "<<<<<<<<<<<<<<<  successfully <<<<<--------- established connection on fd " << _fd << " from fd: " << fd << std::endl;
+        std::cout << GREEN << "Successfully established connection on fd " << _fd << " from fd: " << fd << NC << std::endl;
+    #if (DEBUG)
     else
         std::cout << "not valid fd: " << _fd << std::endl;
+    #endif
 }
 
 void Connection::handle() {
-    // start timer if first call
-    // else check timer
-    // std::cout << YELLOW << "CONNECTION.HANDLE" << NC << std::endl;
+    // [ + ] TIMEOUT timer
     try {
-        // try {
-            _request.parse(_fd);
-            _status = _request.status();
-            if (_request._waiting_for_chunks) {
-                if (DEBUG)
-                    std::cout << YELLOW << "WAITING for chnks -> return\n" << std::endl;
-                return ;
-            }
-            // system("leaks webserv | tail - 3");
-        // }
-        // catch (http::Request::EofReached& e) { // <- very hacky, might become a problem, we'll see
-        //     std::cout << "EOF" << std::endl;
-        //     _is_persistent = false;
-        // }
+        _request.parse(_fd);
+        _status = _request.status();
+        if (_request._waiting_for_chunks) {
+            if (DEBUG)
+                std::cout << YELLOW << "WAITING for chnks -> return\n" << std::endl;
+            return ;
+        }
         Response response(_request, _config, _tokens);
         _is_persistent = _request.is_persistent();
         response.send(_fd); //argument config file
@@ -80,7 +65,6 @@ void Connection::handle() {
     catch (ws::exception& e) {
         std::cout << RED << "unforeseen exception req-resp" << NC << std::endl;
     }
-    // system("leaks webserv");
 }
 
 Connection::~Connection() { /* free data ?*/ }

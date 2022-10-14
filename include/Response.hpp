@@ -18,6 +18,7 @@
 #include <fcntl.h> // open
 #include <unistd.h> // close
 #include <errno.h>
+#include  <iomanip>
 
 namespace ws {
 namespace http {

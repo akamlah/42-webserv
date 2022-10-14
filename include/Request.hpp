@@ -33,6 +33,7 @@ private:
     std::map<std::string, std::list<std::string> > _map;
 };
 
+
 class parser {
 
     public:
@@ -81,9 +82,6 @@ class parser {
 }; // CLASS parser
 
 
-/*
-    only thing that remains to check for now after the parsing is the validity of the target
-*/
 class Request {
     private:
 
@@ -133,6 +131,7 @@ class Request {
         bool                                _waiting_for_chunks;
 
 }; // CLASS Request
+
 
 } // NAMESPACE http
 } // NAMESPACE ws

@@ -6,7 +6,7 @@
 
 #include "../include/Request.hpp"
 #include <fstream>
-
+       #include <unistd.h>
 namespace ws {
 namespace http {
 
@@ -66,7 +66,7 @@ bool Request::is_persistent() const { return (_is_persistent);}
 int Request::parse(const int fd) {
     if (!_waiting_for_chunks) {
         _parser.parse(*this, fd);
-        if (DEBUG) {
+        #if (DEBUG)
             std::cout << "\n\n\n" << std::endl;
             (_status < 400) ? std::cout << GREEN : std::cout << RED;
             std::cout << "PARSED REQUEST STATUS: " << _status << NC << std::endl;
@@ -83,8 +83,6 @@ int Request::parse(const int fd) {
                     std::cout << YELLOW << *itl << NC << "|";
                 std::cout << std::endl;
             }
-        }
-        #if (DEBUG)
             std::cout << "request msg length after parse: " << _parser.msg_length << std::endl;
             std::cout << CYAN << "\nPARSER: Message recieved: ---------\n" << NC << _parser.buffer << std::endl;
             std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
@@ -97,6 +95,8 @@ int Request::parse(const int fd) {
     }
     else {
         _parser.parse_chunks(*this, fd);
+        if (_status >= 400)
+            _waiting_for_chunks = false; // VERY IMPORTANT!!! [ ! ]
     }
     return (_status);
 }
@@ -184,62 +184,164 @@ bool parser::__is_method(const char *word, size_t word_length) const {
     return false;
 }
 
-// PARSE CHUNKS - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+// PARSE CONTENT - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+// [ ! ] [ + ]
+// The presence of a message body in a request is signaled by a Content-Length 
+// or Transfer-Encoding header field. Request message framing is independent of method semantics.
+// A server MAY reject a request that contains both Content-Length and Transfer-Encoding
+//  or process such a request in accordance with the Transfer-Encoding alone.
+// For messages that do not include content, the Content-Length indicates the 
+// size of the selected representation (Section 8.6 of [HTTP]).
+// A server MAY reject a request that contains both Content-Length and Transfer-Encoding:
+// message up to here has either te = chunked or no TE but A content -> if no cl at this point it is an error -> 411
+// A server MAY reject a request that contains a message body but not a 
+// Content-Length by responding with 411 (Length Required).
+int parser::__parse_body(Request& request, int fd) {
+    if (DEBUG)
+        std::cout << "parsing body" << std::endl;
+    size_t body_length = 0;
+    int status = request._status;
+    request._content_length = 0; // (should be so in constr already) [ - ]
+    if (request.has_field_of_name("content-length")) {
+        if (request.has_field_of_name("transfer-encoding"))
+            return(error_status(request, WS_400_BAD_REQUEST, "Non compatible content-length and transfer-encoding fields detected"));
+        request._content_length = std::atoi(request.get_field_value("content-length").begin()->c_str());
+    }
+    if (request.has_field_of_name("transfer-encoding")) {
+        if (request.field_is_value("transfer-encoding", "chunked")) {
+            if (status < 400)
+                request._waiting_for_chunks = true;
+            return (status);
+        }
+        else // if TE but not chunked -> ERROR [ ? ] correct ?
+            return (error_status(request, WS_501_NOT_IMPLEMENTED, "Transfer encoding not implemented"));
+    }
+    for (int i = 0; i < 500 && msg_length < BUFFER_SIZE; i++) { // skip up to 500 nl s
+        status =  __get_byte(request, fd);
+        if (!status || buffer[msg_length] == '\0')
+            break ;
+        ++line_length;
+        if (buffer[msg_length] == LF_int)
+            if (!(line_length == 2 && buffer[msg_length - 1] == CR_int))
+                break ;
+        ++msg_length;
+    }
+    while (body_length <= request._content_length && msg_length < BUFFER_SIZE) {
+        status =  __get_byte(request, fd);
+        if (!status || buffer[msg_length] == '\0')
+            break ;
+        request._body << buffer[msg_length]; // adds byte to body
+        ++body_length;
+        ++msg_length;
+        // give error if content too long and exceeds buffer size (msg_length + content-length) [ + ]
+    }
+    if (request._content_length && !request._body.str().empty()) {
+        return (error_status(request, WS_400_BAD_REQUEST, "Content missing"));
+    }
+    if (!request.has_field_of_name("content-length") && !request._body.str().empty())
+        return(error_status(request, WS_411_LENGTH_REQUIRED, 
+            "Message content detected but no content-length or transfer-encoding fields provided"));
+    return (status);
+}
 
 int parser::parse_chunks(Request& request, int fd) {
-    std::cout << YELLOW << "parsing chunks! :D" << NC << std::endl;
+    if (DEBUG)
+        std::cout << YELLOW << "parsing chunks" << NC << std::endl;
     int status = request._status;
+    int chunk_size = 0;
+    line_length = 0;
+    bool content_done = false;
+    int content_size = 0;
+    bool size_done = false;
     while (msg_length < BUFFER_SIZE) {
-        if (!(status = __get_byte(request, fd)))
+        status = __get_byte(request, fd);
+        if (!status || buffer[msg_length] == '\0')
             break ;
-        if (buffer[msg_length] == '\0') {
-            std::cout << "EOF CHUNKS" << std::endl;
-            break ;
-        }
-        if (status != WS_200_OK)
+        if (status >= 400)
             return (status) ; // if 0 it is end of file
+        if (!size_done && buffer[msg_length] != CR_int && buffer[msg_length] != LF_int) {
+            if (!(buffer[msg_length] >= 48 && buffer[msg_length] <= 57)) {
+                return (error_status(request, WS_400_BAD_REQUEST, "Bad chunk size value"));
+            }
+            chunk_size = chunk_size * 10 + (buffer[msg_length] - 48);
+        }
+        if (size_done && !content_done && buffer[msg_length] != CR_int && buffer[msg_length] != LF_int) {
+            request._body << buffer[msg_length];
+            ++content_size;
+        }
         msg_length++;
         ++line_length;
         if (buffer[msg_length - 1] == LF_int) {
             if (line_length > 1 && buffer[msg_length - 2] != CR_int)
                 return(error_status(request, WS_400_BAD_REQUEST, "no CR before LF"));
-            if (line_length == 2 && ((char *)buffer + msg_length - line_length)[line_length - 2] == CR_int) // [ ! ]
-                std::cout << "empty line?" << std::endl;
-            
+            else if (size_done && !content_done && line_length == 2
+                && ((char *)buffer + msg_length - line_length)[line_length - 2] == CR_int) // [ ! ]
+                return(error_status(request, WS_400_BAD_REQUEST, "Empty line between chunk size and content"));
+            else if (!(line_length == 2 && ((char *)buffer + msg_length - line_length)[line_length - 2] == CR_int)) {
+                if (!size_done) {
+                    if (DEBUG)
+                        std::cout << GREEN << "size: " << chunk_size << NC << std::endl;
+                    size_done = true;
+                    if (chunk_size == 0) {
+                        request._waiting_for_chunks = false;
+                        return (status);
+                    }
+                }
+                else if (size_done && !content_done) {
+                    if (content_size != chunk_size) // [ ? ]
+                        return(error_status(request, WS_400_BAD_REQUEST, "Bad chunk size"));
+                    if (DEBUG)
+                        std::cout << GREEN << "content: " << request._body.str() << NC << std::endl;
+                    content_done = true;
+                }
+                // [ + ] TRAILING FIELDS todo !!!
+            }
+            else if (content_done && line_length == 2 && ((char *)buffer + msg_length - line_length)[line_length - 2] == CR_int) // [ ! ]
+                return(status);
+            line_length = 0;
         }
     }
     return (status);
 }
 
-// PARSE FIRST (header & body if not chunked)  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+// PARSE HEADER - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 // goes through byte by byte and at every newline reads the previous line into the data structure.
 int parser::parse(Request& request, int fd) {
     if (DEBUG) std::cout << "about to parse a new request on fd: " << fd << std::endl;
     int status = request._status;
     while (msg_length < BUFFER_SIZE) {
-        // keep BEFORE null byte check, bcs I want to check contet length field even if no body provided.
         if (header_done && !body_done) {
             status = __parse_body(request, fd);
+            body_done = true;
             break ;
         }
-        if (!(status = __get_byte(request, fd)))
+
+        // keep BEFORE null byte check, bcs I want to check contet length field even if no body provided.
+        if (!header_done && !(status = __get_byte(request, fd)))
             break ;
-        // if (buffer[msg_length] == '\0') { // [ ! ]
-        //     std::cout << "EOF" << std::endl;
-        //     break ;
-        // }
-        // if (status != WS_200_OK) // NEED THIS [ ? ]
-        //     return (status) ; // if 0 it is end of file
+
+        if (status != WS_200_OK) // NEED THIS [ ? ]
+            return (status) ; // if 0 it is end of file
+
+        if (buffer[msg_length] == '\0') { // [ - ]
+            std::cout << "EOF" << std::endl;
+            break ;
+        }
+
         ++msg_length;
         ++line_length;
+
         if (!header_done && buffer[msg_length - 1] == LF_int) { // if newline found:
             ++nb_lines;
             if (!(status = __parse_previous_header_line(request, (char *)buffer + msg_length - line_length))) // final CRLF
                 break ;
         }
-        if (status != WS_200_OK)
+
+        if (status != WS_200_OK) // [ - ] [ ? ]
             return (status);
+
     } // end loop
     // check that minimum was provided
     if (!start_content)
@@ -265,6 +367,12 @@ int parser::__get_byte(Request& request, int fd) {
         return (error_status(request, WS_400_BAD_REQUEST, "Bad encoding"));
     if (line_length > 1 && buffer[msg_length - 1] == CR_int && buffer[msg_length] != LF_int)
         return (error_status(request, WS_400_BAD_REQUEST, "CR not followed by LF"));
+    // if (buffer[msg_length] == LF_int)
+    //     std::cout << CYAN << "GET byte: " << "LF " << NC << std::endl;
+    // else if (buffer[msg_length] == CR_int)
+    //     std::cout << CYAN << "GET byte: " << "CR " << NC << std::endl;
+    // else
+    //     std::cout << CYAN << "GET byte: " << buffer + msg_length << " " << NC << std::endl;
     return (WS_200_OK);
 }
 
@@ -274,30 +382,15 @@ int parser::__get_byte(Request& request, int fd) {
 // if not a CRLF line or a CRLF line that is neither at the end nor at the beginning of the request
 // if here in the middle ANY whitespace at line start is found -> reject
 int parser::__parse_previous_header_line(Request& request, const char* line) {
-    std::cout << YELLOW << "parsing previous line" << NC << std::endl;
+    // std::cout << YELLOW << "parsing previous line" << NC << std::endl;
     int status = WS_200_OK; // [ - ]
-    std::cout << "LINE: " << line << std::endl;
+    // std::cout << "LINE: " << line << std::endl;
     if (!start_content && (line_length == 2 && line[line_length - 2] == CR_int))
         ++nb_empty_lines_beginning;
     else if (start_fields && (line_length == 2 && buffer[msg_length - 2] == CR_int)) {
         if (DEBUG)  // final CRLF
             std::cout << "final CRLF after fields" << std::endl;
         header_done = true;
-
-// OMG - >put in main parser !
-        // if (request.field_is_value("transfer-encoding", "chunked")) { // there are more cases [ + ]
-        //     request._is_chunked = true;
-        //     request._waiting_for_chunks = true;
-        //     parse_chunks(request, fd); // start reading them already
-        //     // set body to done ?
-        //     return (0);
-        // }
-        // if (!(request.header.method == "POST"))    // POST not only case with body [ + ]
-        //     body_done = true;
-        // if (body_done)
-        //     return (0);
-// ***
-
     }
     else {
         start_content = true;
@@ -325,7 +418,6 @@ int parser::__parse_request_line(Request& request, const char* line) {
     size_t i = 0;
     int skip = 0;
     int status = WS_200_OK;
-
     if (line_length > REQUEST_LINE_LENGTH)
         return (error_status(request, WS_501_NOT_IMPLEMENTED, "Header too long"));
     strlcpy(request_line, line, line_length + 1);
@@ -416,52 +508,6 @@ int parser::__parse_field_line(Request& request, std::string line) {
     values = (colon == line.length()) ? std::string() : line.substr(colon + 1);
     request._fields.make_field(name, values);
     return (WS_200_OK);
-}
-
-// [ ! ] [ + ]
-// The presence of a message body in a request is signaled by a Content-Length 
-// or Transfer-Encoding header field. Request message framing is independent of method semantics.
-// A server MAY reject a request that contains both Content-Length and Transfer-Encoding
-//  or process such a request in accordance with the Transfer-Encoding alone.
-// For messages that do not include content, the Content-Length indicates the 
-// size of the selected representation (Section 8.6 of [HTTP]).
-int parser::__parse_body(Request& request, int fd) {
-    size_t body_length = 0;
-    int status = request._status;
-    // A server MAY reject a request that contains both Content-Length and Transfer-Encoding
-    if (request.has_field_of_name("content-length")) {
-        if (request.has_field_of_name("transfer-encoding")) // [ ? ]
-            return(error_status(request, WS_400_BAD_REQUEST, "Non compatible content-length and transfer-encoding fields detected"));
-        request._content_length = std::atoi(request.get_field_value("content-length").begin()->c_str());
-    }
-    if (!request.has_field_of_name("content-length")) {
-        // A server MAY reject a request that contains a message body but not a 
-        // Content-Length by responding with 411 (Length Required).
-        if (!request.has_field_of_name("transfer-encoding"))
-            return(error_status(request, WS_411_LENGTH_REQUIRED, "Message content detected but no content-length or transfer-encoding fields provided"));
-        else {
-            // check TE - other options
-            if (request.field_is_value("transfer-encoding", "chunked"))
-            request._waiting_for_chunks = true;
-            // and catch that in parser.parse() [ ! ]
-            return (status);
-        }
-    }
-    // now parse body
-    while (body_length <= request._content_length && msg_length < BUFFER_SIZE) {
-        if (!(status =  __get_byte(request, fd))) {
-            std::cout << "get byte returned 0" << std::endl;
-            break ;
-        }
-        // if (buffer[msg_length] != '\0') break ;
-        request._body << buffer[msg_length]; // adds byte to body
-        ++body_length;
-        ++msg_length;
-        // give error if content too long and exceeds buffer size (msg_length + content-length)
-    }
-    std::cout << GREEN << "DONE! :D" << NC << std::endl;
-    body_done = true;
-    return (status);
 }
 
 // --------------------------------------------------------------------------------------------------------
