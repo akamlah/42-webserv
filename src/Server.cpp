@@ -111,6 +111,17 @@ void Server::handle_events()
     {
         if (_poll.fds[poll_index].elem.revents == 0)
             continue;
+
+//  - - - - - - [ ! ] - - - - - - - -
+        if (_poll.fds[poll_index].elem.revents != POLLIN)
+        {
+            if (DEBUG)
+                std::cout << "  Error! revents = " << _poll.fds[poll_index].elem.revents << std::endl;
+            close_connection(poll_index);
+            continue;
+        }
+//  - - - - - - [ ^ ] - - - - - - - -
+
         if (poll_index < _listening_ports.size())
             accept_new_connections(poll_index);
         else
@@ -123,6 +134,7 @@ void Server::handle_events()
 void Server::accept_new_connections(const int poll_index)
 {
     int listening_fd = _poll.get_fd(poll_index);
+
 
     if (DEBUG)
         std::cout << "Listening socket " << listening_fd << " is readable." << std::endl;

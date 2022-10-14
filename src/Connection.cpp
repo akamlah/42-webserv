@@ -29,8 +29,13 @@ void Connection::establish(const int fd) {
     socklen_t address_length = sizeof(_address._address);
 
     _fd = ::accept(fd, (struct sockaddr *)&_address._address, &address_length);
-    if (DEBUG && _fd > 0)
-        std::cout << "<<<<<<<<<<<<<<<  successfully <<<<<--------- established connection on fd " << _fd << " from fd: " << fd << std::endl;
+
+    if (_fd > 0)
+        std::cout << GREEN << "Successfully established connection on fd " << _fd << " from fd: " << fd << NC << std::endl;
+    #if (DEBUG)
+    else
+        std::cout << "not valid fd: " << _fd << std::endl;
+    #endif
 }
 
 void Connection::handle() {
