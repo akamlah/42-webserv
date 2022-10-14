@@ -7,7 +7,7 @@
 #include "../include/Server.hpp"
 #include "../include/utility.hpp"
 
-bool trythis = true;
+// bool trythis = true;
 
 namespace ws {
 
@@ -60,7 +60,6 @@ Server::Server(const std::vector<ws::config_data>& all_config) : _all_config(all
     }
 }
 
-
 Server::~Server() {
     _poll.close_all();
 }
@@ -81,11 +80,12 @@ void Server::listen(const int backlog) const {
 
 void    Server::run(int timeout)
 {
+    listen(BACKLOG);
     _poll.set_timeout(timeout);
     for(std::map<int, s_address>::const_iterator iter = _listening_ports.cbegin(); iter != _listening_ports.cend(); ++iter)
         _poll.add_to_poll(iter->first, POLLIN, 0);
 
-    do{
+    while (!_listening_ports.empty()) {
         if (DEBUG)
             std::cout << "Waiting on poll()..." << std::endl;
         _poll.poll();
@@ -93,7 +93,7 @@ void    Server::run(int timeout)
             std::cout << "polled" << std::endl;
         handle_events();
         _poll.compress();
-    } while (!_listening_ports.empty());
+    }
 } 
 
 void Server::handle_events()
@@ -111,13 +111,6 @@ void Server::handle_events()
     {
         if (_poll.fds[poll_index].elem.revents == 0)
             continue;
-        if (_poll.fds[poll_index].elem.revents != POLLIN)
-        {
-            if (DEBUG)
-                std::cout << "  Error! revents = " << _poll.fds[poll_index].elem.revents << std::endl;
-            close_connection(poll_index);
-            continue;
-        }
         if (poll_index < _listening_ports.size())
             accept_new_connections(poll_index);
         else
@@ -126,10 +119,6 @@ void Server::handle_events()
 }
 
 // --------------------------------------------------------------------------------------------------------
-
-// void map_connection(const Connection& c) {
-
-// }
 
 void Server::accept_new_connections(const int poll_index)
 {
@@ -170,9 +159,7 @@ void Server::handle_connection(const int poll_index)
     // + timeout ?
     // + try catch ?
     _connections.find(_poll.get_fd(poll_index))->second.handle();
-    // _connections[_poll.get_fd(poll_index)].handle(); // this used cpy constructor, with find not
     if (!_connections.find(_poll.get_fd(poll_index))->second.is_persistent()) {
-    // if (!_connections[_poll.get_fd(poll_index)].is_persistent()) {
         close_connection(poll_index);
         if (DEBUG)
             std::cout << "--->>>> Connection closed" << std::endl;

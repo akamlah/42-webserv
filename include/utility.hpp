@@ -25,6 +25,7 @@ namespace ws {
 #define GREEN "\033[0;32m"
 #define NC "\033[0m"
 
+#define BACKLOG 100
 
 
 #ifndef DEBUG
@@ -55,10 +56,7 @@ typedef struct address_struct
 		memset(&_address, 0, sizeof(_address));
 		memcpy(&_address.sin6_addr, &in6addr_any, sizeof(in6addr_any));
 	}
-	address_struct(const address_struct& other) : _address(other._address)
-	{
-		// printf("Called copy constructor.\n");
-	}
+	address_struct(const address_struct& other) : _address(other._address) { }
 	address_struct& operator=(const address_struct& other)
 	{
 		if (this != &other)
