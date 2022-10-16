@@ -141,21 +141,12 @@ void Server::accept_new_connections(const int poll_index)
         http::Connection incoming(_tokens, _all_config[_port_server.find(listening_fd)->second]);
         incoming.establish(listening_fd);
         if (!incoming.is_good()) {
-            if (errno != EWOULDBLOCK) {
-                if (DEBUG) {
-                    std::cerr << "accept() failed on listening port " << listening_fd << std::endl;
-                    std::cerr << "Port " << ntohs(_listening_ports.find(listening_fd)->second._address.sin6_port) 
-                    << " has been discarded from array" << std::endl;
-                }
-                close_connection(poll_index);
-                _listening_ports.erase(listening_fd);
-                break;
+            if (DEBUG) {
+                std::cerr << "accept() failed on fd " << listening_fd
+                << "; Port " << ntohs(_listening_ports.find(listening_fd)->second._address.sin6_port) 
+                << "; errno = " << errno << std::endl;
             }
-            else {
-                if (DEBUG)
-                    std::cout << "EWOULDBLOCK" << std::endl;
-                break;
-            }
+            break;
         }
         _poll.add_to_poll(incoming.fd(), POLLIN);
         _connections.insert(std::make_pair(incoming.fd(), incoming));
