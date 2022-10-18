@@ -202,7 +202,7 @@ int parser::__parse_body(Request& request, int fd) {
         std::cout << "parsing body" << std::endl;
     size_t body_length = 0;
     int status = request._status;
-    request._content_length = 0; // (should be so in constr already) [ - ]
+    // request._content_length = 0; // (should be so in constr already) [ - ]
     if (request.has_field_of_name("content-length")) {
         if (request.has_field_of_name("transfer-encoding"))
             return(error_status(request, WS_400_BAD_REQUEST, "Non compatible content-length and transfer-encoding fields detected"));
@@ -217,16 +217,6 @@ int parser::__parse_body(Request& request, int fd) {
         else // if TE but not chunked -> ERROR [ ? ] correct ?
             return (error_status(request, WS_501_NOT_IMPLEMENTED, "Transfer encoding not implemented"));
     }
-    for (int i = 0; i < 500 && msg_length < BUFFER_SIZE; i++) { // skip up to 500 nl s
-        status =  __get_byte(request, fd);
-        if (!status || buffer[msg_length] == '\0')
-            break ;
-        ++line_length;
-        if (buffer[msg_length] == LF_int)
-            if (!(line_length == 2 && buffer[msg_length - 1] == CR_int))
-                break ;
-        ++msg_length;
-    }
     while (body_length <= request._content_length && msg_length < BUFFER_SIZE) {
         status =  __get_byte(request, fd);
         if (!status || buffer[msg_length] == '\0')
@@ -236,9 +226,8 @@ int parser::__parse_body(Request& request, int fd) {
         ++msg_length;
         // give error if content too long and exceeds buffer size (msg_length + content-length) [ + ]
     }
-    if (request._content_length && !request._body.str().empty()) {
+    if (request._content_length && !body_length)
         return (error_status(request, WS_400_BAD_REQUEST, "Content missing"));
-    }
     if (!request.has_field_of_name("content-length") && !request._body.str().empty())
         return(error_status(request, WS_411_LENGTH_REQUIRED, 
             "Message content detected but no content-length or transfer-encoding fields provided"));
