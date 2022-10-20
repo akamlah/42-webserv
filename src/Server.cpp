@@ -99,6 +99,7 @@ void    Server::run(int timeout)
 void Server::handle_events()
 {
     size_t    current_size = _poll.fds.size();
+    int       polled_event;
 
     if (DEBUG) {
         std::map<int, http::Connection>::iterator it;
@@ -109,19 +110,16 @@ void Server::handle_events()
 
     for (size_t poll_index = 0; poll_index < current_size; ++poll_index)
     {
-        if (_poll.fds[poll_index].elem.revents == 0)
+        polled_event = _poll.fds[poll_index].elem.revents;
+        if (polled_event == 0)
             continue;
-
-//  - - - - - - [ ! ] - - - - - - - -
-        if (_poll.fds[poll_index].elem.revents != POLLIN)
+        if (polled_event & (POLLHUP | POLLERR))
         {
             if (DEBUG)
-                std::cout << "  Error! revents = " << _poll.fds[poll_index].elem.revents << std::endl;
+                std::cout << "  Error! revents = " << polled_event << std::endl;
             close_connection(poll_index);
             continue;
         }
-//  - - - - - - [ ^ ] - - - - - - - -
-
         if (poll_index < _listening_ports.size())
             accept_new_connections(poll_index);
         else
@@ -143,21 +141,12 @@ void Server::accept_new_connections(const int poll_index)
         http::Connection incoming(_tokens, _all_config[_port_server.find(listening_fd)->second]);
         incoming.establish(listening_fd);
         if (!incoming.is_good()) {
-            if (errno != EWOULDBLOCK) {
-                if (DEBUG) {
-                    std::cerr << "accept() failed on listening port " << listening_fd << std::endl;
-                    std::cerr << "Port " << ntohs(_listening_ports.find(listening_fd)->second._address.sin6_port) 
-                    << " has been discarded from array" << std::endl;
-                }
-                close_connection(poll_index);
-                _listening_ports.erase(listening_fd);
-                break;
+            if (DEBUG) {
+                std::cerr << "accept() failed on fd " << listening_fd
+                << "; Port " << ntohs(_listening_ports.find(listening_fd)->second._address.sin6_port) 
+                << "; errno = " << errno << std::endl;
             }
-            else {
-                if (DEBUG)
-                    std::cout << "EWOULDBLOCK" << std::endl;
-                break;
-            }
+            break;
         }
         _poll.add_to_poll(incoming.fd(), POLLIN);
         _connections.insert(std::make_pair(incoming.fd(), incoming));
