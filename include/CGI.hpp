@@ -18,6 +18,7 @@ public:
 	~Cgi();
 	void readHTML(std::string const & htmlFilePath);
 	void runRawPHP(std::string const & phpFilePath);
+	std::string executeCgiNew(char **env);
 	std::string executeCgi(std::string const & phpfile); // have to be in the correct location.
 	std::string createTempPHP(std::string const & phpCode);
 	std::string const findPHPtag(std::string const & htmlfile);

@@ -16,17 +16,19 @@
 #include <sstream>
 #include <ctime>
 #include <fcntl.h> // open
-#include <unistd.h> // close
+#include <unistd.h> //
 #include <errno.h>
-#include  <iomanip>
+#include <list>
+
 
 namespace ws {
 namespace http {
 
-struct Resource { // - - - - - - - - - - - - - - - - - - - - - - - - - -
+struct Resource {
     // as in URI:
     std::string path; // everything between '/' and '?'
     std::string query; // everything between '?' and '#'
+    std::string fragment; // from '#' to end
     // matched:
     std::string root; // as in config
     std::string file; // as in uri, or config in case of idex.html/.php
@@ -35,26 +37,11 @@ struct Resource { // - - - - - - - - - - - - - - - - - - - - - - - - - -
     std::string type;
     std::string subtype;
     std::string extension;
-}; // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+};
 
-
-// CGI ENV builder - - - - - - - - - - - - - - - - - - - - - - - - - -
+// CGI ENV builder - - - - - - - - - - - - - - - - - - - - - - - - - 
 // query format: x_www_form_urlencoded
 // http://localhost:9999/data/mytext.txt?abc&def&hij&klm&nop&qrs&tuv&wxy
-class CgiEnv_FormUrlencoded {
-public:
-    CgiEnv_FormUrlencoded();
-    CgiEnv_FormUrlencoded(const std::string& query_str);
-    CgiEnv_FormUrlencoded(const CgiEnv_FormUrlencoded& other);
-    CgiEnv_FormUrlencoded& operator=(const CgiEnv_FormUrlencoded& other);
-    ~CgiEnv_FormUrlencoded();
-    char** env;
-private:
-    void __copy_env(const CgiEnv_FormUrlencoded& other);
-    void __delete_env();
-    int _nb_tokens;
-}; // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
 
 class Response {
 
@@ -93,14 +80,19 @@ class Response {
         std::stringstream   _body; // buffered resource body if any
         std::string         _response_str; // the whole response
 
-        std::string         error_msg;
+        std::string error_msg;
 
     private:
 
         void __build_response();
         void __respond_to_error();
         void __respond_get();
+        void __respond_cgi_get();
         void __respond_post();
+
+        void __respond_cgi_post();
+        std::string cgiRespCreator();
+        std::string cgiRespCreator_post();
 
         void __add_field(const std::string& field_name, const std::string& value);
         void __add_formatted_timestamp();
