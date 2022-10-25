@@ -80,7 +80,7 @@ void Response::__add_formatted_timestamp() {
 
 void Response::__decide_persistency() {
     if (_request._is_persistent == true
-        && (_request.field_is_value("connection", "keep-alive")
+        || (_request.field_is_value("connection", "keep-alive") //[ + ]
             || _request.field_is_value("connection", "chunked")))
         _is_persistent = true;
 }
@@ -217,14 +217,14 @@ void Response::__respond_cgi_get()
 	std::string temp = phpresp.substr(shitindex + 4);
 	templength = temp.length();
 
-	if (!_body.str().empty())
-		__add_field("Content-length", std::to_string(templength));
+	// if (!_body.str().empty())
+	__add_field("Content-length", std::to_string(templength));
 	response << __generate_status_line() << CRLF;
 	response << _fields_stream.str();
 	response << _body.str();
 	_response_str = response.str();
 
-    // std::cout << "------------------ ------ -- - - -respons:\n" << response.str() << std::endl;
+    std::cout << "------------------ ------ -- - - -respons:\n" << response.str() << std::endl;
 	return ;
 }
 
@@ -243,14 +243,14 @@ std::string Response::cgiRespCreator()
 		// env[0] = &(*(std::string("REQUEST_METHOD=" + _request.header.method).begin()));
 		// env[0] = &(*((new std::string("REQUEST_METHOD=POST")))->begin()); // need to be newd othervised funny things happen
         env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin()); // need to be newd othervised funny things happen
-		std::cout << i<< std::endl;
+		// std::cout << i<< std::endl;
 		env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path                ))->begin())); // need to be newd othervised funny things happen
-		std::cout << i<< std::endl;
+		// std::cout << i<< std::endl;
         env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin()); // need to be newd othervised funny things happen
-		std::cout << i<< std::endl;
+		// std::cout << i<< std::endl;
         env[i++] = &(*((new std::string("CONTENT_TYPE=" + _resource.type + "/" + _resource.subtype )))->begin()); // need to be newd othervised funny things happen
         // env[i++] = &(*((new std::string("CONTENT_TYPE=application/x-www-form-urlencoded")))->begin()); // need to be newd othervised funny things happen
-		std::cout << i<< std::endl;
+		// std::cout << i<< std::endl;
         // std::string filemanip(_request._body.str());
         // std::string::size_type location =  filemanip.find("------WebKit");
         // std::string boundry;
@@ -261,14 +261,14 @@ std::string Response::cgiRespCreator()
         // std::string boundry = "test";
         // env[i++] = &(*((new std::string("CONTENT_TYPE=multipart/form-data; boundary=" + boundry)))->begin()); // need to be newd othervised funny things happen
 		env[i++] = &(*((new std::string("CONTENT_LENGTH=" + std::to_string(_request._body.str().length() )))->begin())); // need to be newd othervised funny things happen
-		std::cout << i<< std::endl;
+		// std::cout << i<< std::endl;
 		// env[i++] = &(*((new std::string("CONTENT_LENGTH=" + std::to_string(_body.str().length() )))->begin())); // need to be newd othervised funny things happen
 		// std::cout << "the body:\n" << _request._body.str() << std::endl;
 		// std::cout << "the body:\n" << _request._body.str().length() << std::endl;
         // env[i++] = &(*((new std::string("CONTENT_LENGTH=20"))->begin())); // need to be newd othervised funny things happen
     	// env[i++] = &(*((new std::string("SERVER_PORT=" + std::to_string(_config.ports[0]) ))->begin())); // is host always have the correct port?
         env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin()); // need to be newd othervised funny things happen
-		std::cout << i<< std::endl;
+		// std::cout << i<< std::endl;
         
         // std::cout << "fuck this bitch:\n" << _request._body.str() << std::endl;
         // std::stringstream thisshit;
@@ -291,7 +291,7 @@ std::string Response::cgiRespCreator()
         // env[i++] = &(*((new std::string(_request._body.str())))->begin()); // need to be newd othervised funny things happen
         // env[i++] = &(*((new std::string("CONTENT_DISPOSITION=form-data; name='fileToUpload'; filename='test.txt'")))->begin()); // need to be newd othervised funny things happen
 		env[i++] = NULL;
-		std::cout << i<< std::endl;
+		// std::cout << i<< std::endl;
 	
     	// env[1] = &(*(std::string("PATH_TRANSLATED=" + _resource.abs_path).begin()));
         // env[1] = &(*(std::string("SERVER_PORT=" + _request.get_field_value("host")).begin())); // is host always have the correct port?
@@ -350,6 +350,7 @@ std::string Response::cgiRespCreator_post()
         // std::cout << std::endl;
 
         int i = 0;
+        env[i++] = &(*((new std::string(_request._body.str())))->begin()); // need to be newd othervised funny things happen
         env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin()); // need to be newd othervised funny things happen
 		env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path                ))->begin())); // need to be newd othervised funny things happen
         env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin()); // need to be newd othervised funny things happen
@@ -358,7 +359,6 @@ std::string Response::cgiRespCreator_post()
 		// env[4] = &(*((new std::string("CONTENT_LENGTH=" + std::to_string(_request._body.str().length() + 30 )))->begin())); // need to be newd othervised funny things happen
 		env[i++] = &(*((new std::string("CONTENT_LENGTH=" + std::to_string(_request._body.str().length()) ))->begin())); // need to be newd othervised funny things happen
         env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin()); // need to be newd othervised funny things happen
-        env[i++] = &(*((new std::string(_request._body.str())))->begin()); // need to be newd othervised funny things happen
 		env[i++] = NULL;
 
         // std::cout << "body: "<< env[6] << std::endl;
