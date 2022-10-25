@@ -237,100 +237,21 @@ std::string Response::cgiRespCreator()
 		env = new char*[7];
 
         int i = 0;
-		// env[0] = strdup("REQUEST_METHOD=POST");
-        // std::cout << "request body: " << _request._body.str() << std::endl; // why is the rquest utting things on top???
-        // std::cout << _resource.abs_path << std::endl;
-        // std::cout << _resource.query << std::endl;
-        // std::cout << _request.header.method << std::endl;
-		// env[0] = &(*(std::string("REQUEST_METHOD=" + _request.header.method).begin()));
-		// env[0] = &(*((new std::string("REQUEST_METHOD=POST")))->begin()); // need to be newd othervised funny things happen
-        env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin()); // need to be newd othervised funny things happen
-		// std::cout << i<< std::endl;
-		env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path                ))->begin())); // need to be newd othervised funny things happen
-		// std::cout << i<< std::endl;
-        env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin()); // need to be newd othervised funny things happen
-		// std::cout << i<< std::endl;
-        env[i++] = &(*((new std::string("CONTENT_TYPE=" + _resource.type + "/" + _resource.subtype )))->begin()); // need to be newd othervised funny things happen
-        // env[i++] = &(*((new std::string("CONTENT_TYPE=application/x-www-form-urlencoded")))->begin()); // need to be newd othervised funny things happen
-		// std::cout << i<< std::endl;
-        // std::string filemanip(_request._body.str());
-        // std::string::size_type location =  filemanip.find("------WebKit");
-        // std::string boundry;
-        // if (location < 40 && filemanip.size() >= 40)
-        //     boundry = filemanip.substr(location, 40);
-
-
-        // std::string boundry = "test";
-        // env[i++] = &(*((new std::string("CONTENT_TYPE=multipart/form-data; boundary=" + boundry)))->begin()); // need to be newd othervised funny things happen
-		env[i++] = &(*((new std::string("CONTENT_LENGTH=" + std::to_string(_request._body.str().length() )))->begin())); // need to be newd othervised funny things happen
-		// std::cout << i<< std::endl;
-		// env[i++] = &(*((new std::string("CONTENT_LENGTH=" + std::to_string(_body.str().length() )))->begin())); // need to be newd othervised funny things happen
-		// std::cout << "the body:\n" << _request._body.str() << std::endl;
-		// std::cout << "the body:\n" << _request._body.str().length() << std::endl;
-        // env[i++] = &(*((new std::string("CONTENT_LENGTH=20"))->begin())); // need to be newd othervised funny things happen
-    	// env[i++] = &(*((new std::string("SERVER_PORT=" + std::to_string(_config.ports[0]) ))->begin())); // is host always have the correct port?
-        env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin()); // need to be newd othervised funny things happen
-		// std::cout << i<< std::endl;
-        
-        // std::cout << "fuck this bitch:\n" << _request._body.str() << std::endl;
-        // std::stringstream thisshit;
-        // thisshit = _request._body;
-        // std::cout << "fuck this bitch:\n" << filemanip << std::endl;
-        // // filemanip = _request._body.str();
-        // // // // ------WebKitFormBoundaryFzADuwe7txW2b3Ko
-        // filemanip.erase(location, 40);
-        // // std::cout << "fuck this bitch:\n" << location << "\n" << filemanip << std::endl;
-        // location =  filemanip.find("------WebKit");
-        // filemanip.erase(location, 40);
-        // location =  filemanip.find("------WebKit");
-        // filemanip.erase(location, 42);
-
-        
-        
-        // env[i++] = &(*((new std::string("test\r\n\r\n")))->begin()); // need to be newd othervised funny things happen
-        // env[i++] = &(*filemanip.begin()); // need to be newd othervised funny things happen
-        // env[i++] = &(*((new std::string(filemanip.c_str())))->begin()); // need to be newd othervised funny things happen
-        // env[i++] = &(*((new std::string(_request._body.str())))->begin()); // need to be newd othervised funny things happen
-        // env[i++] = &(*((new std::string("CONTENT_DISPOSITION=form-data; name='fileToUpload'; filename='test.txt'")))->begin()); // need to be newd othervised funny things happen
+		env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin()); // need to be newd othervised funny things happen
+		env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path                ))->begin()));
+        env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin());
+        env[i++] = &(*((new std::string("CONTENT_TYPE=" + _resource.type + "/" + _resource.subtype )))->begin());
+    	env[i++] = &(*((new std::string("CONTENT_LENGTH=" + std::to_string(_request._body.str().length() )))->begin()));
+        env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin());
 		env[i++] = NULL;
-		// std::cout << i<< std::endl;
-	
-    	// env[1] = &(*(std::string("PATH_TRANSLATED=" + _resource.abs_path).begin()));
-        // env[1] = &(*(std::string("SERVER_PORT=" + _request.get_field_value("host")).begin())); // is host always have the correct port?
-	
-	
-    	// env[3] = strdup("CONTENT_LENGTH=0");
-        // if (!_body.str().empty())
-        // __add_field("Content-length", std::to_string(_body.str().length()));
-		// env[4] = &(*(std::string("QUERY_STRING=" + _resource.query).begin()));
-		
-		
-		
-		// env[5] = &(*(new std::string("REDIRECT_STATUS=200")));
-		// env[5] = strdup("REDIRECT_STATUS=200");
 
-
-        // std::cout << env[0] << std::endl;
-        // std::cout << env[1] << std::endl;
-        // std::cout << env[2] << std::endl;
-        // std::cout << "content type:\n" << env[3] << std::endl;
-        // std::cout << env[4] << std::endl;
-        // std::cout << env[5] << std::endl;
-        // std::cout << "body:\n"<< env[6] << std::endl;
-        // std::cout << "\n-----end----" << std::endl;
         Cgi test;
         std::string phpresp;
         phpresp += test.executeCgiNew(env);
         if (phpresp.empty())
             std::cout << "unfortunetly this shit has nothing inside you mother fucker!\n";
         delete [] env;
-		// for (size_t i = 0; i < 8; i++)
-		// {
-		// 	env[i] = NULL;
-		// }
-		
-        // atexit(check);
-        // exit(0);
+
 
     return (phpresp);
 }
@@ -353,26 +274,19 @@ std::string Response::cgiRespCreator_post()
                 std::cout << "list:\n" << tmp << std::endl;
                 it++;
             }
-
-            // std::cout << 
-            // for (std::string tmp : konttype)
-            //     std::cout << tmp << " ,";
         }
-        // std::cout << std::endl;
-
         int i = 0;
-        env[i++] = &(*((new std::string(_request._body.str())))->begin()); // need to be newd othervised funny things happen
-        env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin()); // need to be newd othervised funny things happen
-		env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path                ))->begin())); // need to be newd othervised funny things happen
-        env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin()); // need to be newd othervised funny things happen
-        // env[i++] = &(*((new std::string("CONTENT_TYPE=application/x-www-form-urlencoded")))->begin()); // need to be newd othervised funny things happen
-		env[i++] = &(*((new std::string("CONTENT_TYPE=" +   tmp      ))->begin())); // need to be newd othervised funny things happen
-		// env[4] = &(*((new std::string("CONTENT_LENGTH=" + std::to_string(_request._body.str().length() + 30 )))->begin())); // need to be newd othervised funny things happen
-		env[i++] = &(*((new std::string("CONTENT_LENGTH=" + std::to_string(_request._body.str().length()) ))->begin())); // need to be newd othervised funny things happen
-        env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin()); // need to be newd othervised funny things happen
+        env[i++] = &(*((new std::string(_request._body.str())))->begin());
+        env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin());
+		env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path                ))->begin()));
+        env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin());
+        // env[i++] = &(*((new std::string("CONTENT_TYPE=application/x-www-form-urlencoded")))->begin());
+		env[i++] = &(*((new std::string("CONTENT_TYPE=" +   tmp      ))->begin()));
+		// env[4] = &(*((new std::string("CONTENT_LENGTH=" + std::to_string(_request._body.str().length() + 30 )))->begin()));
+		env[i++] = &(*((new std::string("CONTENT_LENGTH=" + std::to_string(_request._body.str().length()) ))->begin()));
+        env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin());
 		env[i++] = NULL;
 
-        // std::cout << "body: "<< env[6] << std::endl;
         Cgi test;
         std::string phpresp;
         phpresp += test.executeCgiNew(env);
