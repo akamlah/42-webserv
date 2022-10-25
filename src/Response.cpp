@@ -119,6 +119,7 @@ void Response::__build_response() {
 			else
 			{
                  std::cout << "HERE 2 GET ----- no ----- CGI\n" <<std::endl;
+                __add_field("Content-type", _resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
 	            __respond_get();
 			}
         }
@@ -132,6 +133,7 @@ void Response::__build_response() {
 			else
 			{
                 std::cout << "HERE 4 POST  --no-- CGI\n" <<std::endl;
+                __add_field("Content-type", _resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
 	            __respond_get();
 			}
         }
@@ -339,10 +341,19 @@ std::string Response::cgiRespCreator_post()
     	char ** env;
 		env = new char*[8];
         std::list<std::string> konttype = _request.get_field_value("content-type");
-        
+        std::list<std::string>::iterator it;
+         std::string tmp;
+
         if ( !(konttype.empty()) )
         {
-            std::cout << "list:\n" << *(konttype.begin()) << std::endl;
+            it = konttype.begin();
+            while (it != konttype.end())
+            {
+                tmp += *it;
+                std::cout << "list:\n" << tmp << std::endl;
+                it++;
+            }
+
             // std::cout << 
             // for (std::string tmp : konttype)
             //     std::cout << tmp << " ,";
@@ -354,8 +365,8 @@ std::string Response::cgiRespCreator_post()
         env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin()); // need to be newd othervised funny things happen
 		env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path                ))->begin())); // need to be newd othervised funny things happen
         env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin()); // need to be newd othervised funny things happen
-        env[i++] = &(*((new std::string("CONTENT_TYPE=application/x-www-form-urlencoded")))->begin()); // need to be newd othervised funny things happen
-		// env[3] = &(*((new std::string("CONTENT_TYPE=" +               ))->begin())); // need to be newd othervised funny things happen
+        // env[i++] = &(*((new std::string("CONTENT_TYPE=application/x-www-form-urlencoded")))->begin()); // need to be newd othervised funny things happen
+		env[i++] = &(*((new std::string("CONTENT_TYPE=" +   tmp      ))->begin())); // need to be newd othervised funny things happen
 		// env[4] = &(*((new std::string("CONTENT_LENGTH=" + std::to_string(_request._body.str().length() + 30 )))->begin())); // need to be newd othervised funny things happen
 		env[i++] = &(*((new std::string("CONTENT_LENGTH=" + std::to_string(_request._body.str().length()) ))->begin())); // need to be newd othervised funny things happen
         env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin()); // need to be newd othervised funny things happen
@@ -372,7 +383,31 @@ std::string Response::cgiRespCreator_post()
 
 void Response::__respond_cgi_post()
 {
+    __add_field("accept-ranges", "bytes");
+	__add_field("Cache-Control", "no-cache");
+	int templength;
+	std::stringstream response;
+	Cgi test;
+	std::string phpresp;
+	phpresp +=  cgiRespCreator_post();
+	std::string::size_type shitindex;
+    if (phpresp.empty())
+        return ;
+	shitindex = phpresp.find("\r\n\r\n");
+    if (shitindex == std::string::npos)
+        return ;
+	_body << phpresp;
+	std::string temp = phpresp.substr(shitindex + 4);
+	templength = temp.length();
+	__add_field("Content-length", std::to_string(templength));
+	response << __generate_status_line() << CRLF;
+	response << _fields_stream.str();
+	response << _body.str();
+	_response_str = response.str();
+	__decide_persistency();
 
+    std::cout << "------------------ POST ------ -- - - -respons:\n" << response.str() << std::endl;
+	return ;
 }
 // The data that you send in a POST request must adhere to specific formatting requirements.
 // You can send only the following content types in a POST request to Media Server:
@@ -468,8 +503,6 @@ void Response::__identify_resource_type() {
     _resource.type = it->second.substr(0, separator_pos);
     if (separator_pos != it->second.npos)
         _resource.subtype = it->second.substr(separator_pos + 1);
-    __add_field("Content-type", _resource.subtype.empty() ? _resource.type
-        : (_resource.type + "/" + _resource.subtype));
 }
 
 // temporarily handles every type, later have a decision tree or similar
