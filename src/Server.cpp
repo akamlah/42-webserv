@@ -160,11 +160,11 @@ void Server::handle_connection(const int poll_index)
     // + timeout ?
     // + try catch ?
     _connections.find(_poll.get_fd(poll_index))->second.handle();
-    if (!_connections.find(_poll.get_fd(poll_index))->second.is_persistent()) {
+    // if (!_connections.find(_poll.get_fd(poll_index))->second.is_persistent()) {
         close_connection(poll_index);
         if (DEBUG)
             std::cout << "--->>>> Connection closed" << std::endl;
-    }
+    // }
 }
 
 void Server::close_connection(const int poll_index)

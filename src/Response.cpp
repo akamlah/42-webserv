@@ -58,12 +58,6 @@ void Response::remove_leading_slash(std::string& path) {
 
 // - - - - - - - - - - - PRIVATE - - - - - - - - - - - - - 
 
-// static bool is_success_code(const int n) {
-//     if (n >= 200 && n < 300)
-//         return (true);
-//     return (false);
-// }
-
 std::string Response::__generate_status_line() const {
     std::stringstream stream_status_line;
     stream_status_line << WS_HTTP_VERSION << SP << _tokens.status_phrases[_status];
@@ -86,7 +80,7 @@ void Response::__add_formatted_timestamp() {
 
 void Response::__decide_persistency() {
     if (_request._is_persistent == true
-        && (_request.field_is_value("connection", "keep-alive")
+        || (_request.field_is_value("connection", "keep-alive") //[ + ]
             || _request.field_is_value("connection", "chunked")))
         _is_persistent = true;
 }
@@ -116,9 +110,43 @@ void Response::__build_response() {
         __identify_resource();
         // map function pointers to avoid if else statements [ ? ]
         if (_request.header.method == "GET")
+        {
+            if (_config.isCgiOn && _config.cgi.compare(".php") == 0 && (_resource.extension == "php" || _resource.extension == "html"))
+            {
+                std::cout << "HERE 1 GET -------- CGI --------\n" <<std::endl;
+                __respond_cgi_get();
+            }
+			else
+			{
+                 std::cout << "HERE 2 GET ----- no ----- CGI\n" <<std::endl;
+                __add_field("Content-type", _resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
+	            __respond_get();
+			}
+        }
+        else if (_request.header.method == "POST")
+        {
+            if (_config.isCgiOn && _config.cgi.compare(".php") == 0 && (_resource.extension == "php" || _resource.extension == "html"))
+            {
+                std::cout << "HERE 3 POST ----- CGI ------\n" <<std::endl;
+                __respond_cgi_post();
+            }
+			else
+			{
+                std::cout << "HERE 4 POST  --no-- CGI\n" <<std::endl;
+                __add_field("Content-type", _resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
+	            __respond_get();
+			}
+        }
+        else if (_request.header.method == "DELETE")
+        {
             __respond_get();
-        if (_request.header.method == "POST")
-            __respond_post();
+        }
+        else
+        {
+            // something like this?
+            // error_status(, WS_501_NOT_IMPLEMENTED, "HTML Method not implemented"));
+            return ;
+        }
     }
     catch (ResponseException& e) {
         __respond_to_error(); // will build error response
@@ -156,20 +184,175 @@ void Response::__respond_to_error() {
 }
 
 void Response::__respond_get() {
+    // do we need this?
     __add_field("Accept-Ranges", "bytes");
     // chunked request: ?
     // Transfer-Encoding: chunked ...
-    __handle_type(); // TODO: map function pointers ? have a decision tree system.
+    // __handle_type(); // TODO: map function pointers ? have a decision tree system.
+    __upload_file();
     __decide_persistency();
     __response_to_string();
     // status 200
 }
 
+void Response::__respond_cgi_get()
+{
+	__add_field("accept-ranges", "bytes");
+	__decide_persistency();
+	__add_field("Cache-Control", "no-cache");
+	int templength;
+	std::stringstream response;
+	Cgi test;
+	std::string phpresp;
+	phpresp +=  cgiRespCreator();
+    // std::cout << "here ---- 1 ------\n";
+	std::string::size_type shitindex;
+    // std::cout << "here ---- 2 ------\n";
+    if (phpresp.empty())
+        return ;
+	shitindex = phpresp.find("\r\n\r\n");
+    if (shitindex == std::string::npos)
+        return ;
+    // std::cout << "here ---- 3 ------\n";
+
+	_body << phpresp;
+	std::string temp = phpresp.substr(shitindex + 4);
+	templength = temp.length();
+
+	// if (!_body.str().empty())
+	__add_field("Content-length", std::to_string(templength));
+	response << __generate_status_line() << CRLF;
+	response << _fields_stream.str();
+	response << _body.str();
+	_response_str = response.str();
+
+    std::cout << "------------------ ------ -- - - -respons:\n" << response.str() << std::endl;
+	return ;
+}
+
+std::string Response::cgiRespCreator()
+ {
+    // std::string temp;
+    	char ** env;
+		env = new char*[7];
+
+        int i = 0;
+		env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin()); // need to be newd othervised funny things happen
+		env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path                ))->begin()));
+        env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin());
+        // env[i++] = &(*((new std::string("CONTENT_TYPE=" + _resource.type + "/" + _resource.subtype )))->begin()); // only POST PUT
+    	// env[i++] = &(*((new std::string("CONTENT_LENGTH=" + std::to_string(_request._body.str().length() )))->begin())); //only post put
+        env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin());
+		env[i++] = NULL;
+
+        Cgi test;
+        std::string phpresp;
+        phpresp += test.executeCgiNew(env);
+        if (phpresp.empty())
+            std::cout << "unfortunetly this shit has nothing inside you mother fucker!\n";
+        delete [] env;
+
+
+    return (phpresp);
+}
+
+std::string Response::cgiRespCreator_post()
+ {
+    // std::string temp;
+    	char ** env;
+		env = new char*[14];
+        std::list<std::string> konttype = _request.get_field_value("content-type");
+        std::list<std::string>::iterator it;
+         std::string tmp;
+
+        if ( !(konttype.empty()) )
+        {
+            it = konttype.begin();
+            while (it != konttype.end())
+            {
+                tmp += *it;
+                std::cout << "type:\n" << tmp << std::endl;
+                it++;
+            }
+        }
+        konttype.clear();
+        konttype = _request.get_field_value("content-length");
+        std::string tempLength;
+
+        if ( !(konttype.empty()) )
+        {
+            it = konttype.begin();
+            while (it != konttype.end())
+            {
+                tempLength += *it;
+                std::cout << "length:\n" << tempLength << std::endl;
+                it++;
+            }
+        }
+
+        int i = 0;
+        env[i++] = &(*((new std::string("\r\n\r\n" + _request._body.str() + "\r\n\r\n" )))->begin());
+		env[i++] = &(*((new std::string("CONTENT_LENGTH=" + tempLength))->begin()));
+        env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin());
+		env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path                ))->begin()));
+		
+        env[i++] = &(*((new std::string("PATH_INFO=" + _resource.abs_path                ))->begin()));
+        env[i++] = &(*((new std::string("REMOTE_HOST=localhost:8400")))->begin());
+        env[i++] = &(*((new std::string("SERVER_NAME=localhost")))->begin());
+        env[i++] = &(*((new std::string("SERVER_PORT=8400")))->begin());
+        env[i++] = &(*((new std::string("SERVER_PROTOCOL=HTTP/1.1")))->begin());
+        env[i++] = &(*((new std::string("GATEWAY_INTERFACE=CGI/1.1")))->begin());
+
+
+        env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin());
+        // env[i++] = &(*((new std::string("CONTENT_TYPE=application/x-www-form-urlencoded")))->begin());
+		env[i++] = &(*((new std::string("CONTENT_TYPE=" +   tmp      ))->begin()));
+		// env[i++] = &(*((new std::string("CONTENT_LENGTH=" + std::to_string(_request._body.str().length()) ))->begin()));
+        // env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin());
+		env[i++] = NULL;
+
+        Cgi test;
+        std::string phpresp;
+        phpresp += test.executeCgiNew(env);
+        delete [] env;
+
+    return (phpresp);
+}
+
+void Response::__respond_cgi_post()
+{
+    __add_field("accept-ranges", "bytes");
+	__add_field("Cache-Control", "no-cache");
+	int templength;
+	std::stringstream response;
+	Cgi test;
+	std::string phpresp;
+	phpresp +=  cgiRespCreator_post();
+	std::string::size_type shitindex;
+    if (phpresp.empty())
+        return ;
+	shitindex = phpresp.find("\r\n\r\n");
+    if (shitindex == std::string::npos)
+        return ;
+	_body << phpresp;
+	std::string temp = phpresp.substr(shitindex + 4);
+	templength = temp.length();
+	__add_field("Content-length", std::to_string(templength));
+	response << __generate_status_line() << CRLF;
+	response << _fields_stream.str();
+	response << _body.str();
+	_response_str = response.str();
+	__decide_persistency();
+
+    std::cout << "------------------ POST ------ -- - - -respons:\n" << response.str() << std::endl;
+	return ;
+}
 // The data that you send in a POST request must adhere to specific formatting requirements.
 // You can send only the following content types in a POST request to Media Server:
 // application/x-www-form-urlencoded
 // multipart/form-data
 // https://httpwg.org/specs/rfc9110.html#POST
+
 void Response::__respond_post() {
     // read content-type field
     // read content-length field
@@ -177,7 +360,8 @@ void Response::__respond_post() {
     // create location header with resource
     
     // for now:
-    __handle_type(); // TODO: map function pointers ? have a decision tree system.
+    // __handle_type(); // TODO: map function pointers ? have a decision tree system.
+    __upload_file();
     __decide_persistency();
     __response_to_string();
 
@@ -257,42 +441,11 @@ void Response::__identify_resource_type() {
     _resource.type = it->second.substr(0, separator_pos);
     if (separator_pos != it->second.npos)
         _resource.subtype = it->second.substr(separator_pos + 1);
-    __add_field("Content-type", _resource.subtype.empty() ? _resource.type
-        : (_resource.type + "/" + _resource.subtype));
 }
 
 // temporarily handles every type, later have a decision tree or similar
 void Response::__handle_type() {
-    // if format = x form url encoded [ + ] - else ignore query ?
-    if (!_resource.query.empty()) {
-        CgiEnv_FormUrlencoded cgi_env(_resource.query);
-        if (DEBUG)  {
-            std::cout << YELLOW << "ENV for cgi:" << NC << std::endl;
-            for (int i = 0; cgi_env.env[i] != NULL; i++) {
-                std::cout << YELLOW << i << "    " << cgi_env.env[i] << NC << std::endl;
-            }
-        }
-    }
-    if (_resource.extension == "php") { // and cgi in general -> ADD THE OTHER CASES    [ + ]
-        __add_field("Cache-Control", "no-cache");
-        // CALL CGI HERE - - - -- - - - - 
-        	Cgi test;
-            std::string phpresp;
-            phpresp +=  test.executeCgi(_resource.abs_path);
-            _body << phpresp;
-            return ;
-    }
-    // if (_resource.extension == "html" && _config.isCgiOn) {
-    //     	Cgi test;
-    //         // std::string phpresp;
-    //         // phpresp +=  test.executeCgi(_resource.abs_path);
-    //         test.readHTML(_resource.abs_path);
-    //         _resource.abs_path = "./response.html"; //tmp
-    //         // _body << phpresp;
-    //         return ;
-    // }
-    else
-    // are there other cases ?
+
     __upload_file();
 }
 
@@ -307,81 +460,6 @@ void Response::__upload_file() { // + error handeling & target check here !
         std::cout << e.what() << std::endl;
         throw_error_status(WS_500_INTERNAL_SERVER_ERROR, strerror(errno));
     }
-}
-
-// __________________________________________________________________________________________________________
-// 
-// CGI ENV builder
-// __________________________________________________________________________________________________________
-
-// - - - - - -  constr/destr - - - - - - - - 
-
-// delimiter = '&', placeholders %HH, split, replace and copy to char** ready for execve() call in cgi
-CgiEnv_FormUrlencoded::CgiEnv_FormUrlencoded(const std::string& query_str) {
-    _nb_tokens = 0;
-    std::string token;
-    size_t i = 0;
-    size_t delimiter_pos = 0;
-    size_t prev_delimiter_pos = 0;
-    try {
-        while ((delimiter_pos = query_str.find('&', prev_delimiter_pos)) != std::string::npos)
-            { prev_delimiter_pos = delimiter_pos + 1; i++; }
-        env = new char*[i + 2];
-        i = 0;
-        delimiter_pos = 0;
-        prev_delimiter_pos = 0;
-        while (i < query_str.size()) {
-            delimiter_pos = query_str.find('&', prev_delimiter_pos);
-            token = query_str.substr(prev_delimiter_pos, delimiter_pos - prev_delimiter_pos);
-            env[i] = new char[token.size() + 2];
-            _nb_tokens++;
-            strlcpy(env[i], token.c_str(), token.size() + 1);
-            if (delimiter_pos == std::string::npos)
-                break ;
-            prev_delimiter_pos = delimiter_pos + 1;
-            i++;
-        }
-        env[_nb_tokens] = NULL;
-    }
-    catch (std::exception& e) {
-        __delete_env();
-        throw e; // will result in 500 in Request::__interpret_target catch block
-    }
-}
-
-CgiEnv_FormUrlencoded::CgiEnv_FormUrlencoded(const CgiEnv_FormUrlencoded& other) {
-    __copy_env(other);
-}
-
-CgiEnv_FormUrlencoded& CgiEnv_FormUrlencoded::operator=(const CgiEnv_FormUrlencoded& other) {
-    __delete_env();
-    __copy_env(other);
-    return (*this);
-}
-
-CgiEnv_FormUrlencoded::~CgiEnv_FormUrlencoded() {
-    __delete_env();
-}
-
-// - - - - - -  subfunctions - - - - - - - - 
-
-void CgiEnv_FormUrlencoded::__copy_env(const CgiEnv_FormUrlencoded& other) {
-    _nb_tokens = other._nb_tokens;
-    env = new char*[_nb_tokens + 1];
-    for (int i = 0; i < _nb_tokens; i++) {
-        env[i] = new char[strlen(other.env[i]) + 2];
-        strlcpy(env[i], other.env[i], strlen(other.env[i]) + 1);
-    }
-    env[_nb_tokens] = NULL;
-}
-
-void CgiEnv_FormUrlencoded::__delete_env() {
-    int i = 0;
-    while (i < _nb_tokens) {
-        delete env[i];
-        i++;
-    }
-    delete[] env;
 }
 
 } // NAMESPACE http

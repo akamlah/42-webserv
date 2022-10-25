@@ -1,11 +1,14 @@
+<h1><?php echo "This is php"?></h1>
 <?php
 $action = $_GET["action"];
 $myText = $_POST["mytext"];
 
-if($action = "save") {
-  $targetFolder = "./data";
+if($action == "save") {
+  echo "<h1>INSIDE</h1>";
+  $targetFolder = "./data/";
   file_put_contents($targetFolder."mytext.txt", $myText);
 }
+flush();
 ?>   
 <html>
 <head>
