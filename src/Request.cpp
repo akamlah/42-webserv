@@ -217,6 +217,8 @@ int parser::__parse_body(Request& request, int fd) {
         else // if TE but not chunked -> ERROR [ ? ] correct ?
             return (error_status(request, WS_501_NOT_IMPLEMENTED, "Transfer encoding not implemented"));
     }
+    // if (request.header.method == "POST" && request.get_field_value("content-type").begin()->find("multipart/form-data") != std::string::npos)
+        // return(error_status(request, WS_501_NOT_IMPLEMENTED, "Sry :("));
     while (body_length <= request._content_length && msg_length < BUFFER_SIZE) {
         status =  __get_byte(request, fd);
         if (!status || buffer[msg_length] == '\0')
@@ -353,7 +355,7 @@ int parser::__get_byte(Request& request, int fd) {
         return (error_status(request, WS_500_INTERNAL_SERVER_ERROR, "Error recieving data"));
     if (!bytes_read)
         return (0);
-    if (buffer[msg_length] >= 0x80)
+    if (!header_done && buffer[msg_length] >= 0x80)
         return (error_status(request, WS_400_BAD_REQUEST, "Bad encoding"));
     if (line_length > 1 && buffer[msg_length - 1] == CR_int && buffer[msg_length] != LF_int)
         return (error_status(request, WS_400_BAD_REQUEST, "CR not followed by LF"));
@@ -485,8 +487,11 @@ int parser::__parse_field_line(Request& request, std::string line) {
         return (error_status(request, WS_400_BAD_REQUEST, "Missing ':' in field line"));
     if (!colon || (colon && line[colon - 1] == ' '))
         return (error_status(request, WS_400_BAD_REQUEST, "Space before ':'"));
-    str_tolower(line);
+    if (line.find("boundary") == std::string::npos)
+        str_tolower(line);
     name = line.substr(0, colon);
+    if (line.find("boundary") != std::string::npos)
+        str_tolower(name);
     if (name == "host")
         ++host_fields;
     if (host_fields > 1)

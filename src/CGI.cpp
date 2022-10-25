@@ -130,6 +130,12 @@ namespace ws {
 		test[0] = &(*((new std::string("php-cgi")))->begin()); 
 		test[1] = NULL;
 
+		for (size_t i = 0; env[i] != NULL; i++)
+		{	
+			std::cout << env[i] << "\n";
+			/* code */
+		}
+		
 		id = fork();
 		if (id == 0)
 		{
@@ -139,7 +145,12 @@ namespace ws {
 			if (env[0])
 				testlegnth = strlen(env[0]);
 			if (testlegnth > 0)
+			{
+				// int boby  = open("./look.txt",O_RDWR );
 				write(inty, env[0], strlen(env[0]));
+				// write(boby, env[0], strlen(env[0]));
+				// close(boby);
+			}
 			if (testlegnth > 0 && lseek(inty, 0, SEEK_SET) == -1)
 			{
 				std::cerr << "Something is not rigth with the data in fiel\n";
@@ -155,6 +166,7 @@ namespace ws {
 			{
 				std::cerr << "Error dup2 std OUT\n";
 			}
+			// rewind(bobin);
 			fclose(bobin);
 			close(outy);
 			close(inty);

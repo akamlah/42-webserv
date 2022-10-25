@@ -240,8 +240,8 @@ std::string Response::cgiRespCreator()
 		env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin()); // need to be newd othervised funny things happen
 		env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path                ))->begin()));
         env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin());
-        env[i++] = &(*((new std::string("CONTENT_TYPE=" + _resource.type + "/" + _resource.subtype )))->begin());
-    	env[i++] = &(*((new std::string("CONTENT_LENGTH=" + std::to_string(_request._body.str().length() )))->begin()));
+        // env[i++] = &(*((new std::string("CONTENT_TYPE=" + _resource.type + "/" + _resource.subtype )))->begin()); // only POST PUT
+    	// env[i++] = &(*((new std::string("CONTENT_LENGTH=" + std::to_string(_request._body.str().length() )))->begin())); //only post put
         env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin());
 		env[i++] = NULL;
 
@@ -260,7 +260,7 @@ std::string Response::cgiRespCreator_post()
  {
     // std::string temp;
     	char ** env;
-		env = new char*[8];
+		env = new char*[14];
         std::list<std::string> konttype = _request.get_field_value("content-type");
         std::list<std::string>::iterator it;
          std::string tmp;
@@ -271,20 +271,44 @@ std::string Response::cgiRespCreator_post()
             while (it != konttype.end())
             {
                 tmp += *it;
-                std::cout << "list:\n" << tmp << std::endl;
+                std::cout << "type:\n" << tmp << std::endl;
                 it++;
             }
         }
+        konttype.clear();
+        konttype = _request.get_field_value("content-length");
+        std::string tempLength;
+
+        if ( !(konttype.empty()) )
+        {
+            it = konttype.begin();
+            while (it != konttype.end())
+            {
+                tempLength += *it;
+                std::cout << "length:\n" << tempLength << std::endl;
+                it++;
+            }
+        }
+
         int i = 0;
-        env[i++] = &(*((new std::string(_request._body.str())))->begin());
+        env[i++] = &(*((new std::string("\r\n\r\n" + _request._body.str() + "\r\n\r\n" )))->begin());
+		env[i++] = &(*((new std::string("CONTENT_LENGTH=" + tempLength))->begin()));
         env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin());
 		env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path                ))->begin()));
+		
+        env[i++] = &(*((new std::string("PATH_INFO=" + _resource.abs_path                ))->begin()));
+        env[i++] = &(*((new std::string("REMOTE_HOST=localhost:8400")))->begin());
+        env[i++] = &(*((new std::string("SERVER_NAME=localhost")))->begin());
+        env[i++] = &(*((new std::string("SERVER_PORT=8400")))->begin());
+        env[i++] = &(*((new std::string("SERVER_PROTOCOL=HTTP/1.1")))->begin());
+        env[i++] = &(*((new std::string("GATEWAY_INTERFACE=CGI/1.1")))->begin());
+
+
         env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin());
         // env[i++] = &(*((new std::string("CONTENT_TYPE=application/x-www-form-urlencoded")))->begin());
 		env[i++] = &(*((new std::string("CONTENT_TYPE=" +   tmp      ))->begin()));
-		// env[4] = &(*((new std::string("CONTENT_LENGTH=" + std::to_string(_request._body.str().length() + 30 )))->begin()));
-		env[i++] = &(*((new std::string("CONTENT_LENGTH=" + std::to_string(_request._body.str().length()) ))->begin()));
-        env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin());
+		// env[i++] = &(*((new std::string("CONTENT_LENGTH=" + std::to_string(_request._body.str().length()) ))->begin()));
+        // env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin());
 		env[i++] = NULL;
 
         Cgi test;
