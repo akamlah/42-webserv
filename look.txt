@@ -1,0 +1,11 @@
+------WebKitFormBoundarygpo6sOcz9g427mM1
+Content-Disposition: form-data; name="fileToUpload"; filename="test.txt"
+Content-Type: text/plain
+
+test
+
+------WebKitFormBoundarygpo6sOcz9g427mM1
+Content-Disposition: form-data; name="submit"
+
+Upload Image
+------WebKitFormBoundarygpo6sOcz9g427mM1--
