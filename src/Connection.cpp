@@ -27,30 +27,35 @@ int Connection::status() const { return (_status); }
 
 void Connection::establish(const int fd) {
     socklen_t address_length = sizeof(_address._address);
-
     _fd = ::accept(fd, (struct sockaddr *)&_address._address, &address_length);
-
+    #if DEBUG
     if (_fd > 0)
         std::cout << GREEN << "Successfully established connection on fd " << _fd << " from fd: " << fd << NC << std::endl;
-    #if (DEBUG)
     else
         std::cout << "not valid fd: " << _fd << std::endl;
     #endif
 }
 
-void Connection::handle() {
+void Connection::handle(const struct ws::Poll& poll, int poll_index) {
     // [ + ] TIMEOUT timer
     try {
         _request.parse(_fd);
         _status = _request.status();
         if (_request._waiting_for_chunks) {
-            if (DEBUG)
-                std::cout << YELLOW << "WAITING for chnks -> return\n" << std::endl;
+            #if DEBUG
+            std::cout << YELLOW << "WAITING for chnks -> return\n" << std::endl;
+            #endif
             return ;
         }
-        Response response(_request, _config, _tokens);
-        _is_persistent = _request.is_persistent();
-        response.send(_fd); //argument config file
+        if (!(poll.fds[poll_index].elem.revents & POLLERR)) {
+            Response response(_request, _config, _tokens);
+            _is_persistent = response.is_persistent();
+            response.send(_fd); //argument config file
+        }
+        // (void)poll;
+        // (void)poll_index;
+        else
+            return ;
     }
     catch (ws::exception& e) {
         std::cout << RED << "unforeseen exception req-resp" << NC << std::endl;

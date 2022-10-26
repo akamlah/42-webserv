@@ -7,6 +7,10 @@
 #include "../include/Server.hpp"
 #include "../include/utility.hpp"
 
+#if DEBUG
+#include <stdio.h>
+#endif
+
 // bool trythis = true;
 
 namespace ws {
@@ -50,14 +54,13 @@ Server::Server(const std::vector<ws::config_data>& all_config) : _all_config(all
             _port_server.insert(std::make_pair(fd, i));
         }
     }
-    if (DEBUG){
-        for (std::map<int,int>::iterator it = _port_server.begin(); it != _port_server.end(); ++it)
-        {
+        #if DEBUG
+        for (std::map<int,int>::iterator it = _port_server.begin(); it != _port_server.end(); ++it) {
             std::cout << "fd: " << it->first << "\tport: " 
             << ntohs(_listening_ports.find(it->first)->second._address.sin6_port) 
             << "\tblock: " << it->second << std::endl;
         }
-    }
+        #endif
 }
 
 Server::~Server() {
@@ -86,92 +89,92 @@ void    Server::run(int timeout)
         _poll.add_to_poll(iter->first, POLLIN, 0);
 
     while (!_listening_ports.empty()) {
-        if (DEBUG)
+            #if DEBUG
             std::cout << "Waiting on poll()..." << std::endl;
+            #endif
         _poll.poll();
-        if (DEBUG)
+            #if DEBUG
             std::cout << "polled" << std::endl;
+            #endif
         handle_events();
         _poll.compress();
     }
 } 
 
-void Server::handle_events()
-{
+void Server::handle_events() {
     size_t    current_size = _poll.fds.size();
-    int       polled_event;
-
-    if (DEBUG) {
+        #if DEBUG
         std::map<int, http::Connection>::iterator it;
-        for (it = _connections.begin(); it != _connections.end(); it++){
+        for (it = _connections.begin(); it != _connections.end(); it++)
             std::cout << "fd:" << it->first << " conn status " << it->second.status() << std::endl;
+        #endif
+    for (size_t poll_index = 0; poll_index < current_size; ++poll_index) {
+            #if DEBUG
+            printf("  fd=%d; events: %s%s%s\n", _poll.get_fd(poll_index),
+            (_poll.fds[poll_index].elem.revents & POLLIN)  ? "POLLIN "  : "",
+            (_poll.fds[poll_index].elem.revents & POLLHUP) ? "POLLHUP " : "",
+            (_poll.fds[poll_index].elem.revents & POLLERR) ? "POLLERR " : "");
+            #endif
+        if (_poll.fds[poll_index].elem.revents != 0) {
+            if (poll_index < _listening_ports.size())
+                accept_new_connections(poll_index);
+            else
+                handle_connection(poll_index);
         }
-    }
-
-    for (size_t poll_index = 0; poll_index < current_size; ++poll_index)
-    {
-        polled_event = _poll.fds[poll_index].elem.revents;
-        if (polled_event == 0)
-            continue;
-        if (polled_event & (POLLHUP | POLLERR))
-        {
-            if (DEBUG)
-                std::cout << "  Error! revents = " << polled_event << std::endl;
-            close_connection(poll_index);
-            continue;
-        }
-        if (poll_index < _listening_ports.size())
-            accept_new_connections(poll_index);
-        else
-            handle_connection(poll_index);
     }
 }
 
 // --------------------------------------------------------------------------------------------------------
 
-void Server::accept_new_connections(const int poll_index)
-{
+void Server::accept_new_connections(const int poll_index) {
     int listening_fd = _poll.get_fd(poll_index);
-
-
-    if (DEBUG)
+        #if DEBUG
         std::cout << "Listening socket " << listening_fd << " is readable." << std::endl;
-    while (true)
-    {
+        #endif
+    // while (true)
+    // {
         http::Connection incoming(_tokens, _all_config[_port_server.find(listening_fd)->second]);
         incoming.establish(listening_fd);
         if (!incoming.is_good()) {
-            if (DEBUG) {
+                #if DEBUG
                 std::cerr << "accept() failed on fd " << listening_fd
                 << "; Port " << ntohs(_listening_ports.find(listening_fd)->second._address.sin6_port) 
                 << "; errno = " << errno << std::endl;
-            }
-            break;
+                #endif
+            return ;
+            // break;
         }
         _poll.add_to_poll(incoming.fd(), POLLIN);
         _connections.insert(std::make_pair(incoming.fd(), incoming));
-        if (!incoming.is_good())
-            break;
-    }
-}
-
-void Server::handle_connection(const int poll_index)
-{
-    // + timeout ?
-    // + try catch ?
-    _connections.find(_poll.get_fd(poll_index))->second.handle();
-    // if (!_connections.find(_poll.get_fd(poll_index))->second.is_persistent()) {
-        close_connection(poll_index);
-        if (DEBUG)
-            std::cout << "--->>>> Connection closed" << std::endl;
+        // if (!incoming.is_good())
+        //     break;
     // }
 }
 
-void Server::close_connection(const int poll_index)
-{
+void Server::handle_connection(const int poll_index) {
+    // + timeout ?
+    // + try catch ?
+        #if DEBUG
+        std::cout << " Polled fd = " << _poll.get_fd(poll_index) << std::endl;
+        printf("  fd=%d; events: %s%s%s\n", _poll.get_fd(poll_index),
+        (_poll.fds[poll_index].elem.revents & POLLIN)  ? "POLLIN "  : "",
+        (_poll.fds[poll_index].elem.revents & POLLHUP) ? "POLLHUP " : "",
+        (_poll.fds[poll_index].elem.revents & POLLERR) ? "POLLERR " : "");
+        std::cout << " Poll error ? = " << strerror(errno) << std::endl;
+        #endif
+    if (((_poll.fds[poll_index].elem.revents & POLLIN) && !(_poll.fds[poll_index].elem.revents & (POLLHUP | POLLERR)))
+        || !_connections.find(_poll.get_fd(poll_index))->second.is_persistent()) // == EOF
+    //  && )
+        _connections.find(_poll.get_fd(poll_index))->second.handle(_poll, poll_index);
+    else
+        close_connection(poll_index);
+}
+
+void Server::close_connection(const int poll_index) {
     int fd = _poll.get_fd(poll_index);
-    if (DEBUG)
+        #if DEBUG
         std::cout << "\n >>>>>>>>   CLOSE ! fd: " << fd << std::endl;
+        #endif
     _connections.erase(fd);
     close(fd);
     _poll.fds[poll_index].elem.fd = -1;

@@ -25,8 +25,8 @@ Response::~Response() {}
 bool Response::is_persistent() const { return (_is_persistent); }
 
 void Response::send(const int fd) { // more error handeling here too [ + ]
-    if (DEBUG)
-        std::cout << "SENDING RESPONSE:\n" << _response_str;
+    // if (DEBUG)
+    //     std::cout << "SENDING RESPONSE:\n" << _response_str;
     if (::send(fd, _response_str.c_str(), _response_str.length(), 0) < 0)
         throw_error_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
     std::cout << "Response class: Server sent data on fd " << fd << std::endl;
@@ -226,7 +226,7 @@ void Response::__respond_cgi_get()
 	response << _body.str();
 	_response_str = response.str();
 
-    std::cout << "------------------ ------ -- - - -respons:\n" << response.str() << std::endl;
+    // std::cout << "------------------ ------ -- - - -respons:\n" << response.str() << std::endl;
 	return ;
 }
 
@@ -320,7 +320,7 @@ void Response::__respond_cgi_post()
 	_response_str = response.str();
 	__decide_persistency();
 
-    std::cout << "------------------ POST ------ -- - - -respons:\n" << response.str() << std::endl;
+    // std::cout << "------------------ POST ------ -- - - -respons:\n" << response.str() << std::endl;
 	return ;
 }
 // The data that you send in a POST request must adhere to specific formatting requirements.

@@ -15,6 +15,7 @@ namespace http {
 Request::Request(): _is_persistent(true), _status(WS_200_OK),
     _is_chunked(false), _waiting_for_chunks(false) { }
 
+// In HTTP 1.1, all connections are considered persistent unless declared otherwise.
 Request::Request(const Request& other): _is_persistent(true), _status(WS_200_OK),
     _is_chunked(false), _waiting_for_chunks(false) {
     header.method = other.header.method;
@@ -84,13 +85,15 @@ int Request::parse(const int fd) {
                 std::cout << std::endl;
             }
             std::cout << "request msg length after parse: " << _parser.msg_length << std::endl;
-            std::cout << CYAN << "\nPARSER: Message recieved: ---------\n" << NC << _parser.buffer << std::endl;
-            std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
+            // std::cout << CYAN << "\nPARSER: Message recieved: ---------\n" << NC << _parser.buffer << std::endl;
+            // std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
             std::cout << CYAN << "\nBODY IS:---------------------------\n" << this->_body.str() << NC << std::endl;
             std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
             std::cout << GREEN << "Is persistent: ";
             std::cout << this->_is_persistent << NC << std::endl;
-            std::cout << "\n\n\n" << std::endl;
+            std::cout << GREEN << "Waiting for chunks: ";
+            std::cout << this->_waiting_for_chunks << NC << std::endl;
+            // std::cout << "\n\n\n" << std::endl;
         #endif
     }
     else {
@@ -219,8 +222,11 @@ int parser::__parse_body(Request& request, int fd) {
     }
     while (body_length <= request._content_length && msg_length < BUFFER_SIZE) {
         status =  __get_byte(request, fd);
-        if (!status || buffer[msg_length] == '\0')
+        if (!status || buffer[msg_length] == '\0') {
+            std::cout << "EOF Body" << std::endl;
+            request._is_persistent = false;
             break ;
+        }
         request._body << buffer[msg_length]; // adds byte to body
         ++body_length;
         ++msg_length;
@@ -307,31 +313,25 @@ int parser::parse(Request& request, int fd) {
             body_done = true;
             break ;
         }
-
         // keep BEFORE null byte check, bcs I want to check contet length field even if no body provided.
         if (!header_done && !(status = __get_byte(request, fd)))
             break ;
-
         if (status != WS_200_OK) // NEED THIS [ ? ]
             return (status) ; // if 0 it is end of file
-
         if (buffer[msg_length] == '\0') { // [ - ]
             std::cout << "EOF" << std::endl;
+            request._is_persistent = false; // [ ! ]
             break ;
         }
-
         ++msg_length;
         ++line_length;
-
         if (!header_done && buffer[msg_length - 1] == LF_int) { // if newline found:
             ++nb_lines;
             if (!(status = __parse_previous_header_line(request, (char *)buffer + msg_length - line_length))) // final CRLF
                 break ;
         }
-
         if (status != WS_200_OK) // [ - ] [ ? ]
             return (status);
-
     } // end loop
     // check that minimum was provided
     if (!start_content)
@@ -340,7 +340,7 @@ int parser::parse(Request& request, int fd) {
         return (error_status(request, WS_400_BAD_REQUEST, "No request line provided"));
     if (!host_fields)
         return (error_status(request, WS_400_BAD_REQUEST, "No host field provided"));
-    buffer[msg_length] = '\0';
+    // buffer[msg_length] = '\0';
     return (status);
 }
 
@@ -485,6 +485,8 @@ int parser::__parse_field_line(Request& request, std::string line) {
         return (error_status(request, WS_400_BAD_REQUEST, "Missing ':' in field line"));
     if (!colon || (colon && line[colon - 1] == ' '))
         return (error_status(request, WS_400_BAD_REQUEST, "Space before ':'"));
+    std::string l(line);
+    if (l.find())
     str_tolower(line);
     name = line.substr(0, colon);
     if (name == "host")

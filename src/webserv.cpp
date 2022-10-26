@@ -40,7 +40,7 @@ int main(int argc, char **argv) {
 		ws::Server server(configData.getAllConfigData());
 
 		// server.run() starts by calling server.listen() 
-        server.run();
+        server.run(-1);
 	}
 	catch(const std::exception& e)
 	{
