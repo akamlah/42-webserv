@@ -156,7 +156,11 @@ void Server::handle_connection(const int poll_index) {
         (_poll.fds[poll_index].elem.revents & POLLHUP) ? "POLLHUP " : "",
         (_poll.fds[poll_index].elem.revents & POLLERR) ? "POLLERR " : "");
         #endif
-    if (((_poll.fds[poll_index].elem.revents & POLLIN) && !(_poll.fds[poll_index].elem.revents & POLLERR)) 
+    if (((_poll.fds[poll_index].elem.revents & POLLIN) && !(_poll.fds[poll_index].elem.revents & (POLLERR | POLLHUP))) 
+        && _connections.find(_poll.get_fd(poll_index))->second.is_persistent()) {
+        _connections.find(_poll.get_fd(poll_index))->second.handle(_poll, poll_index);
+    }
+    else if (((_poll.fds[poll_index].elem.revents & POLLIN) && !(_poll.fds[poll_index].elem.revents & POLLERR)) 
         && _connections.find(_poll.get_fd(poll_index))->second.is_persistent()) {
         _connections.find(_poll.get_fd(poll_index))->second.handle(_poll, poll_index);
     }

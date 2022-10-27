@@ -37,6 +37,7 @@ void Connection::establish(const int fd) {
 }
 
 void Connection::handle(const struct ws::Poll& poll, int poll_index) {
+    if (!(poll.fds[poll_index].elem.revents & POLLERR)) {
     _request.parse(_fd);
     _status = _request.status();
     if (_request._waiting_for_chunks) {
@@ -45,7 +46,6 @@ void Connection::handle(const struct ws::Poll& poll, int poll_index) {
         #endif
         return ;
     }
-    if (!(poll.fds[poll_index].elem.revents & POLLERR)) {
         Response response(_request, _config, _tokens);
         _is_persistent = response.is_persistent();
         #if DEBUG
