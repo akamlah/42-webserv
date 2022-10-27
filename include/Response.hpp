@@ -85,6 +85,7 @@ class Response {
         void respond_cgi_post();
         std::string cgiRespCreator();
         std::string cgiRespCreator_post();
+        bool getValid(const std::string & nameof);
 
         void add_field(const std::string& field_name, const std::string& value);
         void add_formatted_timestamp();

@@ -98,6 +98,20 @@ void Response::response_to_string() {
     _response_str = response.str();
 }
 
+bool Response::getValid(const std::string & nameof)
+{
+    std::vector<std::string> temp = _config.http_methods;
+    std::vector<std::string>::iterator it = temp.begin();
+    std::vector<std::string>::iterator eit = temp.end();
+    while (it != eit)
+    {
+        if (!((*it).compare(nameof)))
+            return (false);
+        it++;
+    }
+    return (true);
+}
+
 void Response::build_response() {
     if (_status != WS_200_OK) {
         respond_to_error();
@@ -109,8 +123,15 @@ void Response::build_response() {
         identify_resource();
         // map function pointers to avoid if else statements [ ? ]
         std::cout <<_request.header.method << "------------------------\n";
+
+            //  std::list<std::string>::iterator it;
+        // std::vector<std::string>::iterator it = (_config.http_methods).begin();
+
+
         if (_request.header.method == "GET")
         {
+            if (getValid("GET"))
+                throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
             if (_config.isCgiOn && _config.cgi.compare(".php") == 0 && (_resource.extension == "php" || _resource.extension == "html"))
             {
                 // std::cout << "HERE 1 GET -------- CGI --------\n" <<std::endl;
@@ -127,6 +148,8 @@ void Response::build_response() {
         }
         else if (_request.header.method == "POST")
         {
+            if (getValid("POST"))
+                throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
             if (_config.isCgiOn && _config.cgi.compare(".php") == 0 && (_resource.extension == "php" || _resource.extension == "html"))
             {
                 // std::cout << "HERE 3 POST ----- CGI ------\n" <<std::endl;
@@ -141,6 +164,8 @@ void Response::build_response() {
         }
         else if (_request.header.method == "DELETE")
         {
+            if (getValid("DELETE"))
+                throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
             // HTTP/1.1 204 OK
             // Content-Length: 0
             // set status or something?
@@ -158,14 +183,16 @@ void Response::build_response() {
             }
             else
             {
-                _status = 404; // maybe?
+                // _status = 404; // maybe?
+
                 respond_to_error();
             }
         }
         else
         {
-            // something like this?
-            // error_status(, WS_501_NOT_IMPLEMENTED, "HTML Method not implemented"));
+            // error_status(_request, WS_501_NOT_IMPLEMENTED, "HTML Method not implemented");
+
+            throw_error_status(WS_501_NOT_IMPLEMENTED, "Sadly this HTTP method is not implemented.");            // something like this?
             return ;
         }
     }
@@ -321,7 +348,8 @@ std::string Response::cgiRespCreator_post()
         }
 
         int i = 0;
-        env[i++] = &(*((new std::string("\r\n\r\n" + _request._body.str() + "\r\n\r\n" )))->begin());
+        // env[i++] = &(*((new std::string("\r\n\r\n" + _request._body.str() + "\r\n\r\n" )))->begin());
+        env[i++] = &(*((new std::string(_request._body.str())))->begin());
 		env[i++] = &(*((new std::string("CONTENT_LENGTH=" + tempLength))->begin()));
         env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin());
 		env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path                ))->begin()));
@@ -338,7 +366,7 @@ std::string Response::cgiRespCreator_post()
         // env[i++] = &(*((new std::string("CONTENT_TYPE=application/x-www-form-urlencoded")))->begin());
 		env[i++] = &(*((new std::string("CONTENT_TYPE=" +   tmp      ))->begin()));
 		// env[i++] = &(*((new std::string("CONTENT_LENGTH=" + std::to_string(_request._body.str().length()) ))->begin()));
-        // env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin());
+        env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin());
 		env[i++] = NULL;
 
         Cgi test;
