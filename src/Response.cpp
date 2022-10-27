@@ -16,8 +16,9 @@ const char* Response::ResponseException::what() const throw() {
 Response::Response(const Request& request, const config_data& config, const Tokens& tokens):
     _request(request), _config(config), _tokens(tokens), _status(request.status()),
     _is_persistent(request._is_persistent) {
-
-    __build_response();
+    
+    // std::cout << GREEN << "Response constr is persistent ?" << _is_persistent << NC << std::endl;
+    build_response();
 }
 
 Response::~Response() {}
@@ -25,11 +26,16 @@ Response::~Response() {}
 bool Response::is_persistent() const { return (_is_persistent); }
 
 void Response::send(const int fd) { // more error handeling here too [ + ]
-    if (DEBUG)
-        std::cout << "SENDING RESPONSE:\n" << _response_str;
-    if (::send(fd, _response_str.c_str(), _response_str.length(), 0) < 0)
+    // if (DEBUG)
+        // std::cout << "SENDING RESPONSE:\n" << _response_str;
+        // std::cout << "SENDING RESPONSE:\n" << _response_str.substr(0 , _response_str.size() - _body.str().size());
+    int error = ::send(fd, _response_str.c_str(), _response_str.length(), 0);
+    if (error < 0)
         throw_error_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
-    std::cout << "Response class: Server sent data on fd " << fd << std::endl;
+    if (error == 0)
+        throw_error_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
+    std::cout << "Response class: Server sent " << _body.str().size() << " bytes to fd " << fd \
+        << " (" << _resource.file << ")" << std::endl;
 }
 
 int Response::throw_error_status(int status, const char* msg) {
@@ -58,88 +64,83 @@ void Response::remove_leading_slash(std::string& path) {
 
 // - - - - - - - - - - - PRIVATE - - - - - - - - - - - - - 
 
-std::string Response::__generate_status_line() const {
+std::string Response::generate_status_line() const {
     std::stringstream stream_status_line;
     stream_status_line << WS_HTTP_VERSION << SP << _tokens.status_phrases[_status];
     return (stream_status_line.str());
 }
 
 // adds a string formatted as <'field name': 'value'CRLF> to the header stream buffer
-void Response::__add_field(const std::string& field_name, const std::string& value) {
+void Response::add_field(const std::string& field_name, const std::string& value) {
     _fields_stream << field_name << ": " << value << CRLF;
 }
 
 // field format example: "date: Mon, 26 Sep 2022 09:14:21 GMT"
-void Response::__add_formatted_timestamp() {
+void Response::add_formatted_timestamp() {
     std::stringstream s;
     std::time_t t = std::time(0);
     std::tm* now = std::localtime(&t);
     s << std::put_time(now, "%a, %d %b %Y %T %Z");
-    __add_field("Date", s.str());
-}
-
-void Response::__decide_persistency() {
-    if (_request._is_persistent == true
-        || (_request.field_is_value("connection", "keep-alive") //[ + ]
-            || _request.field_is_value("connection", "chunked")))
-        _is_persistent = true;
+    add_field("Date", s.str());
 }
 
 // main blocks - - - - - - - - -
 
-void Response::__response_to_string() {
+void Response::response_to_string() {
     std::stringstream response;
     if (!_body.str().empty())
-        __add_field("Content-length", std::to_string(_body.str().length()));
-    if (this->is_persistent()) // [ + ] condition for chunked requests ?
-        __add_field("Connection", "keep-alive");
-    response << __generate_status_line() << CRLF;
+        add_field("Content-length", std::to_string(_body.str().size()));
+    // if (this->is_persistent()) // [ + ] condition for chunked requests ?
+    //     add_field("Connection", "keep-alive");
+    response << generate_status_line() << CRLF;
     response << _fields_stream.str() << CRLF;
-    response << _body.str() << CRLF;
+    response << _body.str() << CRLF << CRLF;
     _response_str = response.str();
 }
 
-void Response::__build_response() {
+void Response::build_response() {
     if (_status != WS_200_OK) {
-        __respond_to_error();
+        respond_to_error();
         return ;
     }
-    __add_field("Server", "ZHero serv/1.0");
-    __add_formatted_timestamp();
+    add_field("Server", "ZHero serv/1.0");
+    add_formatted_timestamp();
     try {
-        __identify_resource();
+        identify_resource();
         // map function pointers to avoid if else statements [ ? ]
         if (_request.header.method == "GET")
         {
             if (_config.isCgiOn && _config.cgi.compare(".php") == 0 && (_resource.extension == "php" || _resource.extension == "html"))
             {
-                std::cout << "HERE 1 GET -------- CGI --------\n" <<std::endl;
-                __respond_cgi_get();
+                // std::cout << "HERE 1 GET -------- CGI --------\n" <<std::endl;
+                respond_cgi_get();
             }
 			else
 			{
-                 std::cout << "HERE 2 GET ----- no ----- CGI\n" <<std::endl;
-                __add_field("Content-type", _resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
-	            __respond_get();
+                //  std::cout << "HERE 2 GET ----- no ----- CGI\n" <<std::endl;
+                add_field("Content-type", _resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
+                std::cout << CYAN << "Content-type: " <<  (_resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
+                std::cout << NC << std::endl;
+	            respond_get();
 			}
         }
         else if (_request.header.method == "POST")
         {
             if (_config.isCgiOn && _config.cgi.compare(".php") == 0 && (_resource.extension == "php" || _resource.extension == "html"))
             {
-                std::cout << "HERE 3 POST ----- CGI ------\n" <<std::endl;
-                __respond_cgi_post();
+                // std::cout << "HERE 3 POST ----- CGI ------\n" <<std::endl;
+                respond_cgi_post();
             }
 			else
 			{
-                std::cout << "HERE 4 POST  --no-- CGI\n" <<std::endl;
-                __add_field("Content-type", _resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
-	            __respond_get();
+                // std::cout << "HERE 4 POST  --no-- CGI\n" <<std::endl;
+                add_field("Content-type", _resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
+	            respond_get();
 			}
         }
         else if (_request.header.method == "DELETE")
         {
-            __respond_get();
+            respond_get();
         }
         else
         {
@@ -149,13 +150,13 @@ void Response::__build_response() {
         }
     }
     catch (ResponseException& e) {
-        __respond_to_error(); // will build error response
+        respond_to_error(); // will build error response
     }
     // anything else like stringstream errors etc: MEANS STATUS STILL OK and has to be set to not okay
     catch (std::exception& e) {
         if (DEBUG) { std::cout << "unforeseen exception in response: " << e.what() << std::endl; }
         _status = WS_500_INTERNAL_SERVER_ERROR;
-        __respond_to_error(); // will build error response
+        respond_to_error(); // will build error response
     }
 }
 
@@ -164,13 +165,12 @@ void Response::__build_response() {
 // implement custom error pages fetching
 //     root = "./default_pages/errors";
 // assuming any other thing besides 200 ok is wrong for now (rdr?)
-void Response::__respond_to_error() {
+void Response::respond_to_error() {
     _body.str(std::string());;
     _fields_stream.str(std::string());
     _response_str = std::string();
-    __add_field("Server", "ZHero serv/1.0");
-    __add_formatted_timestamp();
-    __decide_persistency();
+    add_field("Server", "ZHero serv/1.0");
+    add_formatted_timestamp();
     _body << "<!DOCTYPE html>\n<html lang=\"en\">\n"
         << "<head><title>Error " << _status << "</title></head>\n"
         << "<body body style=\"background-color:black;"
@@ -180,26 +180,24 @@ void Response::__respond_to_error() {
         << "<h3>" << _request.error_msg << "</h3>\n"
         << "<h3>" << error_msg << "</h3>\n"
         << "</body>\r\n";
-    __response_to_string();
+    response_to_string();
 }
 
-void Response::__respond_get() {
+void Response::respond_get() {
     // do we need this?
-    __add_field("Accept-Ranges", "bytes");
+    add_field("Accept-Ranges", "bytes");
     // chunked request: ?
     // Transfer-Encoding: chunked ...
-    // __handle_type(); // TODO: map function pointers ? have a decision tree system.
-    __upload_file();
-    __decide_persistency();
-    __response_to_string();
+    // handle_type(); // TODO: map function pointers ? have a decision tree system.
+    upload_file();
+    response_to_string();
     // status 200
 }
 
-void Response::__respond_cgi_get()
+void Response::respond_cgi_get()
 {
-	__add_field("accept-ranges", "bytes");
-	__decide_persistency();
-	__add_field("Cache-Control", "no-cache");
+	add_field("accept-ranges", "bytes");
+	add_field("Cache-Control", "no-cache");
 	int templength;
 	std::stringstream response;
 	Cgi test;
@@ -220,13 +218,13 @@ void Response::__respond_cgi_get()
 	templength = temp.length();
 
 	// if (!_body.str().empty())
-	__add_field("Content-length", std::to_string(templength));
-	response << __generate_status_line() << CRLF;
+	add_field("Content-length", std::to_string(templength));
+	response << generate_status_line() << CRLF;
 	response << _fields_stream.str();
 	response << _body.str();
 	_response_str = response.str();
 
-    std::cout << "------------------ ------ -- - - -respons:\n" << response.str() << std::endl;
+    // std::cout << "------------------ ------ -- - - -respons:\n" << response.str() << std::endl;
 	return ;
 }
 
@@ -319,10 +317,10 @@ std::string Response::cgiRespCreator_post()
     return (phpresp);
 }
 
-void Response::__respond_cgi_post()
+void Response::respond_cgi_post()
 {
-    __add_field("accept-ranges", "bytes");
-	__add_field("Cache-Control", "no-cache");
+    add_field("accept-ranges", "bytes");
+	add_field("Cache-Control", "no-cache");
 	int templength;
 	std::stringstream response;
 	Cgi test;
@@ -337,14 +335,13 @@ void Response::__respond_cgi_post()
 	_body << phpresp;
 	std::string temp = phpresp.substr(shitindex + 4);
 	templength = temp.length();
-	__add_field("Content-length", std::to_string(templength));
-	response << __generate_status_line() << CRLF;
+	add_field("Content-length", std::to_string(templength));
+	response << generate_status_line() << CRLF;
 	response << _fields_stream.str();
 	response << _body.str();
 	_response_str = response.str();
-	__decide_persistency();
 
-    std::cout << "------------------ POST ------ -- - - -respons:\n" << response.str() << std::endl;
+    // std::cout << "------------------ POST ------ -- - - -respons:\n" << response.str() << std::endl;
 	return ;
 }
 // The data that you send in a POST request must adhere to specific formatting requirements.
@@ -353,33 +350,32 @@ void Response::__respond_cgi_post()
 // multipart/form-data
 // https://httpwg.org/specs/rfc9110.html#POST
 
-void Response::__respond_post() {
+void Response::respond_post() {
     // read content-type field
     // read content-length field
     // send 201 created
     // create location header with resource
     
     // for now:
-    // __handle_type(); // TODO: map function pointers ? have a decision tree system.
-    __upload_file();
-    __decide_persistency();
-    __response_to_string();
+    // handle_type(); // TODO: map function pointers ? have a decision tree system.
+    upload_file();
+    response_to_string();
 
 }
 
 // - - - - - Subfunctions - - - - 
 
 // identifies target path and type and adds content-type field to header
-void Response::__identify_resource() {
-    __interpret_target();
-    __validate_target_abs_path(); // maybe only in get ?
-    __extract_resource_extension();
-    __identify_resource_type();
+void Response::identify_resource() {
+    interpret_target();
+    validate_target_abs_path(); // maybe only in get ?
+    extract_resource_extension();
+    identify_resource_type();
 }
 
 // separate uri components, decoding done in request parser
 // -> root always ends in '/' and file never starts with '/'
-void Response::__interpret_target() {
+void Response::interpret_target() {
     std::string uri = _request.header.target;
     try {
         size_t uri_end = uri.npos;
@@ -405,7 +401,7 @@ void Response::__interpret_target() {
         std::cout << "PATH: " << _resource.abs_path << std::endl;
 }
 
-void Response::__validate_target_abs_path() {
+void Response::validate_target_abs_path() {
     int tmp_fd;
     // check also for W in POST ?
     // [ + ] system to send error pages accordingly
@@ -420,7 +416,7 @@ void Response::__validate_target_abs_path() {
     close(tmp_fd);
 }
 
-void Response::__extract_resource_extension() {
+void Response::extract_resource_extension() {
     size_t pos = _resource.abs_path.rfind('.');
     if (pos != _resource.abs_path.npos)
         _resource.extension = _resource.abs_path.substr(pos + 1);
@@ -430,7 +426,7 @@ void Response::__extract_resource_extension() {
 
 // only if the extesion is mapped in 'tokens' content-type field is set.
 // if not found type is set to extension.
-void Response::__identify_resource_type() {
+void Response::identify_resource_type() {
     std::map<std::string, std::string>::const_iterator it \
         = _tokens.extensions.typemap.find(_resource.extension);
     if (it == _tokens.extensions.typemap.end()) {
@@ -444,12 +440,12 @@ void Response::__identify_resource_type() {
 }
 
 // temporarily handles every type, later have a decision tree or similar
-void Response::__handle_type() {
+void Response::handle_type() {
 
-    __upload_file();
+    upload_file();
 }
 
-void Response::__upload_file() { // + error handeling & target check here !
+void Response::upload_file() { // + error handeling & target check here !
     if (DEBUG)
         std::cout << "BUFFERING BODY FROM TARGET: " << _resource.abs_path << std::endl;
     try {
