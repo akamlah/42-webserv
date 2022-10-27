@@ -50,5 +50,6 @@ int main(int argc, char **argv) {
 	#if DEBUG
 	// system("leaks webserv | tail - 3");
 	#endif
+	std::cout << "Returning" << std::endl;
 	return (0);
 }
