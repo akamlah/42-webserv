@@ -462,18 +462,35 @@ void Response::interpret_target() {
 }
 
 void Response::validate_target_abs_path() {
-    int tmp_fd;
     // check also for W in POST ?
     // [ + ] system to send error pages accordingly
-    if ((tmp_fd = open(_resource.abs_path.c_str(), O_RDONLY)) < 0) {
-        if (errno == ENOENT)
-            throw_error_status(WS_404_NOT_FOUND, strerror(errno));
-        else if (errno == EACCES)
-            throw_error_status(WS_403_FORBIDDEN, strerror(errno));
-        else
-            throw_error_status(WS_500_INTERNAL_SERVER_ERROR, strerror(errno));
+    if (!(_config.http_redirects.compare("non")) )
+    {
+        int tmp_fd;
+        if ((tmp_fd = open(_resource.abs_path.c_str(), O_RDONLY)) < 0) {
+            if (errno == ENOENT)
+                throw_error_status(WS_404_NOT_FOUND, strerror(errno));
+            else if (errno == EACCES)
+                throw_error_status(WS_403_FORBIDDEN, strerror(errno));
+            else
+                throw_error_status(WS_500_INTERNAL_SERVER_ERROR, strerror(errno));
+        }
+        close(tmp_fd);
     }
-    close(tmp_fd);
+    else
+    {
+        int tmp_fd;
+        std::string temp = _config.http_redirects + "/" + _config.index;
+        if ((tmp_fd = open(temp.c_str(), O_RDONLY)) < 0) {
+            if (errno == ENOENT)
+                throw_error_status(WS_404_NOT_FOUND, strerror(errno));
+            else if (errno == EACCES)
+                throw_error_status(WS_403_FORBIDDEN, strerror(errno));
+            else
+                throw_error_status(WS_500_INTERNAL_SERVER_ERROR, strerror(errno));
+        }
+        close(tmp_fd);
+    }
 }
 
 void Response::extract_resource_extension() {
@@ -506,12 +523,24 @@ void Response::handle_type() {
 }
 
 void Response::upload_file() { // + error handeling & target check here !
-    if (DEBUG)
+    // if (DEBUG)
         std::cout << "BUFFERING BODY FROM TARGET: " << _resource.abs_path << std::endl;
+        std::cout << "redirect: " << _config.http_redirects << std::endl;
     try {
-        std::ifstream fin(_resource.abs_path, std::ios::in);
+
+        if (!(_config.http_redirects.compare("non")) )
+        {
+            std::ifstream fin(_resource.abs_path, std::ios::in);
+            _body << fin.rdbuf();
+        }
+        else
+        {
+            std::string deside = (_resource.path == "/") ? _config.index : _resource.path;
+            std::string temp = _config.http_redirects + "/" + deside;
+            std::ifstream fin(temp, std::ios::in);
+            _body << fin.rdbuf();
+        }
         // if (!page_file.is_open()) ...
-        _body << fin.rdbuf();
     } catch (std::exception& e) {
         std::cout << e.what() << std::endl;
         throw_error_status(WS_500_INTERNAL_SERVER_ERROR, strerror(errno));
