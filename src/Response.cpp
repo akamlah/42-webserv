@@ -109,6 +109,7 @@ void Response::__build_response() {
     try {
         __identify_resource();
         // map function pointers to avoid if else statements [ ? ]
+        std::cout <<_request.header.method << "------------------------\n";
         if (_request.header.method == "GET")
         {
             if (_config.isCgiOn && _config.cgi.compare(".php") == 0 && (_resource.extension == "php" || _resource.extension == "html"))
@@ -139,7 +140,26 @@ void Response::__build_response() {
         }
         else if (_request.header.method == "DELETE")
         {
-            __respond_get();
+            // HTTP/1.1 204 OK
+            // Content-Length: 0
+            // set status or something?
+            // _status = 204; // no body
+            // _status = 202; // accepted may be completed. 
+
+            if (std::remove(_resource.abs_path.c_str()) == 0)
+            {
+                
+                if (true)
+                {
+
+                }
+                __respond_to_delete();
+            }
+            else
+            {
+                _status = 404; // maybe?
+                __respond_to_error();
+            }
         }
         else
         {
@@ -164,6 +184,18 @@ void Response::__build_response() {
 // implement custom error pages fetching
 //     root = "./default_pages/errors";
 // assuming any other thing besides 200 ok is wrong for now (rdr?)
+void Response::__respond_to_delete() {
+    _body.str(std::string());;
+    _fields_stream.str(std::string());
+    _response_str = std::string();
+    __add_field("Server", "ZHero serv/1.0");
+    __add_formatted_timestamp();
+    __decide_persistency();
+    _body 
+        << "The file was deleted!\r\n";
+    __response_to_string();
+}
+
 void Response::__respond_to_error() {
     _body.str(std::string());;
     _fields_stream.str(std::string());
@@ -179,7 +211,7 @@ void Response::__respond_to_error() {
         << "<h1>" << _tokens.status_phrases[_status] << "</h1>"
         << "<h3>" << _request.error_msg << "</h3>\n"
         << "<h3>" << error_msg << "</h3>\n"
-        << "</body>\r\n";
+        << "</body></html>\r\n";
     __response_to_string();
 }
 

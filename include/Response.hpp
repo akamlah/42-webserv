@@ -19,6 +19,7 @@
 #include <unistd.h> //
 #include <errno.h>
 #include <list>
+#include <cstdio>
 
 
 namespace ws {
@@ -89,6 +90,7 @@ class Response {
         void __respond_get();
         void __respond_cgi_get();
         void __respond_post();
+        void __respond_to_delete();
 
         void __respond_cgi_post();
         std::string cgiRespCreator();
