@@ -8,11 +8,9 @@
         body {
             margin: 0;
         }
-
         div {
             height: 100vh;
         }
-
         .party {
             background: url(https://media.giphy.com/media/4c4jQPdVv381G/giphy.gif);
         }
@@ -27,7 +25,7 @@
         const button = document.querySelector('button');
         const thisdiv = document.querySelector("div");
         button.onclick = () => {
-            console.log("shit");
+            // console.log("shit");
             if (thisdiv.classList.contains('party')) { thisdiv.classList.remove('party'); }
             else if (thisdiv.classList.contains('party') === false) { thisdiv.className = 'party'; }
         };

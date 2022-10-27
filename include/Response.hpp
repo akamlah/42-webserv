@@ -19,6 +19,7 @@
 #include <unistd.h> //
 #include <errno.h>
 #include <list>
+#include <cstdio>
 
 
 namespace ws {
@@ -74,6 +75,7 @@ class Response {
 
     private:
 
+        void respond_to_delete();
         void build_response();
         void respond_to_error();
         void respond_get();
@@ -83,6 +85,7 @@ class Response {
         void respond_cgi_post();
         std::string cgiRespCreator();
         std::string cgiRespCreator_post();
+        bool getValid(const std::string & nameof);
 
         void add_field(const std::string& field_name, const std::string& value);
         void add_formatted_timestamp();
