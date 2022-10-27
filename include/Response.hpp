@@ -4,8 +4,8 @@
 /*                                                                          */
 /* ************************************************************************ */
 
-#ifndef __RESPONSE_HPP__
-# define __RESPONSE_HPP__
+#ifndef RESPONSE_HPP
+# define RESPONSE_HPP
 
 #include "Request.hpp"
 #include "utility.hpp"
@@ -29,7 +29,6 @@ struct Resource {
     // as in URI:
     std::string path; // everything between '/' and '?'
     std::string query; // everything between '?' and '#'
-    std::string fragment; // from '#' to end
     // matched:
     std::string root; // as in config
     std::string file; // as in uri, or config in case of idex.html/.php
@@ -40,10 +39,6 @@ struct Resource {
     std::string extension;
 };
 
-// CGI ENV builder - - - - - - - - - - - - - - - - - - - - - - - - - 
-// query format: x_www_form_urlencoded
-// http://localhost:9999/data/mytext.txt?abc&def&hij&klm&nop&qrs&tuv&wxy
-
 class Response {
 
     public:
@@ -53,12 +48,7 @@ class Response {
                 virtual const char* what() const throw();
         };
 
-        // + exceptions
-
-        // Response(const Tokens& tokens);
         Response(const Request& request, const config_data& config, const Tokens& tokens);
-        // + cpy constr
-        // + cpy assign ope
         ~Response();
 
         int status() const { return (_status); }
@@ -85,33 +75,32 @@ class Response {
 
     private:
 
-        void __build_response();
-        void __respond_to_error();
-        void __respond_get();
-        void __respond_cgi_get();
-        void __respond_post();
-        void __respond_to_delete();
+        void respond_to_delete();
+        void build_response();
+        void respond_to_error();
+        void respond_get();
+        void respond_cgi_get();
+        void respond_post();
 
-        void __respond_cgi_post();
+        void respond_cgi_post();
         std::string cgiRespCreator();
         std::string cgiRespCreator_post();
 
-        void __add_field(const std::string& field_name, const std::string& value);
-        void __add_formatted_timestamp();
-        std::string __generate_status_line() const;
-        void __identify_resource(); // calls :
-            void __interpret_target();
-            void __validate_target_abs_path();
-            void __extract_resource_extension();
-            void __identify_resource_type();
-        void __handle_type();
-        void __upload_file();
-        void __decide_persistency();
-        void __response_to_string();
+        void add_field(const std::string& field_name, const std::string& value);
+        void add_formatted_timestamp();
+        std::string generate_status_line() const;
+        void identify_resource(); // calls :
+            void interpret_target();
+            void validate_target_abs_path();
+            void extract_resource_extension();
+            void identify_resource_type();
+        void handle_type();
+        void upload_file();
+        void response_to_string();
 
 }; // CLASS Response
 
 } // NAMESPACE http
 } // NAMESPACE ws
 
-#endif // __RESPONSE_HPP__
+#endif // RESPONSE_HPP
