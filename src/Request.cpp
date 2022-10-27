@@ -15,6 +15,7 @@ namespace http {
 Request::Request(): _is_persistent(true), _status(WS_200_OK),
     _is_chunked(false), _waiting_for_chunks(false) { }
 
+// In HTTP 1.1, all connections are considered persistent unless declared otherwise.
 Request::Request(const Request& other): _is_persistent(true), _status(WS_200_OK),
     _is_chunked(false), _waiting_for_chunks(false) {
     header.method = other.header.method;
@@ -66,32 +67,33 @@ bool Request::is_persistent() const { return (_is_persistent);}
 int Request::parse(const int fd) {
     if (!_waiting_for_chunks) {
         _parser.parse(*this, fd);
-        #if (DEBUG)
-            std::cout << "\n\n\n" << std::endl;
+            #if (DEBUG)
             (_status < 400) ? std::cout << GREEN : std::cout << RED;
             std::cout << "PARSED REQUEST STATUS: " << _status << NC << std::endl;
-            std::cout << CYAN << "PARSED HEADER:\n" \
-                << "\tMethod: " << header.method << "\n" \
-                << "\tTarget: " << header.target << "\n" \
-                << "\tVersion: " << header.version << NC << std::endl;
-            std::cout << CYAN << "PARSED FIELDS:\n" << NC;
-            for (std::map<std::string, std::list<std::string> >::const_iterator it = _fields._map.begin();
-                it != _fields._map.end(); it++)
-            {
-                std::cout << CYAN << it->first<< NC << "|" ;
-                for (std::list<std::string>::const_iterator itl = it->second.begin(); itl != it->second.end(); itl++)
-                    std::cout << YELLOW << *itl << NC << "|";
-                std::cout << std::endl;
-            }
-            std::cout << "request msg length after parse: " << _parser.msg_length << std::endl;
-            std::cout << CYAN << "\nPARSER: Message recieved: ---------\n" << NC << _parser.buffer << std::endl;
-            std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
-            std::cout << CYAN << "\nBODY IS:---------------------------\n" << this->_body.str() << NC << std::endl;
-            std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
-            std::cout << GREEN << "Is persistent: ";
-            std::cout << this->_is_persistent << NC << std::endl;
-            std::cout << "\n\n\n" << std::endl;
-        #endif
+            // std::cout << CYAN << "PARSED HEADER:\n" \
+            //     << "\tMethod: " << header.method << "\n" \
+            //     << "\tTarget: " << header.target << "\n" \
+            //     << "\tVersion: " << header.version << NC << std::endl;
+            // std::cout << CYAN << "PARSED FIELDS:\n" << NC;
+            // for (std::map<std::string, std::list<std::string> >::const_iterator it = _fields._map.begin();
+            //     it != _fields._map.end(); it++)
+            // {
+            //     std::cout << CYAN << it->first<< NC << "|" ;
+            //     for (std::list<std::string>::const_iterator itl = it->second.begin(); itl != it->second.end(); itl++)
+            //         std::cout << YELLOW << *itl << NC << "|";
+            //     std::cout << std::endl;
+            // }
+            // std::cout << "request msg length after parse: " << _parser.msg_length << std::endl;
+            // std::cout << CYAN << "\nPARSER: Message recieved: ---------\n" << NC << _parser.buffer << std::endl;
+            // std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
+            // std::cout << CYAN << "\nBODY IS:---------------------------\n" << this->_body.str() << NC << std::endl;
+            // std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
+            // std::cout << GREEN << "Is persistent: ";
+            // std::cout << this->_is_persistent << NC << std::endl;
+            // std::cout << GREEN << "Waiting for chunks: ";
+            // std::cout << this->_waiting_for_chunks << NC << std::endl;
+            #endif
+            std::cout << "Request class: client sent request for '" << this->header.target << "' on fd " << fd << std::endl;
     }
     else {
         _parser.parse_chunks(*this, fd);
@@ -174,7 +176,7 @@ int parser::error_status(Request& request, const int status, const char* msg) co
 // implemented methods: -> CENTRALISE later!!
 const char Request::methods[4][10] = {"GET", "HEAD", "POST", "DELETE"};
 
-bool parser::__is_method(const char *word, size_t word_length) const {
+bool parser::is_method(const char *word, size_t word_length) const {
     int i = 0;
     while (i < 4) {
         if (!strncmp(Request::methods[i], word, word_length) && word_length == strlen(Request::methods[i]))
@@ -197,7 +199,7 @@ bool parser::__is_method(const char *word, size_t word_length) const {
 // message up to here has either te = chunked or no TE but A content -> if no cl at this point it is an error -> 411
 // A server MAY reject a request that contains a message body but not a 
 // Content-Length by responding with 411 (Length Required).
-int parser::__parse_body(Request& request, int fd) {
+int parser::parse_body(Request& request, int fd) {
     if (DEBUG)
         std::cout << "parsing body" << std::endl;
     size_t body_length = 0;
@@ -217,10 +219,18 @@ int parser::__parse_body(Request& request, int fd) {
         else // if TE but not chunked -> ERROR [ ? ] correct ?
             return (error_status(request, WS_501_NOT_IMPLEMENTED, "Transfer encoding not implemented"));
     }
+    // if (request.header.method == "POST" && request.get_field_value("content-type").begin()->find("multipart/form-data") != std::string::npos)
+        // return(error_status(request, WS_501_NOT_IMPLEMENTED, "Sry :("));
     while (body_length <= request._content_length && msg_length < BUFFER_SIZE) {
-        status =  __get_byte(request, fd);
-        if (!status || buffer[msg_length] == '\0')
+        status =  get_byte(request, fd);
+        if (!status || buffer[msg_length] == '\0') {
+                #if DEBUG
+                std::cout << "EOF Body" << std::endl;
+                #endif
+            // if (body_length)
+            //     request._is_persistent = false;
             break ;
+        }
         request._body << buffer[msg_length]; // adds byte to body
         ++body_length;
         ++msg_length;
@@ -245,7 +255,7 @@ int parser::parse_chunks(Request& request, int fd) {
     int content_size = 0;
     bool size_done = false;
     while (msg_length < BUFFER_SIZE) {
-        status = __get_byte(request, fd);
+        status = get_byte(request, fd);
         if (!status || buffer[msg_length] == '\0')
             break ;
         if (status >= 400)
@@ -303,35 +313,31 @@ int parser::parse(Request& request, int fd) {
     int status = request._status;
     while (msg_length < BUFFER_SIZE) {
         if (header_done && !body_done) {
-            status = __parse_body(request, fd);
+            status = parse_body(request, fd);
             body_done = true;
             break ;
         }
-
         // keep BEFORE null byte check, bcs I want to check contet length field even if no body provided.
-        if (!header_done && !(status = __get_byte(request, fd)))
+        if (!header_done && !(status = get_byte(request, fd)))
             break ;
-
         if (status != WS_200_OK) // NEED THIS [ ? ]
             return (status) ; // if 0 it is end of file
-
         if (buffer[msg_length] == '\0') { // [ - ]
-            std::cout << "EOF" << std::endl;
+                #if DEBUG
+                std::cout << "EOF" << std::endl;
+                #endif
+            // request._is_persistent = false; // [ ! ]
             break ;
         }
-
         ++msg_length;
         ++line_length;
-
         if (!header_done && buffer[msg_length - 1] == LF_int) { // if newline found:
             ++nb_lines;
-            if (!(status = __parse_previous_header_line(request, (char *)buffer + msg_length - line_length))) // final CRLF
+            if (!(status = parse_previous_header_line(request, (char *)buffer + msg_length - line_length))) // final CRLF
                 break ;
         }
-
         if (status != WS_200_OK) // [ - ] [ ? ]
             return (status);
-
     } // end loop
     // check that minimum was provided
     if (!start_content)
@@ -340,20 +346,20 @@ int parser::parse(Request& request, int fd) {
         return (error_status(request, WS_400_BAD_REQUEST, "No request line provided"));
     if (!host_fields)
         return (error_status(request, WS_400_BAD_REQUEST, "No host field provided"));
-    buffer[msg_length] = '\0';
+    // buffer[msg_length] = '\0';
     return (status);
 }
 
 // reads a byte and does some primary checks
 // encoding must be a superset of US-ASCII [USASCII] -> max 128 (hex 80) (RFC 9112)
 // ANY CR_int not folowed by LF_int is invalid and message is rejected (RFC 9112)
-int parser::__get_byte(Request& request, int fd) {
+int parser::get_byte(Request& request, int fd) {
     size_t bytes_read = 0;
     if ((bytes_read = recv(fd, buffer + msg_length, 1, MSG_DONTWAIT)) < 0)
         return (error_status(request, WS_500_INTERNAL_SERVER_ERROR, "Error recieving data"));
     if (!bytes_read)
         return (0);
-    if (buffer[msg_length] >= 0x80)
+    if (!header_done && buffer[msg_length] >= 0x80)
         return (error_status(request, WS_400_BAD_REQUEST, "Bad encoding"));
     if (line_length > 1 && buffer[msg_length - 1] == CR_int && buffer[msg_length] != LF_int)
         return (error_status(request, WS_400_BAD_REQUEST, "CR not followed by LF"));
@@ -371,7 +377,7 @@ int parser::__get_byte(Request& request, int fd) {
 // Detect end of header with final CRLF
 // if not a CRLF line or a CRLF line that is neither at the end nor at the beginning of the request
 // if here in the middle ANY whitespace at line start is found -> reject
-int parser::__parse_previous_header_line(Request& request, const char* line) {
+int parser::parse_previous_header_line(Request& request, const char* line) {
     // std::cout << YELLOW << "parsing previous line" << NC << std::endl;
     int status = WS_200_OK; // [ - ]
     // std::cout << "LINE: " << line << std::endl;
@@ -387,12 +393,12 @@ int parser::__parse_previous_header_line(Request& request, const char* line) {
         if (isspace(line[0]) && !header_done)
             return (error_status(request, WS_400_BAD_REQUEST, "Whitespace at line begin"));
         if (!request_line_done && !header_done) {
-            if ((status = __parse_request_line(request, line)) != WS_200_OK)
+            if ((status = parse_request_line(request, line)) != WS_200_OK)
                 return (status);
             request_line_done = true;
         }
         else
-            __parse_field_line(request, line);
+            parse_field_line(request, line);
     }
     line_length = 0;
     return (WS_200_OK);
@@ -404,7 +410,7 @@ int parser::__parse_previous_header_line(Request& request, const char* line) {
 // if space after a space -> invalid format
 //  A server that receives a method longer than any that it implements SHOULD 
 //  respond with a 501 (Not Implemented) status code -> BUFFER SIZES
-int parser::__parse_request_line(Request& request, const char* line) {
+int parser::parse_request_line(Request& request, const char* line) {
     size_t i = 0;
     int skip = 0;
     int status = WS_200_OK;
@@ -419,7 +425,7 @@ int parser::__parse_request_line(Request& request, const char* line) {
         if (request_line[i] == SP_int || request_line[i] == CR_int) { // end of a word
             if (i + 1 < line_length && request_line[i + 1] == SP_int)
                 return (error_status(request, WS_400_BAD_REQUEST, "Consecutive spaces in start line"));
-            if ((status = __parse_next_word_request_line(request, i, skip) != WS_200_OK))
+            if ((status = parse_next_word_request_line(request, i, skip) != WS_200_OK))
                 return (status);
             word_length = 0;
             skip = 1;
@@ -440,13 +446,13 @@ int parser::__parse_request_line(Request& request, const char* line) {
 // recognized and implemented, but not allowed for the target resource,
 // SHOULD respond with the 405 (Method Not Allowed) status code.
 // taregt size > TARGET_SIZE -> 414 (URI Too Long)
-int parser::__parse_next_word_request_line(Request& request, int i, int skip) {
+int parser::parse_next_word_request_line(Request& request, int i, int skip) {
     ++word_count;
     if (word_count > 3)
         return (error_status(request, WS_400_BAD_REQUEST, "Too many words in start line"));
     strlcpy(word, request_line + i - word_length + skip, word_length + 1 - skip); // null terminated copy of word
     if (word_count == 1) {
-        if (!__is_method(word, word_length))
+        if (!is_method(word, word_length))
             return (error_status(request, WS_501_NOT_IMPLEMENTED, "Unknown method"));
         request.header.method = word;
     }
@@ -472,7 +478,7 @@ int parser::__parse_next_word_request_line(Request& request, int i, int skip) {
 // TODO:
 //  If the target URI includes an authority component, then a client MUST send a
 // field value for Host that is identical to that authority component
-int parser::__parse_field_line(Request& request, std::string line) {
+int parser::parse_field_line(Request& request, std::string line) {
     if (line_length > MAX_FIELD_LENGTH)
         return (error_status(request, WS_431_REQUEST_HEADER_FIELDS_TOO_LARGE, "Too large header field"));
     line = line.substr(0, line.length() - 2); // cut CRLF - presence checked on before
@@ -485,8 +491,11 @@ int parser::__parse_field_line(Request& request, std::string line) {
         return (error_status(request, WS_400_BAD_REQUEST, "Missing ':' in field line"));
     if (!colon || (colon && line[colon - 1] == ' '))
         return (error_status(request, WS_400_BAD_REQUEST, "Space before ':'"));
-    str_tolower(line);
+    if (line.find("boundary") == std::string::npos)
+        str_tolower(line);
     name = line.substr(0, colon);
+    if (line.find("boundary") != std::string::npos)
+        str_tolower(name);
     if (name == "host")
         ++host_fields;
     if (host_fields > 1)

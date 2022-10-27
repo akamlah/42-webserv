@@ -13,11 +13,15 @@
 #include "Response.hpp"
 #include "Config.hpp"
 
+#include "Poll.hpp"
+
 #include <string>
 #include <iostream>
 
 namespace ws {
 namespace http {
+
+class Poll;
 
 class Connection {
 
@@ -34,7 +38,7 @@ class Connection {
         int status() const;
 
         void establish(const int fd);
-        void handle();
+        void handle(const struct ws::Poll& poll, int poll_index);
 
     private:
 

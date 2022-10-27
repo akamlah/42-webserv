@@ -4,8 +4,8 @@
 /*                                                                          */
 /* ************************************************************************ */
 
-#ifndef __REQUEST_HPP__
-# define __REQUEST_HPP__
+#ifndef REQUEST_HPP
+# define REQUEST_HPP
 
 #include "utility.hpp"
 #include "http_type_traits.hpp"
@@ -72,13 +72,13 @@ class parser {
     private:
 #endif
 
-        bool __is_method(const char *word, size_t word_length) const;
-        int __get_byte(Request& request, int fd);
-        int __parse_body(Request& request, int fd);
-        int __parse_previous_header_line(Request& request, const char* line);
-        int __parse_request_line(Request& request, const char* line);
-        int __parse_next_word_request_line(Request& request, int i, int skip);
-        int __parse_field_line(Request& request, std::string line);
+        bool is_method(const char *word, size_t word_length) const;
+        int get_byte(Request& request, int fd);
+        int parse_body(Request& request, int fd);
+        int parse_previous_header_line(Request& request, const char* line);
+        int parse_request_line(Request& request, const char* line);
+        int parse_next_word_request_line(Request& request, int i, int skip);
+        int parse_field_line(Request& request, std::string line);
 }; // CLASS parser
 
 
@@ -135,4 +135,4 @@ class Request {
 
 } // NAMESPACE http
 } // NAMESPACE ws
-#endif // __REQUEST_HPP__
+#endif // REQUEST_HPP
