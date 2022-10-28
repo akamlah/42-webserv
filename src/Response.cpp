@@ -160,13 +160,13 @@ void Response::build_response() {
             if (std::remove(_resource.abs_path.c_str()) == 0) {
                 // if (true)
                 // {
+                    // I wanted something here what is that?
 
                 // }
                 respond_to_delete();
             }
             else {
-                // _status = 404; // maybe?
-                respond_to_error();
+                 throw_error_status(WS_404_NOT_FOUND, "The file is not there!");            // something like this?
             }
         }
         else {
