@@ -109,70 +109,84 @@ void Response::remove_leading_slash(std::string& path) {
 // Main fuction for response generation
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+void Response::redirection_check()
+{
+    if (getValid("GET"))
+        throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
+    _status = WS_301_MOVED_PERMANENTLY;
+    _body.str(std::string());;
+    _fields_stream.str(std::string());
+    _response_str = std::string();
+    add_field("Server", "ZHero serv/1.0");
+    add_field("Location", "http://localhost:7777");
+    add_formatted_timestamp();
+    // _body << "";
+    response_to_string();
+}
+void Response::method_get()
+{
+    if (getValid("GET"))
+        throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
+    if (_config.isCgiOn && _config.cgi.compare(".php") == 0 && (_resource.extension == "php" || _resource.extension == "html")) {
+        respond_cgi_get();
+    }
+    else {
+        add_field("Content-type", _resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
+        std::cout << CYAN << "Content-type: " <<  (_resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
+        std::cout << NC << std::endl;
+        respond_get();
+    }
+}
+void Response::method_post()
+{
+    if (getValid("POST"))
+        throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
+    if (_config.isCgiOn && _config.cgi.compare(".php") == 0 && (_resource.extension == "php" || _resource.extension == "html")) {
+        respond_cgi_post();
+    }
+    else {
+        add_field("Content-type", _resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
+        respond_get();
+    }
+}
+void Response::method_delete()
+{
+    if (getValid("DELETE"))
+        throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
+    // HTTP/1.1 204 OK
+    // Content-Length: 0
+    // _status = 204; // no body
+    // _status = 202; // accepted may be completed. 
+    if (std::remove(_resource.abs_path.c_str()) == 0) {
+        add_field("Content-length", "0");
+        respond_to_delete();
+    }
+    else {
+        throw_error_status(WS_404_NOT_FOUND, "The file is not there!");
+    }
+}
+
+
 void Response::build_response() {
     if (_status != WS_200_OK) {
         respond_to_error();
         return ;
     }
     add_field("Server", "ZHero serv/1.0");
+    // add_field("Connection", "close");
     add_formatted_timestamp();
     try {
         identify_resource();
-        // std::cout <<_request.header.method << "------------------------\n";
-        //  std::list<std::string>::iterator it;
-        // std::vector<std::string>::iterator it = (_config.http_methods).begin();
-        if (_request.header.method == "GET") {
-            if (getValid("GET"))
-                throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
-            if (_config.isCgiOn && _config.cgi.compare(".php") == 0 && (_resource.extension == "php" || _resource.extension == "html")) {
-                // std::cout << "HERE 1 GET -------- CGI --------\n" <<std::endl;
-                respond_cgi_get();
-            }
-			else {
-                //  std::cout << "HERE 2 GET ----- no ----- CGI\n" <<std::endl;
-                add_field("Content-type", _resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
-                std::cout << CYAN << "Content-type: " <<  (_resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
-                std::cout << NC << std::endl;
-	            respond_get();
-			}
-        }
-        else if (_request.header.method == "POST") {
-            if (getValid("POST"))
-                throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
-            if (_config.isCgiOn && _config.cgi.compare(".php") == 0 && (_resource.extension == "php" || _resource.extension == "html")) {
-                // std::cout << "HERE 3 POST ----- CGI ------\n" <<std::endl;
-                respond_cgi_post();
-            }
-			else {
-                // std::cout << "HERE 4 POST  --no-- CGI\n" <<std::endl;
-                add_field("Content-type", _resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
-	            respond_get();
-			}
-        }
-        else if (_request.header.method == "DELETE") {
-            if (getValid("DELETE"))
-                throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
-            // HTTP/1.1 204 OK
-            // Content-Length: 0
-            // set status or something?
-            // _status = 204; // no body
-            // _status = 202; // accepted may be completed. 
-            if (std::remove(_resource.abs_path.c_str()) == 0) {
-                // if (true)
-                // {
-                    // I wanted something here what is that?
-
-                // }
-                respond_to_delete();
-            }
-            else {
-                 throw_error_status(WS_404_NOT_FOUND, "The file is not there!");            // something like this?
-            }
-        }
-        else {
-            throw_error_status(WS_501_NOT_IMPLEMENTED, "Sadly this HTTP method is not implemented.");            // something like this?
-            return ;
-        }
+        if (_config.location != "non")
+            redirection_check();
+        else if (_request.header.method == "GET")
+            method_get();
+        else if (_request.header.method == "POST")
+            method_post();
+        else if (_request.header.method == "DELETE")
+            method_delete();
+        else
+            throw_error_status(WS_501_NOT_IMPLEMENTED, "Sadly this HTTP method is not implemented.");
     }
     catch (ResponseException& e) {
         respond_to_error(); // will build error response
@@ -297,7 +311,6 @@ std::string Response::cgiRespCreator_post()
         }
 
         int i = 0;
-        // env[i++] = &(*((new std::string("\r\n\r\n" + _request._body.str() + "\r\n\r\n" )))->begin());
         env[i++] = &(*((new std::string(_request._body.str())))->begin());
 		env[i++] = &(*((new std::string("CONTENT_LENGTH=" + tempLength))->begin()));
         env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin());
@@ -331,14 +344,12 @@ std::string Response::cgiRespCreator_post()
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 void Response::respond_to_delete() {
-    _body.str(std::string());;
+    _body.str(std::string());
     _fields_stream.str(std::string());
     _response_str = std::string();
     add_field("Server", "ZHero serv/1.0");
     add_formatted_timestamp();
-    // decide_persistency();
-    _body 
-        << "The file was deleted!\r\n";
+    _body << "The file was deleted!\r\n";
     response_to_string();
 }
 
@@ -407,10 +418,10 @@ void Response::interpret_target() {
 void Response::validate_target_abs_path() {
     int tmp_fd;
     std::string temp_path;
-    if (!(_config.http_redirects.compare("non")) )
+    if (!(_config.location.compare("non")) )
         temp_path = _resource.abs_path;
     else
-        temp_path = _config.http_redirects + "/" + _config.index;
+        temp_path = _config.location + "/" + _config.index;
     if ((tmp_fd = open(temp_path.c_str(), O_RDONLY)) < 0) {
         if (errno == ENOENT)
             throw_error_status(WS_404_NOT_FOUND, strerror(errno));
@@ -486,7 +497,7 @@ void Response::upload_file() { // + error handeling & target check here !
         std::cout << "redirect: " << _config.http_redirects << std::endl;
     try {
 
-        if (!(_config.http_redirects.compare("non")) )
+        if (!(_config.location.compare("non")) )
         {
             std::ifstream fin(_resource.abs_path, std::ios::in);
             _body << fin.rdbuf();
@@ -494,7 +505,7 @@ void Response::upload_file() { // + error handeling & target check here !
         else
         {
             std::string deside = (_resource.path == "/") ? _config.index : _resource.path;
-            std::string temp = _config.http_redirects + "/" + deside;
+            std::string temp = _config.location + "/" + deside;
             std::ifstream fin(temp, std::ios::in);
             _body << fin.rdbuf();
         }

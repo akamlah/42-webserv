@@ -156,6 +156,7 @@ namespace ws {
 		temp.http_methods = helpCheckHTTPmethods(configDataString, "http_methods:");
 
 		temp.cgi = helpCheckContent(configDataString, "cgi:", false);
+		temp.location = helpCheckContent(configDataString, "location:", false);
 		if (temp.cgi.find("non") == std::string::npos)
 			temp.isCgiOn = true;
 		else

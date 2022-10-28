@@ -81,6 +81,10 @@ class Response {
         void respond_get();
         void respond_cgi_get();
         void respond_post();
+        void method_get();
+        void method_post();
+        void method_delete();
+        void redirection_check();
 
         void respond_cgi_post();
         std::string cgiRespCreator();
