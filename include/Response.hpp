@@ -95,7 +95,6 @@ class Response {
             void validate_target_abs_path();
             void extract_resource_extension();
             void identify_resource_type();
-        void handle_type();
         void upload_file();
         void response_to_string();
 

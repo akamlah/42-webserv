@@ -9,19 +9,32 @@
 namespace ws {
 namespace http {
 
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// Exceptions
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
 const char* Response::ResponseException::what() const throw() {
     return ("Response error");
 }
 
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// Construction/destruction
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
 Response::Response(const Request& request, const config_data& config, const Tokens& tokens):
     _request(request), _config(config), _tokens(tokens), _status(request.status()),
-    _is_persistent(request._is_persistent) {
-    
-    // std::cout << GREEN << "Response constr is persistent ?" << _is_persistent << NC << std::endl;
+    _is_persistent(request._is_persistent)
+{
     build_response();
 }
 
 Response::~Response() {}
+
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// PUBLIC Member fuctions
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 bool Response::is_persistent() const { return (_is_persistent); }
 
@@ -50,6 +63,11 @@ int Response::throw_error_status(int status, const char* msg) {
     return (status);
 }
 
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// PUBLIC non-member fuctions
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
 void Response::append_slash(std::string& path) {
     if (!path.empty())
         if (path.rfind('/') != path.npos)
@@ -62,55 +80,34 @@ void Response::remove_leading_slash(std::string& path) {
             path.erase(0, 1);
 }
 
-// - - - - - - - - - - - PRIVATE - - - - - - - - - - - - - 
 
-std::string Response::generate_status_line() const {
-    std::stringstream stream_status_line;
-    stream_status_line << WS_HTTP_VERSION << SP << _tokens.status_phrases[_status];
-    return (stream_status_line.str());
-}
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-// adds a string formatted as <'field name': 'value'CRLF> to the header stream buffer
-void Response::add_field(const std::string& field_name, const std::string& value) {
-    _fields_stream << field_name << ": " << value << CRLF;
-}
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// Private methods. Content:
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// Main fuction for response generation 
+//      build_response()
+// Method: GET
+//      
+// Method: POST
+//      
+// Method: Delete
+//      
+// Method: exceptions (errors and directory listing)
+//      
+// further TARGET PARSING
+//      
+// Utilities :
+//      generate_status_line()
+//      add_formatted_timestamp()
+//      add_field()
+//      response_to_string()
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-// field format example: "date: Mon, 26 Sep 2022 09:14:21 GMT"
-void Response::add_formatted_timestamp() {
-    std::stringstream s;
-    std::time_t t = std::time(0);
-    std::tm* now = std::localtime(&t);
-    s << std::put_time(now, "%a, %d %b %Y %T %Z");
-    add_field("Date", s.str());
-}
-
-// main blocks - - - - - - - - -
-
-void Response::response_to_string() {
-    std::stringstream response;
-    if (!_body.str().empty())
-        add_field("Content-length", std::to_string(_body.str().size()));
-    // if (this->is_persistent()) // [ + ] condition for chunked requests ?
-    //     add_field("Connection", "keep-alive");
-    response << generate_status_line() << CRLF;
-    response << _fields_stream.str() << CRLF;
-    response << _body.str() << CRLF << CRLF;
-    _response_str = response.str();
-}
-
-bool Response::getValid(const std::string & nameof)
-{
-    std::vector<std::string> temp = _config.http_methods;
-    std::vector<std::string>::iterator it = temp.begin();
-    std::vector<std::string>::iterator eit = temp.end();
-    while (it != eit)
-    {
-        if (!((*it).compare(nameof)))
-            return (false);
-        it++;
-    }
-    return (true);
-}
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// Main fuction for response generation
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 void Response::build_response() {
     if (_status != WS_200_OK) {
@@ -121,24 +118,17 @@ void Response::build_response() {
     add_formatted_timestamp();
     try {
         identify_resource();
-        // map function pointers to avoid if else statements [ ? ]
-        std::cout <<_request.header.method << "------------------------\n";
-
-            //  std::list<std::string>::iterator it;
+        // std::cout <<_request.header.method << "------------------------\n";
+        //  std::list<std::string>::iterator it;
         // std::vector<std::string>::iterator it = (_config.http_methods).begin();
-
-
-        if (_request.header.method == "GET")
-        {
+        if (_request.header.method == "GET") {
             if (getValid("GET"))
                 throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
-            if (_config.isCgiOn && _config.cgi.compare(".php") == 0 && (_resource.extension == "php" || _resource.extension == "html"))
-            {
+            if (_config.isCgiOn && _config.cgi.compare(".php") == 0 && (_resource.extension == "php" || _resource.extension == "html")) {
                 // std::cout << "HERE 1 GET -------- CGI --------\n" <<std::endl;
                 respond_cgi_get();
             }
-			else
-			{
+			else {
                 //  std::cout << "HERE 2 GET ----- no ----- CGI\n" <<std::endl;
                 add_field("Content-type", _resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
                 std::cout << CYAN << "Content-type: " <<  (_resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
@@ -146,24 +136,20 @@ void Response::build_response() {
 	            respond_get();
 			}
         }
-        else if (_request.header.method == "POST")
-        {
+        else if (_request.header.method == "POST") {
             if (getValid("POST"))
                 throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
-            if (_config.isCgiOn && _config.cgi.compare(".php") == 0 && (_resource.extension == "php" || _resource.extension == "html"))
-            {
+            if (_config.isCgiOn && _config.cgi.compare(".php") == 0 && (_resource.extension == "php" || _resource.extension == "html")) {
                 // std::cout << "HERE 3 POST ----- CGI ------\n" <<std::endl;
                 respond_cgi_post();
             }
-			else
-			{
+			else {
                 // std::cout << "HERE 4 POST  --no-- CGI\n" <<std::endl;
                 add_field("Content-type", _resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
 	            respond_get();
 			}
         }
-        else if (_request.header.method == "DELETE")
-        {
+        else if (_request.header.method == "DELETE") {
             if (getValid("DELETE"))
                 throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
             // HTTP/1.1 204 OK
@@ -171,27 +157,19 @@ void Response::build_response() {
             // set status or something?
             // _status = 204; // no body
             // _status = 202; // accepted may be completed. 
-
-            if (std::remove(_resource.abs_path.c_str()) == 0)
-            {
-                
+            if (std::remove(_resource.abs_path.c_str()) == 0) {
                 // if (true)
                 // {
 
                 // }
                 respond_to_delete();
             }
-            else
-            {
+            else {
                 // _status = 404; // maybe?
-
                 respond_to_error();
             }
         }
-        else
-        {
-            // error_status(_request, WS_501_NOT_IMPLEMENTED, "HTML Method not implemented");
-
+        else {
             throw_error_status(WS_501_NOT_IMPLEMENTED, "Sadly this HTTP method is not implemented.");            // something like this?
             return ;
         }
@@ -207,50 +185,14 @@ void Response::build_response() {
     }
 }
 
-// - - - - - - METHODS - - - - - - - -
-
-// implement custom error pages fetching
-//     root = "./default_pages/errors";
-// assuming any other thing besides 200 ok is wrong for now (rdr?)
-void Response::respond_to_delete() {
-    _body.str(std::string());;
-    _fields_stream.str(std::string());
-    _response_str = std::string();
-    add_field("Server", "ZHero serv/1.0");
-    add_formatted_timestamp();
-    // decide_persistency();
-    _body 
-        << "The file was deleted!\r\n";
-    response_to_string();
-}
-
-void Response::respond_to_error() {
-    _body.str(std::string());;
-    _fields_stream.str(std::string());
-    _response_str = std::string();
-    add_field("Server", "ZHero serv/1.0");
-    add_formatted_timestamp();
-    _body << "<!DOCTYPE html>\n<html lang=\"en\">\n"
-        << "<head><title>Error " << _status << "</title></head>\n"
-        << "<body body style=\"background-color:black;"
-        << "font-family: 'Courier New', Courier, monospace; color:rgb(209, 209, 209)\">"
-        << "<h3> Zhero serv 1.0: Error</h3>\n"
-        << "<h1>" << _tokens.status_phrases[_status] << "</h1>"
-        << "<h3>" << _request.error_msg << "</h3>\n"
-        << "<h3>" << error_msg << "</h3>\n"
-        << "</body></html>\r\n";
-    response_to_string();
-}
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// Method: GET
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 void Response::respond_get() {
-    // do we need this?
     add_field("Accept-Ranges", "bytes");
-    // chunked request: ?
-    // Transfer-Encoding: chunked ...
-    // handle_type(); // TODO: map function pointers ? have a decision tree system.
     upload_file();
     response_to_string();
-    // status 200
 }
 
 void Response::respond_cgi_get()
@@ -271,46 +213,53 @@ void Response::respond_cgi_get()
     if (shitindex == std::string::npos)
         return ;
     // std::cout << "here ---- 3 ------\n";
-
 	_body << phpresp;
 	std::string temp = phpresp.substr(shitindex + 4);
 	templength = temp.length();
-
 	// if (!_body.str().empty())
 	add_field("Content-length", std::to_string(templength));
 	response << generate_status_line() << CRLF;
 	response << _fields_stream.str();
 	response << _body.str();
 	_response_str = response.str();
-
     // std::cout << "------------------ ------ -- - - -respons:\n" << response.str() << std::endl;
 	return ;
 }
 
-std::string Response::cgiRespCreator()
- {
-    // std::string temp;
-    	char ** env;
-		env = new char*[7];
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// Method: POST
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-        int i = 0;
-		env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin()); // need to be newd othervised funny things happen
-		env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path                ))->begin()));
-        env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin());
-        // env[i++] = &(*((new std::string("CONTENT_TYPE=" + _resource.type + "/" + _resource.subtype )))->begin()); // only POST PUT
-    	// env[i++] = &(*((new std::string("CONTENT_LENGTH=" + std::to_string(_request._body.str().length() )))->begin())); //only post put
-        env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin());
-		env[i++] = NULL;
+void Response::respond_post() {
+    upload_file();
+    response_to_string();
+}
 
-        Cgi test;
-        std::string phpresp;
-        phpresp += test.executeCgiNew(env);
-        if (phpresp.empty())
-            std::cout << "unfortunetly this shit has nothing inside you mother fucker!\n";
-        delete [] env;
-
-
-    return (phpresp);
+void Response::respond_cgi_post()
+{
+    add_field("accept-ranges", "bytes");
+	add_field("Cache-Control", "no-cache");
+	int templength;
+	std::stringstream response;
+	Cgi test;
+	std::string phpresp;
+	phpresp +=  cgiRespCreator_post();
+	std::string::size_type shitindex;
+    if (phpresp.empty())
+        return ;
+	shitindex = phpresp.find("\r\n\r\n");
+    if (shitindex == std::string::npos)
+        return ;
+	_body << phpresp;
+	std::string temp = phpresp.substr(shitindex + 4);
+	templength = temp.length();
+	add_field("Content-length", std::to_string(templength));
+	response << generate_status_line() << CRLF;
+	response << _fields_stream.str();
+	response << _body.str();
+	_response_str = response.str();
+    // std::cout << "------------------ POST ------ -- - - -respons:\n" << response.str() << std::endl;
+	return ;
 }
 
 std::string Response::cgiRespCreator_post()
@@ -377,53 +326,47 @@ std::string Response::cgiRespCreator_post()
     return (phpresp);
 }
 
-void Response::respond_cgi_post()
-{
-    add_field("accept-ranges", "bytes");
-	add_field("Cache-Control", "no-cache");
-	int templength;
-	std::stringstream response;
-	Cgi test;
-	std::string phpresp;
-	phpresp +=  cgiRespCreator_post();
-	std::string::size_type shitindex;
-    if (phpresp.empty())
-        return ;
-	shitindex = phpresp.find("\r\n\r\n");
-    if (shitindex == std::string::npos)
-        return ;
-	_body << phpresp;
-	std::string temp = phpresp.substr(shitindex + 4);
-	templength = temp.length();
-	add_field("Content-length", std::to_string(templength));
-	response << generate_status_line() << CRLF;
-	response << _fields_stream.str();
-	response << _body.str();
-	_response_str = response.str();
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// Method: Delete
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-    // std::cout << "------------------ POST ------ -- - - -respons:\n" << response.str() << std::endl;
-	return ;
-}
-// The data that you send in a POST request must adhere to specific formatting requirements.
-// You can send only the following content types in a POST request to Media Server:
-// application/x-www-form-urlencoded
-// multipart/form-data
-// https://httpwg.org/specs/rfc9110.html#POST
-
-void Response::respond_post() {
-    // read content-type field
-    // read content-length field
-    // send 201 created
-    // create location header with resource
-    
-    // for now:
-    // handle_type(); // TODO: map function pointers ? have a decision tree system.
-    upload_file();
+void Response::respond_to_delete() {
+    _body.str(std::string());;
+    _fields_stream.str(std::string());
+    _response_str = std::string();
+    add_field("Server", "ZHero serv/1.0");
+    add_formatted_timestamp();
+    // decide_persistency();
+    _body 
+        << "The file was deleted!\r\n";
     response_to_string();
-
 }
 
-// - - - - - Subfunctions - - - - 
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// Method: exceptions (errors and directory listing)
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+void Response::respond_to_error() {
+    _body.str(std::string());;
+    _fields_stream.str(std::string());
+    _response_str = std::string();
+    add_field("Server", "ZHero serv/1.0");
+    add_formatted_timestamp();
+    _body << "<!DOCTYPE html>\n<html lang=\"en\">\n"
+        << "<head><title>Error " << _status << "</title></head>\n"
+        << "<body body style=\"background-color:black;"
+        << "font-family: 'Courier New', Courier, monospace; color:rgb(209, 209, 209)\">"
+        << "<h3> Zhero serv 1.0: Error</h3>\n"
+        << "<h1>" << _tokens.status_phrases[_status] << "</h1>"
+        << "<h3>" << _request.error_msg << "</h3>\n"
+        << "<h3>" << error_msg << "</h3>\n"
+        << "</body></html>\r\n";
+    response_to_string();
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// further TARGET PARSING
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 // identifies target path and type and adds content-type field to header
 void Response::identify_resource() {
@@ -462,35 +405,21 @@ void Response::interpret_target() {
 }
 
 void Response::validate_target_abs_path() {
-    // check also for W in POST ?
-    // [ + ] system to send error pages accordingly
+    int tmp_fd;
+    std::string temp_path;
     if (!(_config.http_redirects.compare("non")) )
-    {
-        int tmp_fd;
-        if ((tmp_fd = open(_resource.abs_path.c_str(), O_RDONLY)) < 0) {
-            if (errno == ENOENT)
-                throw_error_status(WS_404_NOT_FOUND, strerror(errno));
-            else if (errno == EACCES)
-                throw_error_status(WS_403_FORBIDDEN, strerror(errno));
-            else
-                throw_error_status(WS_500_INTERNAL_SERVER_ERROR, strerror(errno));
-        }
-        close(tmp_fd);
-    }
+        temp_path = _resource.abs_path;
     else
-    {
-        int tmp_fd;
-        std::string temp = _config.http_redirects + "/" + _config.index;
-        if ((tmp_fd = open(temp.c_str(), O_RDONLY)) < 0) {
-            if (errno == ENOENT)
-                throw_error_status(WS_404_NOT_FOUND, strerror(errno));
-            else if (errno == EACCES)
-                throw_error_status(WS_403_FORBIDDEN, strerror(errno));
-            else
-                throw_error_status(WS_500_INTERNAL_SERVER_ERROR, strerror(errno));
-        }
-        close(tmp_fd);
+        temp_path = _config.http_redirects + "/" + _config.index;
+    if ((tmp_fd = open(temp_path.c_str(), O_RDONLY)) < 0) {
+        if (errno == ENOENT)
+            throw_error_status(WS_404_NOT_FOUND, strerror(errno));
+        else if (errno == EACCES)
+            throw_error_status(WS_403_FORBIDDEN, strerror(errno));
+        else
+            throw_error_status(WS_500_INTERNAL_SERVER_ERROR, strerror(errno));
     }
+    close(tmp_fd);
 }
 
 void Response::extract_resource_extension() {
@@ -516,10 +445,39 @@ void Response::identify_resource_type() {
         _resource.subtype = it->second.substr(separator_pos + 1);
 }
 
-// temporarily handles every type, later have a decision tree or similar
-void Response::handle_type() {
 
-    upload_file();
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// Utilities
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+std::string Response::generate_status_line() const {
+    std::stringstream stream_status_line;
+    stream_status_line << WS_HTTP_VERSION << SP << _tokens.status_phrases[_status];
+    return (stream_status_line.str());
+}
+
+// field format example: "date: Mon, 26 Sep 2022 09:14:21 GMT"
+void Response::add_formatted_timestamp() {
+    std::stringstream s;
+    std::time_t t = std::time(0);
+    std::tm* now = std::localtime(&t);
+    s << std::put_time(now, "%a, %d %b %Y %T %Z");
+    add_field("Date", s.str());
+}
+
+// adds a string formatted as <'field name': 'value'CRLF> to the header stream buffer
+void Response::add_field(const std::string& field_name, const std::string& value) {
+    _fields_stream << field_name << ": " << value << CRLF;
+}
+
+void Response::response_to_string() {
+    std::stringstream response;
+    if (!_body.str().empty())
+        add_field("Content-length", std::to_string(_body.str().size()));
+    response << generate_status_line() << CRLF;
+    response << _fields_stream.str() << CRLF;
+    response << _body.str() << CRLF << CRLF;
+    _response_str = response.str();
 }
 
 void Response::upload_file() { // + error handeling & target check here !
@@ -546,6 +504,48 @@ void Response::upload_file() { // + error handeling & target check here !
         throw_error_status(WS_500_INTERNAL_SERVER_ERROR, strerror(errno));
     }
 }
+
+std::string Response::cgiRespCreator()
+{
+    // std::string temp;
+    	char ** env;
+		env = new char*[7];
+
+        int i = 0;
+		env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin()); // need to be newd othervised funny things happen
+		env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path                ))->begin()));
+        env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin());
+        // env[i++] = &(*((new std::string("CONTENT_TYPE=" + _resource.type + "/" + _resource.subtype )))->begin()); // only POST PUT
+    	// env[i++] = &(*((new std::string("CONTENT_LENGTH=" + std::to_string(_request._body.str().length() )))->begin())); //only post put
+        env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin());
+		env[i++] = NULL;
+
+        Cgi test;
+        std::string phpresp;
+        phpresp += test.executeCgiNew(env);
+        if (phpresp.empty())
+            std::cout << "unfortunetly this shit has nothing inside you mother fucker!\n";
+        delete [] env;
+
+
+    return (phpresp);
+}
+
+bool Response::getValid(const std::string & nameof)
+{
+    std::vector<std::string> temp = _config.http_methods;
+    std::vector<std::string>::iterator it = temp.begin();
+    std::vector<std::string>::iterator eit = temp.end();
+    while (it != eit)
+    {
+        if (!((*it).compare(nameof)))
+            return (false);
+        it++;
+    }
+    return (true);
+}
+
+
 
 } // NAMESPACE http
 } // NAMESPACE ws
