@@ -29,6 +29,7 @@ typedef struct c_data {
 	bool						isCgiOn;
 	bool						directory_listing;
 	std::vector<std::string>	http_methods;
+	std::string					location;
 } config_data;
 
 class Config {
