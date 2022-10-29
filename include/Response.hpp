@@ -89,6 +89,8 @@ class Response {
         void respond_cgi_post();
         std::string cgiRespCreator();
         std::string cgiRespCreator_post();
+        std::string contentLength_for_post();
+        std::string contentType_for_post();
         bool getValid(const std::string & nameof);
 
         void add_field(const std::string& field_name, const std::string& value);

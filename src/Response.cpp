@@ -113,14 +113,17 @@ void Response::redirection_check()
 {
     if (getValid("GET"))
         throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
+    if (_request.header.method == "POST")
+        throw_error_status(WS_501_NOT_IMPLEMENTED, "Redirection for POST cureently not supported, come back later!");
+    else if (_request.header.method == "DELETE")
+        throw_error_status(WS_501_NOT_IMPLEMENTED, "Redirection for DELETE cureently not supported, come back later!");
     _status = WS_301_MOVED_PERMANENTLY;
     _body.str(std::string());;
     _fields_stream.str(std::string());
     _response_str = std::string();
     add_field("Server", "ZHero serv/1.0");
-    add_field("Location", "http://localhost:7777");
+    add_field("Location", _config.http_redirects);
     add_formatted_timestamp();
-    // _body << "";
     response_to_string();
 }
 void Response::method_get()
@@ -153,10 +156,6 @@ void Response::method_delete()
 {
     if (getValid("DELETE"))
         throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
-    // HTTP/1.1 204 OK
-    // Content-Length: 0
-    // _status = 204; // no body
-    // _status = 202; // accepted may be completed. 
     if (std::remove(_resource.abs_path.c_str()) == 0) {
         add_field("Content-length", "0");
         respond_to_delete();
@@ -173,11 +172,10 @@ void Response::build_response() {
         return ;
     }
     add_field("Server", "ZHero serv/1.0");
-    // add_field("Connection", "close");
     add_formatted_timestamp();
     try {
         identify_resource();
-        if (_config.location != "non")
+        if (_config.http_redirects != "non")
             redirection_check();
         else if (_request.header.method == "GET")
             method_get();
@@ -218,25 +216,20 @@ void Response::respond_cgi_get()
 	Cgi test;
 	std::string phpresp;
 	phpresp +=  cgiRespCreator();
-    // std::cout << "here ---- 1 ------\n";
 	std::string::size_type shitindex;
-    // std::cout << "here ---- 2 ------\n";
     if (phpresp.empty())
         return ;
 	shitindex = phpresp.find("\r\n\r\n");
     if (shitindex == std::string::npos)
         return ;
-    // std::cout << "here ---- 3 ------\n";
 	_body << phpresp;
 	std::string temp = phpresp.substr(shitindex + 4);
 	templength = temp.length();
-	// if (!_body.str().empty())
 	add_field("Content-length", std::to_string(templength));
 	response << generate_status_line() << CRLF;
 	response << _fields_stream.str();
 	response << _body.str();
 	_response_str = response.str();
-    // std::cout << "------------------ ------ -- - - -respons:\n" << response.str() << std::endl;
 	return ;
 }
 
@@ -272,62 +265,65 @@ void Response::respond_cgi_post()
 	response << _fields_stream.str();
 	response << _body.str();
 	_response_str = response.str();
-    // std::cout << "------------------ POST ------ -- - - -respons:\n" << response.str() << std::endl;
 	return ;
 }
 
+std::string Response::contentLength_for_post()
+{
+    std::list<std::string> konttype = _request.get_field_value("content-type");
+    std::list<std::string>::iterator it;
+    konttype = _request.get_field_value("content-length");
+    std::string tempLength;
+
+    if ( !(konttype.empty()) )
+    {
+        it = konttype.begin();
+        while (it != konttype.end())
+        {
+            tempLength += *it;
+            std::cout << "length:\n" << tempLength << std::endl;
+            it++;
+        }
+    }
+    return (tempLength);
+}
+
+std::string Response::contentType_for_post()
+{
+    std::list<std::string> konttype = _request.get_field_value("content-type");
+    std::list<std::string>::iterator it;
+    std::string tmp;
+
+    if ( !(konttype.empty()) )
+    {
+        it = konttype.begin();
+        while (it != konttype.end())
+        {
+            tmp += *it;
+            std::cout << "type:\n" << tmp << std::endl;
+            it++;
+        }
+    }
+    return (tmp);
+}
 std::string Response::cgiRespCreator_post()
- {
-    // std::string temp;
+{
     	char ** env;
 		env = new char*[14];
-        std::list<std::string> konttype = _request.get_field_value("content-type");
-        std::list<std::string>::iterator it;
-         std::string tmp;
-
-        if ( !(konttype.empty()) )
-        {
-            it = konttype.begin();
-            while (it != konttype.end())
-            {
-                tmp += *it;
-                std::cout << "type:\n" << tmp << std::endl;
-                it++;
-            }
-        }
-        konttype.clear();
-        konttype = _request.get_field_value("content-length");
-        std::string tempLength;
-
-        if ( !(konttype.empty()) )
-        {
-            it = konttype.begin();
-            while (it != konttype.end())
-            {
-                tempLength += *it;
-                std::cout << "length:\n" << tempLength << std::endl;
-                it++;
-            }
-        }
 
         int i = 0;
         env[i++] = &(*((new std::string(_request._body.str())))->begin());
-		env[i++] = &(*((new std::string("CONTENT_LENGTH=" + tempLength))->begin()));
+		env[i++] = &(*((new std::string("CONTENT_LENGTH=" + contentLength_for_post()))->begin()));
         env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin());
 		env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path                ))->begin()));
-		
         env[i++] = &(*((new std::string("PATH_INFO=" + _resource.abs_path                ))->begin()));
-        env[i++] = &(*((new std::string("REMOTE_HOST=localhost:8400")))->begin());
-        env[i++] = &(*((new std::string("SERVER_NAME=localhost")))->begin());
-        env[i++] = &(*((new std::string("SERVER_PORT=8400")))->begin());
+        // env[i++] = &(*((new std::string("REMOTE_HOST=localhost:8400")))->begin());
+        // env[i++] = &(*((new std::string("SERVER_NAME=localhost")))->begin());
+        // env[i++] = &(*((new std::string("SERVER_PORT=8400")))->begin());
         env[i++] = &(*((new std::string("SERVER_PROTOCOL=HTTP/1.1")))->begin());
         env[i++] = &(*((new std::string("GATEWAY_INTERFACE=CGI/1.1")))->begin());
-
-
         env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin());
-        // env[i++] = &(*((new std::string("CONTENT_TYPE=application/x-www-form-urlencoded")))->begin());
-		env[i++] = &(*((new std::string("CONTENT_TYPE=" +   tmp      ))->begin()));
-		// env[i++] = &(*((new std::string("CONTENT_LENGTH=" + std::to_string(_request._body.str().length()) ))->begin()));
+		env[i++] = &(*((new std::string("CONTENT_TYPE=" +   contentType_for_post() ))->begin()));
         env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin());
 		env[i++] = NULL;
 
@@ -492,9 +488,11 @@ void Response::response_to_string() {
 }
 
 void Response::upload_file() { // + error handeling & target check here !
-    // if (DEBUG)
+    if (DEBUG)
+    {
         std::cout << "BUFFERING BODY FROM TARGET: " << _resource.abs_path << std::endl;
         std::cout << "redirect: " << _config.http_redirects << std::endl;
+    }
     try {
 
         if (!(_config.location.compare("non")) )
@@ -509,7 +507,6 @@ void Response::upload_file() { // + error handeling & target check here !
             std::ifstream fin(temp, std::ios::in);
             _body << fin.rdbuf();
         }
-        // if (!page_file.is_open()) ...
     } catch (std::exception& e) {
         std::cout << e.what() << std::endl;
         throw_error_status(WS_500_INTERNAL_SERVER_ERROR, strerror(errno));
@@ -523,11 +520,9 @@ std::string Response::cgiRespCreator()
 		env = new char*[7];
 
         int i = 0;
-		env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin()); // need to be newd othervised funny things happen
+		env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin());
 		env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path                ))->begin()));
         env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin());
-        // env[i++] = &(*((new std::string("CONTENT_TYPE=" + _resource.type + "/" + _resource.subtype )))->begin()); // only POST PUT
-    	// env[i++] = &(*((new std::string("CONTENT_LENGTH=" + std::to_string(_request._body.str().length() )))->begin())); //only post put
         env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin());
 		env[i++] = NULL;
 
@@ -537,8 +532,6 @@ std::string Response::cgiRespCreator()
         if (phpresp.empty())
             std::cout << "unfortunetly this shit has nothing inside you mother fucker!\n";
         delete [] env;
-
-
     return (phpresp);
 }
 
