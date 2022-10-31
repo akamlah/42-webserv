@@ -17,6 +17,9 @@ const char* Response::ResponseException::what() const throw() {
     return ("Response error");
 }
 
+const char* Response::Respond_with_directory_listing::what() const throw() {
+    return ("Responding with directory listing because index was not found");
+}
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Construction/destruction
@@ -39,8 +42,8 @@ Response::~Response() {}
 bool Response::is_persistent() const { return (_is_persistent); }
 
 void Response::send(const int fd) { // more error handeling here too [ + ]
-    // if (DEBUG)
-        // std::cout << "SENDING RESPONSE:\n" << _response_str;
+    if (DEBUG)
+        std::cout << "SENDING RESPONSE:\n" << _response_str;
         // std::cout << "SENDING RESPONSE:\n" << _response_str.substr(0 , _response_str.size() - _body.str().size());
     int error = ::send(fd, _response_str.c_str(), _response_str.length(), 0);
     if (error < 0)
@@ -173,6 +176,9 @@ void Response::build_response() {
             throw_error_status(WS_501_NOT_IMPLEMENTED, "Sadly this HTTP method is not implemented.");            // something like this?
             return ;
         }
+    }
+    catch (Respond_with_directory_listing& e) {
+        respond_with_directory_listing_html(); // will build dir listing response
     }
     catch (ResponseException& e) {
         respond_to_error(); // will build error response
@@ -364,9 +370,54 @@ void Response::respond_to_error() {
     response_to_string();
 }
 
+void Response::respond_with_directory_listing_html() {
+    DIR *dir;
+    struct dirent *ent;
+    int i = 0;
+
+    _body.str(std::string());
+    _fields_stream.str(std::string());
+    _response_str = std::string();
+
+    std::string current_directory = _resource.root + _resource.path;
+
+    add_field("Server", "ZHero serv/1.0");
+    add_formatted_timestamp();
+    add_field("Content-type", "text/html");
+    _body << "<!DOCTYPE html>\n<html lang=\"en\">\n";
+    _body << "<head><title>Index</title></head>\n";
+    _body << "<body>";
+    _body << "<h1>Index of " << _resource.path << "<br></h1>";
+    _body << "<p>";
+    if ((dir = opendir(&(*(current_directory.c_str())))) != NULL) {
+        /* print all the files and directories within directory */
+        while ((ent = readdir (dir)) != NULL) {
+            if (!(_resource.path == "/" &&  i < 2))
+                _body << "<a href=\"" << _resource.path + ent->d_name << "\">" <<  ent->d_name << "/" << "</a><br>";
+            else
+                _body <<  ent->d_name << "<br>";
+            i++;
+            // std::cout << ent->d_name << std::endl;
+            // printf ("%s\n", );
+        }
+        closedir (dir);
+    }
+    else {
+        /* could not open directory */
+        throw_error_status(WS_404_NOT_FOUND, strerror(errno));
+    }
+
+    _body << "</p>";
+    _body << "</body>\r\n";
+    response_to_string();
+}
+
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // further TARGET PARSING
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 // identifies target path and type and adds content-type field to header
 void Response::identify_resource() {
@@ -390,30 +441,54 @@ void Response::interpret_target() {
     catch (std::exception& e) {
         throw_error_status(WS_500_INTERNAL_SERVER_ERROR, "Uri could not be parsed, format error");
     }
-    if (DEBUG) {
-        std::cout << "Separated URI components:" << std::endl;
-        std::cout << "path: " << _resource.path << std::endl;
-        std::cout << "query: " << _resource.query << std::endl;
-    }
     _resource.root = _config.root; // always ?
-    _resource.file = (_resource.path == "/") ? _config.index : _resource.path;
     append_slash(_resource.root);
+    _resource.file = (_resource.path == "/") ? _config.index : _resource.path;
     remove_leading_slash(_resource.file);
     _resource.abs_path = _resource.root + _resource.file;
-    if (DEBUG)
-        std::cout << "PATH: " << _resource.abs_path << std::endl;
+
+    if (DEBUG) {
+        std::cout << "RESOURCE:" << std::endl;
+        std::cout << "root: " << _resource.root << std::endl;
+        std::cout << "file: " << _resource.file << std::endl;
+        std::cout << "path: " << _resource.path << std::endl;
+        std::cout << "query: " << _resource.query << std::endl;
+        std::cout << "abs path: " << _resource.abs_path << std::endl;
+    }
+}
+
+static bool is_directory(const std::string& path) {
+    struct stat statbuf;
+    if (stat(path.c_str(), &statbuf) != 0)
+        return 0;
+    return S_ISDIR(statbuf.st_mode);
 }
 
 void Response::validate_target_abs_path() {
     int tmp_fd;
     std::string temp_path;
+    std::string index = _config.index;
+    remove_leading_slash(index);
+
+    if (is_directory(_resource.abs_path) && _request.header.method == "GET") {
+        std::cout << YELLOW << "IS DIR! Responding with dir list" << NC << std::endl;
+        throw Respond_with_directory_listing();
+    }
+
     if (!(_config.http_redirects.compare("non")) )
         temp_path = _resource.abs_path;
     else
         temp_path = _config.http_redirects + "/" + _config.index;
+
+    // [ + ] for post request also WRITE permissions to check !
     if ((tmp_fd = open(temp_path.c_str(), O_RDONLY)) < 0) {
-        if (errno == ENOENT)
+        if (errno == ENOENT) {
+            if (_resource.file == index && _config.directory_listing == true) {
+                std::cout << YELLOW << "Responding with dir list" << NC << std::endl;
+                throw Respond_with_directory_listing();
+            }
             throw_error_status(WS_404_NOT_FOUND, strerror(errno));
+        }
         else if (errno == EACCES)
             throw_error_status(WS_403_FORBIDDEN, strerror(errno));
         else

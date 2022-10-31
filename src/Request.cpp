@@ -70,10 +70,10 @@ int Request::parse(const int fd) {
             #if (DEBUG)
             (_status < 400) ? std::cout << GREEN : std::cout << RED;
             std::cout << "PARSED REQUEST STATUS: " << _status << NC << std::endl;
-            // std::cout << CYAN << "PARSED HEADER:\n" \
-            //     << "\tMethod: " << header.method << "\n" \
-            //     << "\tTarget: " << header.target << "\n" \
-            //     << "\tVersion: " << header.version << NC << std::endl;
+            std::cout << CYAN << "PARSED HEADER:\n" \
+                << "\tMethod: " << header.method << "\n" \
+                << "\tTarget: " << header.target << "\n" \
+                << "\tVersion: " << header.version << NC << std::endl;
             // std::cout << CYAN << "PARSED FIELDS:\n" << NC;
             // for (std::map<std::string, std::list<std::string> >::const_iterator it = _fields._map.begin();
             //     it != _fields._map.end(); it++)
@@ -84,8 +84,8 @@ int Request::parse(const int fd) {
             //     std::cout << std::endl;
             // }
             // std::cout << "request msg length after parse: " << _parser.msg_length << std::endl;
-            // std::cout << CYAN << "\nPARSER: Message recieved: ---------\n" << NC << _parser.buffer << std::endl;
-            // std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
+            std::cout << CYAN << "\nPARSER: Message recieved: ---------\n" << NC << _parser.buffer << std::endl;
+            std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
             // std::cout << CYAN << "\nBODY IS:---------------------------\n" << this->_body.str() << NC << std::endl;
             // std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
             // std::cout << GREEN << "Is persistent: ";
