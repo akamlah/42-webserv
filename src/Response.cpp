@@ -112,6 +112,65 @@ void Response::remove_leading_slash(std::string& path) {
 // Main fuction for response generation
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+void Response::redirection_check()
+{
+    if (getValid("GET"))
+        throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
+    if (_request.header.method == "POST")
+        throw_error_status(WS_501_NOT_IMPLEMENTED, "Redirection for POST cureently not supported, come back later!");
+    else if (_request.header.method == "DELETE")
+        throw_error_status(WS_501_NOT_IMPLEMENTED, "Redirection for DELETE cureently not supported, come back later!");
+    _status = WS_301_MOVED_PERMANENTLY;
+    _body.str(std::string());;
+    _fields_stream.str(std::string());
+    _response_str = std::string();
+    add_field("Server", "ZHero serv/1.0");
+    add_field("Location", _config.http_redirects);
+    add_formatted_timestamp();
+    response_to_string();
+}
+
+void Response::method_get()
+{
+    if (getValid("GET"))
+        throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
+    if (_config.isCgiOn && _config.cgi.compare(".php") == 0 && (_resource.extension == "php" || _resource.extension == "html")) {
+        respond_cgi_get();
+    }
+    else {
+        add_field("Content-type", _resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
+        std::cout << CYAN << "Content-type: " <<  (_resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
+        std::cout << NC << std::endl;
+        respond_get();
+    }
+}
+
+void Response::method_post()
+{
+    if (getValid("POST"))
+        throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
+    if (_config.isCgiOn && _config.cgi.compare(".php") == 0 && (_resource.extension == "php" || _resource.extension == "html")) {
+        respond_cgi_post();
+    }
+    else {
+        add_field("Content-type", _resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
+        respond_get();
+    }
+}
+
+void Response::method_delete()
+{
+    if (getValid("DELETE"))
+        throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
+    if (std::remove(_resource.abs_path.c_str()) == 0) {
+        add_field("Content-length", "0");
+        respond_to_delete();
+    }
+    else {
+        throw_error_status(WS_404_NOT_FOUND, "The file is not there!");
+    }
+}
+
 void Response::build_response() {
     if (_status != WS_200_OK) {
         respond_to_error();
@@ -121,61 +180,16 @@ void Response::build_response() {
     add_formatted_timestamp();
     try {
         identify_resource();
-        // std::cout <<_request.header.method << "------------------------\n";
-        //  std::list<std::string>::iterator it;
-        // std::vector<std::string>::iterator it = (_config.http_methods).begin();
-        if (_request.header.method == "GET") {
-            if (getValid("GET"))
-                throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
-            if (_config.isCgiOn && _config.cgi.compare(".php") == 0 && (_resource.extension == "php" || _resource.extension == "html")) {
-                // std::cout << "HERE 1 GET -------- CGI --------\n" <<std::endl;
-                respond_cgi_get();
-            }
-			else {
-                //  std::cout << "HERE 2 GET ----- no ----- CGI\n" <<std::endl;
-                add_field("Content-type", _resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
-                std::cout << CYAN << "Content-type: " <<  (_resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
-                std::cout << NC << std::endl;
-	            respond_get();
-			}
-        }
-        else if (_request.header.method == "POST") {
-            if (getValid("POST"))
-                throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
-            if (_config.isCgiOn && _config.cgi.compare(".php") == 0 && (_resource.extension == "php" || _resource.extension == "html")) {
-                // std::cout << "HERE 3 POST ----- CGI ------\n" <<std::endl;
-                respond_cgi_post();
-            }
-			else {
-                // std::cout << "HERE 4 POST  --no-- CGI\n" <<std::endl;
-                add_field("Content-type", _resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
-	            respond_get();
-			}
-        }
-        else if (_request.header.method == "DELETE") {
-            if (getValid("DELETE"))
-                throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
-            // HTTP/1.1 204 OK
-            // Content-Length: 0
-            // set status or something?
-            // _status = 204; // no body
-            // _status = 202; // accepted may be completed. 
-            if (std::remove(_resource.abs_path.c_str()) == 0) {
-                // if (true)
-                // {
-
-                // }
-                respond_to_delete();
-            }
-            else {
-                // _status = 404; // maybe?
-                respond_to_error();
-            }
-        }
-        else {
-            throw_error_status(WS_501_NOT_IMPLEMENTED, "Sadly this HTTP method is not implemented.");            // something like this?
-            return ;
-        }
+        if (_config.http_redirects != "non")
+            redirection_check();
+        else if (_request.header.method == "GET")
+            method_get();
+        else if (_request.header.method == "POST")
+            method_post();
+        else if (_request.header.method == "DELETE")
+            method_delete();
+        else
+            throw_error_status(WS_501_NOT_IMPLEMENTED, "Sadly this HTTP method is not implemented.");
     }
     catch (Respond_with_directory_listing& e) {
         respond_with_directory_listing_html(); // will build dir listing response
@@ -210,25 +224,20 @@ void Response::respond_cgi_get()
 	Cgi test;
 	std::string phpresp;
 	phpresp +=  cgiRespCreator();
-    // std::cout << "here ---- 1 ------\n";
 	std::string::size_type shitindex;
-    // std::cout << "here ---- 2 ------\n";
     if (phpresp.empty())
         return ;
 	shitindex = phpresp.find("\r\n\r\n");
     if (shitindex == std::string::npos)
         return ;
-    // std::cout << "here ---- 3 ------\n";
 	_body << phpresp;
 	std::string temp = phpresp.substr(shitindex + 4);
 	templength = temp.length();
-	// if (!_body.str().empty())
 	add_field("Content-length", std::to_string(templength));
 	response << generate_status_line() << CRLF;
 	response << _fields_stream.str();
 	response << _body.str();
 	_response_str = response.str();
-    // std::cout << "------------------ ------ -- - - -respons:\n" << response.str() << std::endl;
 	return ;
 }
 
@@ -264,63 +273,65 @@ void Response::respond_cgi_post()
 	response << _fields_stream.str();
 	response << _body.str();
 	_response_str = response.str();
-    // std::cout << "------------------ POST ------ -- - - -respons:\n" << response.str() << std::endl;
 	return ;
 }
 
+std::string Response::contentLength_for_post()
+{
+    std::list<std::string> konttype = _request.get_field_value("content-type");
+    std::list<std::string>::iterator it;
+    konttype = _request.get_field_value("content-length");
+    std::string tempLength;
+
+    if ( !(konttype.empty()) )
+    {
+        it = konttype.begin();
+        while (it != konttype.end())
+        {
+            tempLength += *it;
+            std::cout << "length:\n" << tempLength << std::endl;
+            it++;
+        }
+    }
+    return (tempLength);
+}
+
+std::string Response::contentType_for_post()
+{
+    std::list<std::string> konttype = _request.get_field_value("content-type");
+    std::list<std::string>::iterator it;
+    std::string tmp;
+
+    if ( !(konttype.empty()) )
+    {
+        it = konttype.begin();
+        while (it != konttype.end())
+        {
+            tmp += *it;
+            std::cout << "type:\n" << tmp << std::endl;
+            it++;
+        }
+    }
+    return (tmp);
+}
 std::string Response::cgiRespCreator_post()
- {
-    // std::string temp;
+{
     	char ** env;
 		env = new char*[14];
-        std::list<std::string> konttype = _request.get_field_value("content-type");
-        std::list<std::string>::iterator it;
-         std::string tmp;
-
-        if ( !(konttype.empty()) )
-        {
-            it = konttype.begin();
-            while (it != konttype.end())
-            {
-                tmp += *it;
-                std::cout << "type:\n" << tmp << std::endl;
-                it++;
-            }
-        }
-        konttype.clear();
-        konttype = _request.get_field_value("content-length");
-        std::string tempLength;
-
-        if ( !(konttype.empty()) )
-        {
-            it = konttype.begin();
-            while (it != konttype.end())
-            {
-                tempLength += *it;
-                std::cout << "length:\n" << tempLength << std::endl;
-                it++;
-            }
-        }
 
         int i = 0;
-        // env[i++] = &(*((new std::string("\r\n\r\n" + _request._body.str() + "\r\n\r\n" )))->begin());
         env[i++] = &(*((new std::string(_request._body.str())))->begin());
-		env[i++] = &(*((new std::string("CONTENT_LENGTH=" + tempLength))->begin()));
+		env[i++] = &(*((new std::string("CONTENT_LENGTH=" + contentLength_for_post()))->begin()));
         env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin());
 		env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path                ))->begin()));
-		
         env[i++] = &(*((new std::string("PATH_INFO=" + _resource.abs_path                ))->begin()));
-        env[i++] = &(*((new std::string("REMOTE_HOST=localhost:8400")))->begin());
-        env[i++] = &(*((new std::string("SERVER_NAME=localhost")))->begin());
-        env[i++] = &(*((new std::string("SERVER_PORT=8400")))->begin());
+        // env[i++] = &(*((new std::string("REMOTE_HOST=localhost:8400")))->begin());
+        // env[i++] = &(*((new std::string("SERVER_NAME=localhost")))->begin());
+        // env[i++] = &(*((new std::string("SERVER_PORT=8400")))->begin());
         env[i++] = &(*((new std::string("SERVER_PROTOCOL=HTTP/1.1")))->begin());
         env[i++] = &(*((new std::string("GATEWAY_INTERFACE=CGI/1.1")))->begin());
-
-
         env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin());
-        // env[i++] = &(*((new std::string("CONTENT_TYPE=application/x-www-form-urlencoded")))->begin());
-		env[i++] = &(*((new std::string("CONTENT_TYPE=" +   tmp      ))->begin()));
-		// env[i++] = &(*((new std::string("CONTENT_LENGTH=" + std::to_string(_request._body.str().length()) ))->begin()));
+		env[i++] = &(*((new std::string("CONTENT_TYPE=" +   contentType_for_post() ))->begin()));
         env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin());
 		env[i++] = NULL;
 
@@ -337,14 +348,12 @@ std::string Response::cgiRespCreator_post()
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 void Response::respond_to_delete() {
-    _body.str(std::string());;
+    _body.str(std::string());
     _fields_stream.str(std::string());
     _response_str = std::string();
     add_field("Server", "ZHero serv/1.0");
     add_formatted_timestamp();
-    // decide_persistency();
-    _body 
-        << "The file was deleted!\r\n";
+    _body << "The file was deleted!\r\n";
     response_to_string();
 }
 
@@ -415,9 +424,6 @@ void Response::respond_with_directory_listing_html() {
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // further TARGET PARSING
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 // identifies target path and type and adds content-type field to header
 void Response::identify_resource() {
@@ -440,8 +446,8 @@ void Response::interpret_target() {
     }
     catch (std::exception& e) {
         throw_error_status(WS_500_INTERNAL_SERVER_ERROR, "Uri could not be parsed, format error");
-    }
-    _resource.root = _config.root; // always ?
+    }    _resource.root = _config.root; // always ?
+    
     append_slash(_resource.root);
     _resource.file = (_resource.path == "/") ? _config.index : _resource.path;
     remove_leading_slash(_resource.file);
@@ -457,6 +463,9 @@ void Response::interpret_target() {
     }
 }
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 static bool is_directory(const std::string& path) {
     struct stat statbuf;
     if (stat(path.c_str(), &statbuf) != 0)
@@ -469,18 +478,14 @@ void Response::validate_target_abs_path() {
     std::string temp_path;
     std::string index = _config.index;
     remove_leading_slash(index);
-
     if (is_directory(_resource.abs_path) && _request.header.method == "GET") {
         std::cout << YELLOW << "IS DIR! Responding with dir list" << NC << std::endl;
         throw Respond_with_directory_listing();
     }
-
-    if (!(_config.http_redirects.compare("non")) )
+    if (!(_config.location.compare("non")) )
         temp_path = _resource.abs_path;
     else
-        temp_path = _config.http_redirects + "/" + _config.index;
-
-    // [ + ] for post request also WRITE permissions to check !
+        temp_path = _config.location + "/" + _config.index;
     if ((tmp_fd = open(temp_path.c_str(), O_RDONLY)) < 0) {
         if (errno == ENOENT) {
             if (_resource.file == index && _config.directory_listing == true) {
@@ -556,12 +561,14 @@ void Response::response_to_string() {
 }
 
 void Response::upload_file() { // + error handeling & target check here !
-    // if (DEBUG)
+    if (DEBUG)
+    {
         std::cout << "BUFFERING BODY FROM TARGET: " << _resource.abs_path << std::endl;
         std::cout << "redirect: " << _config.http_redirects << std::endl;
+    }
     try {
 
-        if (!(_config.http_redirects.compare("non")) )
+        if (!(_config.location.compare("non")) )
         {
             std::ifstream fin(_resource.abs_path, std::ios::in);
             _body << fin.rdbuf();
@@ -569,11 +576,10 @@ void Response::upload_file() { // + error handeling & target check here !
         else
         {
             std::string deside = (_resource.path == "/") ? _config.index : _resource.path;
-            std::string temp = _config.http_redirects + "/" + deside;
+            std::string temp = _config.location + "/" + deside;
             std::ifstream fin(temp, std::ios::in);
             _body << fin.rdbuf();
         }
-        // if (!page_file.is_open()) ...
     } catch (std::exception& e) {
         std::cout << e.what() << std::endl;
         throw_error_status(WS_500_INTERNAL_SERVER_ERROR, strerror(errno));
@@ -587,11 +593,9 @@ std::string Response::cgiRespCreator()
 		env = new char*[7];
 
         int i = 0;
-		env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin()); // need to be newd othervised funny things happen
+		env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin());
 		env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path                ))->begin()));
         env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin());
-        // env[i++] = &(*((new std::string("CONTENT_TYPE=" + _resource.type + "/" + _resource.subtype )))->begin()); // only POST PUT
-    	// env[i++] = &(*((new std::string("CONTENT_LENGTH=" + std::to_string(_request._body.str().length() )))->begin())); //only post put
         env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin());
 		env[i++] = NULL;
 
@@ -601,8 +605,6 @@ std::string Response::cgiRespCreator()
         if (phpresp.empty())
             std::cout << "unfortunetly this shit has nothing inside you mother fucker!\n";
         delete [] env;
-
-
     return (phpresp);
 }
 
