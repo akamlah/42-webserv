@@ -73,7 +73,7 @@ int Response::throw_error_status(int status, const char* msg) {
 
 void Response::append_slash(std::string& path) {
     if (!path.empty())
-        if (path.rfind('/') != path.npos)
+        if (path.rfind('/') != path.length() - 1)
             path = path + "/";
 }
 
@@ -83,6 +83,11 @@ void Response::remove_leading_slash(std::string& path) {
             path.erase(0, 1);
 }
 
+static void remove_trailing_slash(std::string& path) {
+    if (!path.empty())
+        if (path[path.length() - 1] == '/')
+            path.erase(path.length() - 1, path.length());
+}
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -383,39 +388,39 @@ void Response::respond_with_directory_listing_html() {
     DIR *dir;
     struct dirent *ent;
     int i = 0;
-
+    
     _body.str(std::string());
     _fields_stream.str(std::string());
     _response_str = std::string();
-
-    std::string current_directory = _resource.root + _resource.path;
-
+    
+    std::string tmp_ent_d_name;
+    std::string tmp_path = _resource.path;
+    remove_leading_slash(tmp_path);
+    append_slash(tmp_path);
+    std::string current_directory = _resource.root + tmp_path;
+    
     add_field("Server", "ZHero serv/1.0");
     add_formatted_timestamp();
     add_field("Content-type", "text/html");
     _body << "<!DOCTYPE html>\n<html lang=\"en\">\n";
     _body << "<head><title>Index</title></head>\n";
     _body << "<body>";
-    _body << "<h1>Index of " << _resource.path << "<br></h1>";
+    _body << "<h1>Index of " << tmp_path << "<br></h1>";
     _body << "<p>";
     if ((dir = opendir(&(*(current_directory.c_str())))) != NULL) {
-        /* print all the files and directories within directory */
         while ((ent = readdir (dir)) != NULL) {
-            if (!(_resource.path == "/" &&  i < 2))
-                _body << "<a href=\"" << _resource.path + ent->d_name << "\">" <<  ent->d_name << "/" << "</a><br>";
+            tmp_ent_d_name = ent->d_name;
+            append_slash(tmp_ent_d_name);
+            if (_resource.path == "/" && i == 1)
+                _body << tmp_ent_d_name << "<br>";
             else
-                _body <<  ent->d_name << "<br>";
+                _body << "<a href=\"" << tmp_ent_d_name << "\">" << tmp_ent_d_name << "</a><br>";
             i++;
-            // std::cout << ent->d_name << std::endl;
-            // printf ("%s\n", );
         }
         closedir (dir);
     }
-    else {
-        /* could not open directory */
+    else
         throw_error_status(WS_404_NOT_FOUND, strerror(errno));
-    }
-
     _body << "</p>";
     _body << "</body>\r\n";
     response_to_string();
@@ -463,9 +468,6 @@ void Response::interpret_target() {
     }
 }
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
 static bool is_directory(const std::string& path) {
     struct stat statbuf;
     if (stat(path.c_str(), &statbuf) != 0)
@@ -478,17 +480,21 @@ void Response::validate_target_abs_path() {
     std::string temp_path;
     std::string index = _config.index;
     remove_leading_slash(index);
+
     if (is_directory(_resource.abs_path) && _request.header.method == "GET") {
         std::cout << YELLOW << "IS DIR! Responding with dir list" << NC << std::endl;
         throw Respond_with_directory_listing();
     }
+
     if (!(_config.location.compare("non")) )
         temp_path = _resource.abs_path;
     else
         temp_path = _config.location + "/" + _config.index;
+
     if ((tmp_fd = open(temp_path.c_str(), O_RDONLY)) < 0) {
         if (errno == ENOENT) {
             if (_resource.file == index && _config.directory_listing == true) {
+                // config has index file but it was not found
                 std::cout << YELLOW << "Responding with dir list" << NC << std::endl;
                 throw Respond_with_directory_listing();
             }
@@ -496,6 +502,13 @@ void Response::validate_target_abs_path() {
         }
         else if (errno == EACCES)
             throw_error_status(WS_403_FORBIDDEN, strerror(errno));
+        else if (_config.directory_listing == true && errno == ENOTDIR) {
+            // if navigating with directory listing the user encounters a file we have to remove "/"
+            // and try again.
+            remove_trailing_slash(_resource.abs_path);
+            remove_trailing_slash(_resource.file);
+            validate_target_abs_path();
+        }
         else
             throw_error_status(WS_500_INTERNAL_SERVER_ERROR, strerror(errno));
     }
@@ -621,8 +634,6 @@ bool Response::getValid(const std::string & nameof)
     }
     return (true);
 }
-
-
 
 } // NAMESPACE http
 } // NAMESPACE ws

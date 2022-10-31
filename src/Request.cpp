@@ -236,8 +236,8 @@ int parser::parse_body(Request& request, int fd) {
         ++msg_length;
         // give error if content too long and exceeds buffer size (msg_length + content-length) [ + ]
     }
-    if (request._content_length && !body_length)
-        return (error_status(request, WS_400_BAD_REQUEST, "Content missing"));
+    // if (request._content_length && !body_length)
+    //     return (error_status(request, WS_400_BAD_REQUEST, "Content missing"));
     if (!request.has_field_of_name("content-length") && !request._body.str().empty())
         return(error_status(request, WS_411_LENGTH_REQUIRED, 
             "Message content detected but no content-length or transfer-encoding fields provided"));

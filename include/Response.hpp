@@ -20,8 +20,11 @@
 #include <errno.h>
 #include <list>
 #include <cstdio>
-#include <dirent.h> // dir listing
 
+#include <dirent.h> // dir listing
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 namespace ws {
 namespace http {
