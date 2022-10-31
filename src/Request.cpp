@@ -70,10 +70,10 @@ int Request::parse(const int fd) {
             #if (DEBUG)
             (_status < 400) ? std::cout << GREEN : std::cout << RED;
             std::cout << "PARSED REQUEST STATUS: " << _status << NC << std::endl;
-            // std::cout << CYAN << "PARSED HEADER:\n" \
-            //     << "\tMethod: " << header.method << "\n" \
-            //     << "\tTarget: " << header.target << "\n" \
-            //     << "\tVersion: " << header.version << NC << std::endl;
+            std::cout << CYAN << "PARSED HEADER:\n" \
+                << "\tMethod: " << header.method << "\n" \
+                << "\tTarget: " << header.target << "\n" \
+                << "\tVersion: " << header.version << NC << std::endl;
             // std::cout << CYAN << "PARSED FIELDS:\n" << NC;
             // for (std::map<std::string, std::list<std::string> >::const_iterator it = _fields._map.begin();
             //     it != _fields._map.end(); it++)
@@ -84,8 +84,8 @@ int Request::parse(const int fd) {
             //     std::cout << std::endl;
             // }
             // std::cout << "request msg length after parse: " << _parser.msg_length << std::endl;
-            // std::cout << CYAN << "\nPARSER: Message recieved: ---------\n" << NC << _parser.buffer << std::endl;
-            // std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
+            std::cout << CYAN << "\nPARSER: Message recieved: ---------\n" << NC << _parser.buffer << std::endl;
+            std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
             // std::cout << CYAN << "\nBODY IS:---------------------------\n" << this->_body.str() << NC << std::endl;
             // std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
             // std::cout << GREEN << "Is persistent: ";
@@ -236,8 +236,8 @@ int parser::parse_body(Request& request, int fd) {
         ++msg_length;
         // give error if content too long and exceeds buffer size (msg_length + content-length) [ + ]
     }
-    if (request._content_length && !body_length)
-        return (error_status(request, WS_400_BAD_REQUEST, "Content missing"));
+    // if (request._content_length && !body_length)
+    //     return (error_status(request, WS_400_BAD_REQUEST, "Content missing"));
     if (!request.has_field_of_name("content-length") && !request._body.str().empty())
         return(error_status(request, WS_411_LENGTH_REQUIRED, 
             "Message content detected but no content-length or transfer-encoding fields provided"));
