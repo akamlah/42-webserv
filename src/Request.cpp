@@ -21,7 +21,7 @@ Request::Request(const Request& other): _is_persistent(true), _status(WS_200_OK)
     header.method = other.header.method;
     header.target = other.header.target;
     header.version = other.header.version;
-    fields = other.fields;
+    _fields = other._fields;
     _status = other._status;
 }
 
@@ -29,7 +29,7 @@ Request& Request::operator=(const Request& other) {
     header.method = other.header.method;
     header.target = other.header.target;
     header.version = other.header.version;
-    fields = other.fields;
+    _fields = other._fields;
     _status = other._status;
     _is_chunked = other._is_chunked;
     _waiting_for_chunks = other._waiting_for_chunks;
@@ -56,8 +56,12 @@ bool Request::has_field_of_name(const std::string& field_name) const {
     return (false);
 }
 
+// Returns empty list if no element found
 std::list<std::string> Request::get_field_value(const std::string& field_name) const {
-    return (_fields._map.find(field_name)->second);
+    std::map<std::string, std::list<std::string> >::const_iterator ret = _fields._map.find(field_name);
+    if (ret != _fields._map.end())
+        return (ret->second);
+    return (std::list<std::string>() );
 }
 
 int Request::status() const { return (_status); }
@@ -68,23 +72,23 @@ int Request::parse(const int fd) {
     if (!_waiting_for_chunks) {
         _parser.parse(*this, fd);
             #if (DEBUG)
-            (_status < 400) ? std::cout << GREEN : std::cout << RED;
-            std::cout << "PARSED REQUEST STATUS: " << _status << NC << std::endl;
-            // std::cout << CYAN << "PARSED HEADER:\n" \
-            //     << "\tMethod: " << header.method << "\n" \
-            //     << "\tTarget: " << header.target << "\n" \
-            //     << "\tVersion: " << header.version << NC << std::endl;
-            // std::cout << CYAN << "PARSED FIELDS:\n" << NC;
-            // for (std::map<std::string, std::list<std::string> >::const_iterator it = _fields._map.begin();
-            //     it != _fields._map.end(); it++)
-            // {
-            //     std::cout << CYAN << it->first<< NC << "|" ;
-            //     for (std::list<std::string>::const_iterator itl = it->second.begin(); itl != it->second.end(); itl++)
-            //         std::cout << YELLOW << *itl << NC << "|";
-            //     std::cout << std::endl;
-            // }
+            // (_status < 400) ? std::cout << GREEN : std::cout << RED;
+            // std::cout << "PARSED REQUEST STATUS: " << _status << NC << std::endl;
+            std::cout << CYAN << "PARSED HEADER:\n" \
+                << "\tMethod: " << header.method << "\n" \
+                << "\tTarget: " << header.target << "\n" \
+                << "\tVersion: " << header.version << NC << std::endl;
+            std::cout << CYAN << "PARSED FIELDS:\n" << NC;
+            for (std::map<std::string, std::list<std::string> >::const_iterator it = _fields._map.begin();
+                it != _fields._map.end(); it++)
+            {
+                std::cout << CYAN << it->first<< NC << "|" ;
+                for (std::list<std::string>::const_iterator itl = it->second.begin(); itl != it->second.end(); itl++)
+                    std::cout << YELLOW << *itl << NC << "|";
+                std::cout << std::endl;
+            }
             // std::cout << "request msg length after parse: " << _parser.msg_length << std::endl;
-            // std::cout << CYAN << "\nPARSER: Message recieved: ---------\n" << NC << _parser.buffer << std::endl;
+            std::cout << CYAN << "\nPARSER: Message recieved: ---------\n" << NC << _parser.buffer << std::endl;
             // std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
             // std::cout << CYAN << "\nBODY IS:---------------------------\n" << this->_body.str() << NC << std::endl;
             // std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;

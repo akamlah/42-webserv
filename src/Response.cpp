@@ -26,6 +26,7 @@ Response::Response(const Request& request, const config_data& config, const Toke
     _request(request), _config(config), _tokens(tokens), _status(request.status()),
     _is_persistent(request._is_persistent)
 {
+    _status = 501; // test error
     build_response();
 }
 
@@ -167,6 +168,7 @@ void Response::method_delete()
 
 
 void Response::build_response() {
+    // if (true) {
     if (_status != WS_200_OK) {
         respond_to_error();
         return ;
@@ -293,6 +295,7 @@ std::string Response::contentType_for_post()
     std::list<std::string> konttype = _request.get_field_value("content-type");
     std::list<std::string>::iterator it;
     std::string tmp;
+    
 
     if ( !(konttype.empty()) )
     {
@@ -317,15 +320,15 @@ std::string Response::cgiRespCreator_post()
         env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin());
 		env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path                ))->begin()));
         env[i++] = &(*((new std::string("PATH_INFO=" + _resource.abs_path                ))->begin()));
-        // env[i++] = &(*((new std::string("REMOTE_HOST=localhost:8400")))->begin());
-        // env[i++] = &(*((new std::string("SERVER_NAME=localhost")))->begin());
-        // env[i++] = &(*((new std::string("SERVER_PORT=8400")))->begin());
         env[i++] = &(*((new std::string("SERVER_PROTOCOL=HTTP/1.1")))->begin());
         env[i++] = &(*((new std::string("GATEWAY_INTERFACE=CGI/1.1")))->begin());
         env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin());
 		env[i++] = &(*((new std::string("CONTENT_TYPE=" +   contentType_for_post() ))->begin()));
         env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin());
 		env[i++] = NULL;
+        // env[i++] = &(*((new std::string("REMOTE_HOST=localhost:8400")))->begin());
+        // env[i++] = &(*((new std::string("SERVER_NAME=localhost")))->begin());
+        // env[i++] = &(*((new std::string("SERVER_PORT=8400")))->begin());
 
         Cgi test;
         std::string phpresp;
@@ -353,7 +356,8 @@ void Response::respond_to_delete() {
 // Method: exceptions (errors and directory listing)
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-void Response::respond_to_error() {
+
+void Response::default_error() {
     _body.str(std::string());;
     _fields_stream.str(std::string());
     _response_str = std::string();
@@ -368,6 +372,50 @@ void Response::respond_to_error() {
         << "<h3>" << _request.error_msg << "</h3>\n"
         << "<h3>" << error_msg << "</h3>\n"
         << "</body></html>\r\n";
+}
+
+std::string Response::custom_error_check_status() {
+    std::string temp;
+    std::string::size_type positofstatus = _config.error.find(std::to_string(_status));
+    if (positofstatus == std::string::npos)
+        return (temp);
+    std::string::size_type positofend = _config.error.find(",", positofstatus + 4);
+    if (positofend == std::string::npos)
+        positofend = _config.error.length();
+    temp = _config.error.substr(positofstatus + 4, positofend - (positofstatus + 4));
+    return (temp);
+}
+
+void Response::custom_error() {
+    std::string path = custom_error_check_status();
+    if (path.empty()) {
+        default_error();
+        return ;
+    }
+    _body.str(std::string());
+    _fields_stream.str(std::string());
+    _response_str = std::string();
+    add_field("Server", "ZHero serv/1.0");
+    add_formatted_timestamp();
+    std::string abs_path = _config.root + path;
+    // if (check_error_path())
+
+    std::ifstream fin(abs_path, std::ios::in);
+    _body << fin.rdbuf();
+}
+
+bool Response::check_error_path(std::string const & path) {
+
+    std::cout << path;
+    return (false);
+}
+
+void Response::respond_to_error() {
+
+    if (_config.error == "non")
+        default_error();
+    else
+        custom_error();
     response_to_string();
 }
 
@@ -517,20 +565,39 @@ std::string Response::cgiRespCreator()
 {
     // std::string temp;
     	char ** env;
-		env = new char*[7];
+		env = new char*[11];
 
         int i = 0;
+        std::string cokie;
+        std::list<std::string> tempcokie = _request.get_field_value("cookie");
+        if (!(tempcokie.empty()))
+        {
+            // cokie = *(tempcokie.begin()) + ";subdomain=" + _config.host + ":" + "9997";
+            // cokie = "domain=.localhost:9997; tutu=bob;" + *(tempcokie.begin());
+            cokie = "path=./example_sites/phpGetForm/; " + *(tempcokie.begin());
+            
+            // std::cout << cokie << "\n - -- - - - -- This was my cokie  - -- - - - - - - -- \n";
+        }
+        else
+            std::cout << "\nSORRYYYYY\n";
+            
 		env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin());
-		env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path                ))->begin()));
+		env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path   ))->begin()));
         env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin());
         env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin());
+        env[i++] = &(*((new std::string("HTTP_COOKIE=" + cokie)))->begin());
+        env[i++] = &(*((new std::string("HTTP_HOST=localhost:9997")))->begin());
+        env[i++] = &(*((new std::string("SERVER_NAME=localhost")))->begin());
+        env[i++] = &(*((new std::string("SERVER_PORT=8400")))->begin());
+        // env[i++] = &(*((new std::string(cokie)))->begin());
 		env[i++] = NULL;
 
         Cgi test;
         std::string phpresp;
         phpresp += test.executeCgiNew(env);
         if (phpresp.empty())
-            std::cout << "unfortunetly this shit has nothing inside you mother fucker!\n";
+            std::cout << "unfortunetly this shit has nothing inside!\n";
+        cokie.clear();
         delete [] env;
     return (phpresp);
 }

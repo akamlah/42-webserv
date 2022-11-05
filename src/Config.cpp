@@ -30,7 +30,9 @@ namespace ws {
 
 	Config::Config(std::string const & argv)
 	{
-		if (Config::checkValid(argv))
+		if (argv.empty())
+			throw ConfigFileError("The Config file is empty\n");
+		else if (checkValid(argv))
 		{
 			if (DEBUG)
 				std::cout << "The config file is valid, You may procede!\n";
@@ -64,24 +66,28 @@ namespace ws {
 			return (false);
 		std::stringstream buffer;
 		buffer << confFile.rdbuf();
-
+		if (buffer.fail())
+			return (false);
 		//cut
 		std::string fullConfile;
 		fullConfile = buffer.str();
+		if (fullConfile.empty())
+			return (false);
 		numberOfServers = 0;
-		std::string::size_type closingsingLoc = -1;
+		std::string::size_type closingsingLoc = 0;
 		std::string::size_type startsignLoc = 0;
+		std::string::size_type test = fullConfile.length();
 		do
 		{
 			closingsingLoc++;
 			closingsingLoc = fullConfile.find('}', closingsingLoc);
-			if (closingsingLoc == std::string::npos )
+			if (closingsingLoc == std::string::npos)
 				return (false);
 			checkContent(fullConfile.substr(startsignLoc, closingsingLoc - startsignLoc));
 			startsignLoc = closingsingLoc + 1;
 			numberOfServers++;
 		}
-		while (fullConfile[closingsingLoc + 9] == '{');
+		while (test > closingsingLoc + 9 && fullConfile[closingsingLoc + 9] == '{');
 		return (true);
 	}
 
