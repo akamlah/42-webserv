@@ -1,0 +1,35 @@
+<?php
+session_start();
+setcookie("test_cookie", "test", time() + 30, '/');
+?>
+<!DOCTYPE html>
+<html>
+<body>
+<?php
+$_SESSION["favcolor"] = "yellow";
+if(isset($_SESSION['favcolor']))
+{
+echo $_SESSION['favcolor'];
+}
+else
+{
+    phpinfo();
+}
+echo "<script>";
+echo "document.body.style.background =\"" . $_SESSION["favcolor"]. "\"";
+echo  "</script>";
+?>
+<br>
+<br>
+<a href="./sessioncolor.html">See the color acroos pages!</a>
+<br>
+<br>
+<?php
+if(count($_COOKIE) > 0) {
+echo "Cookies are enabled.";
+} else {
+echo "Cookies are disabled.";
+}
+?>
+</body>
+</html>

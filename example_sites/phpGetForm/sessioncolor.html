@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<body>
+<h1>That is the color I was looking for!!!!</h1>
+<?php
+$_SESSION["favcolor"] = "blue";
+if(isset($_SESSION['favcolor']))
+{
+    echo $_SESSION['favcolor'];
+}
+else
+{
+    phpinfo();
+}
+?>
+<?php
+echo "<script>";
+echo "document.body.style.background = \"" . $_SESSION["favcolor"] . "\"";
+echo  "</script>";
+?>
+</body>
+</html>

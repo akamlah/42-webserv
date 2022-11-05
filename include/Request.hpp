@@ -117,7 +117,7 @@ class Request {
 
         parser                              _parser;
         header_t                            header;
-        std::map<std::string, std::string>  fields;
+        // std::map<std::string, std::string>  fields;
         HeaderFields _fields;
         // must be a list of parsed values split by comma -> have class
         // to have find & search functions.

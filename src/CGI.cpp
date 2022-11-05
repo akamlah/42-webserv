@@ -118,10 +118,7 @@ namespace ws {
 
 	std::string Cgi::executeCgiNew(char **env) 
 	{
-		// // manual test
 		std::string temp;
-		// temp = "X-Powered-By: PHP/7.4.21 Cache-Control: no-cache Content-type: text/event-stream;charset=UTF-8\r\n\r\ndata: New random number: 871\r\n\r\n";
-		// std::cout << env[0] << std::endl;
 		int id;
 
 		FILE * bobout = tmpfile();
@@ -129,13 +126,12 @@ namespace ws {
 		char **test = new char*[2];
 		test[0] = &(*((new std::string("php-cgi")))->begin()); 
 		test[1] = NULL;
-
+#if DEBUG
 		for (size_t i = 0; env[i] != NULL; i++)
 		{	
 			std::cout << env[i] << "\n";
-			/* code */
 		}
-		
+#endif
 		id = fork();
 		if (id == 0)
 		{
@@ -145,28 +141,16 @@ namespace ws {
 			if (env[0])
 				testlegnth = strlen(env[0]);
 			if (testlegnth > 0)
-			{
-				// int boby  = open("./look.txt",O_RDWR );
 				write(inty, env[0], strlen(env[0]));
-				// write(boby, env[0], strlen(env[0]));
-				// close(boby);
-			}
 			if (testlegnth > 0 && lseek(inty, 0, SEEK_SET) == -1)
-			{
 				std::cerr << "Something is not rigth with the data in fiel\n";
-			}
 			else
 			{
 				if (dup2(inty ,STDIN_FILENO) == -1)
-				{
 					std::cerr << "Error dup2 std IN\n";
-				}
 			}
 			if (dup2(outy ,STDOUT_FILENO) == -1)
-			{
 				std::cerr << "Error dup2 std OUT\n";
-			}
-			// rewind(bobin);
 			fclose(bobin);
 			close(outy);
 			close(inty);
@@ -174,14 +158,12 @@ namespace ws {
 				std::cerr << "Error in cgi Execution\n";
 			delete [] test;
 			exit(0);
-			// throw error....
 		}
 		else
 		{
 			waitpid(-1, NULL, 0);
 			char hold;
 			int outy = fileno(bobout);
-
 			rewind(bobout);
 			while (read(outy, &hold, 1) > 0)
 				temp += hold;
@@ -200,39 +182,29 @@ namespace ws {
 		int fd[2];
 		std::string temp;
 		char ** env;
-		env = new char*[7];
-
-		env[0] = strdup("REQUEST_METHOD=POST");
-		env[1] = &(*(std::string("PATH_TRANSLATED=" + phpfile).begin()));
-		// env[1] = &(*((new std::string("PATH_TRANSLATED=" + phpfile))->begin()));
-		// env[1] = strdup(("PATH_TRANSLATED=" + phpfile).c_str());
-		// env[1] = strdup("PATH_TRANSLATED=./example_sites/phptestsite/send_sse.php");
-		env[2] = strdup("SERVER_PORT=8100");
-		env[3] = strdup("CONTENT_LENGTH=0");
-		env[4] = strdup("QUERY_STRING=fname=SISI");
-		env[5] = strdup("REDIRECT_STATUS=200");
-		env[6] = NULL;
-
-
+		env = new char*[5];
+		int i = 0;
+		env[i++] = &(*((new std::string("REQUEST_METHOD=GET")))->begin());
+		env[i++] = &(*((new std::string("PATH_TRANSLATED=" + phpfile ))->begin()));
+        env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin());
+        env[i++] = &(*((new std::string("SERVER_NAME=localhost")))->begin());
+		env[i++] = NULL;
 		pipe(fd);
 		id = fork();
 		if (id == 0)
 		{
 			dup2(fd[1],STDOUT_FILENO);
-					close(fd[1]);
-					close(fd[0]);
+			close(fd[1]);
+			close(fd[0]);
 			if (phpfile.back() == 'p')
 			{
 					if (execve("./CGI/php-cgi",NULL , env) == -1 )
 						std::cerr << "Error in cgi Execution\n";
-				// execl("/usr/bin/php", "php", phpfile.c_str(), NULL);
 			}
-				// [ + ] execve + env TODO
 			else
 				if (execl("/usr/local/bin/perl", "perl", phpfile.c_str(), NULL) == -1)
 					std::cerr << "Error in cgi Execution\n";
 			exit(0);
-			// throw error....
 		}
 		else
 		{
@@ -244,7 +216,7 @@ namespace ws {
 			close(fd[1]);
 			close(fd[0]);
 		}
+		delete [] env;
 		return (temp);
 	}
-
 }

@@ -95,6 +95,10 @@ class Response {
         void method_post();
         void method_delete();
         void redirection_check();
+        void default_error();
+        void custom_error();
+        std::string custom_error_check_status();
+        bool check_error_path(std::string const &);
 
         void respond_cgi_post();
         std::string cgiRespCreator();

@@ -1,3 +1,7 @@
+<!-- <?php
+session_start(); // start the PHP_session function 
+//phpinfo();
+?> -->
 <!DOCTYPE html>
 <head>
 	<meta charset="UTF-8">
@@ -6,12 +10,28 @@
 </head>
 <html>
 	<body>
+<!-- 	<?php
+		if(isset($_SESSION['page_count']))
+		{
+			$_SESSION['page_count'] += 1;
+		}
+		else
+		{
+			$_SESSION['page_count'] = 1;
+		}
+		echo 'You are visitor number ' . $_SESSION['page_count'];
+	?> -->
 	<h1>Why is there loading?</h1>
 	<form action="welcome_get.php" method="get">
 	Name: <input type="text" name="name"><br>
 	E-mail: <input type="text" name="email"><br>
 	<input type="submit">
 	</form>
+
+	<a href="./cook.html">cookie</a>
+	<br>
+	<a href="./othercook.html">Other cookie</a>
+
 
 	
 	</body>

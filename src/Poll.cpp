@@ -46,8 +46,8 @@ void Poll::poll()
         throw_print_error(PollError(), "poll() failed");
     if (temp == 0)
         throw_print_error(PollError(), "poll() timed out.  End program.");
-    if (DEBUG)
-        std::cout << CYAN << fds.size() << NC << std::endl;
+    // if (DEBUG)
+    //     std::cout << CYAN << fds.size() << NC << std::endl;
 }
 
 void Poll::compress()
