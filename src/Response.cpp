@@ -17,6 +17,9 @@ const char* Response::ResponseException::what() const throw() {
     return ("Response error");
 }
 
+const char* Response::Respond_with_directory_listing::what() const throw() {
+    return ("Responding with directory listing because index was not found");
+}
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Construction/destruction
@@ -39,8 +42,8 @@ Response::~Response() {}
 bool Response::is_persistent() const { return (_is_persistent); }
 
 void Response::send(const int fd) { // more error handeling here too [ + ]
-    // if (DEBUG)
-        // std::cout << "SENDING RESPONSE:\n" << _response_str;
+    if (DEBUG)
+        std::cout << "SENDING RESPONSE:\n" << _response_str;
         // std::cout << "SENDING RESPONSE:\n" << _response_str.substr(0 , _response_str.size() - _body.str().size());
     int error = ::send(fd, _response_str.c_str(), _response_str.length(), 0);
     if (error < 0)
@@ -70,7 +73,7 @@ int Response::throw_error_status(int status, const char* msg) {
 
 void Response::append_slash(std::string& path) {
     if (!path.empty())
-        if (path.rfind('/') != path.npos)
+        if (path.rfind('/') != path.length() - 1)
             path = path + "/";
 }
 
@@ -80,6 +83,11 @@ void Response::remove_leading_slash(std::string& path) {
             path.erase(0, 1);
 }
 
+static void remove_trailing_slash(std::string& path) {
+    if (!path.empty())
+        if (path[path.length() - 1] == '/')
+            path.erase(path.length() - 1, path.length());
+}
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -126,6 +134,7 @@ void Response::redirection_check()
     add_formatted_timestamp();
     response_to_string();
 }
+
 void Response::method_get()
 {
     if (getValid("GET"))
@@ -140,6 +149,7 @@ void Response::method_get()
         respond_get();
     }
 }
+
 void Response::method_post()
 {
     if (getValid("POST"))
@@ -152,6 +162,7 @@ void Response::method_post()
         respond_get();
     }
 }
+
 void Response::method_delete()
 {
     if (getValid("DELETE"))
@@ -164,7 +175,6 @@ void Response::method_delete()
         throw_error_status(WS_404_NOT_FOUND, "The file is not there!");
     }
 }
-
 
 void Response::build_response() {
     // if (true) {
@@ -186,6 +196,9 @@ void Response::build_response() {
             method_delete();
         else
             throw_error_status(WS_501_NOT_IMPLEMENTED, "Sadly this HTTP method is not implemented.");
+    }
+    catch (Respond_with_directory_listing& e) {
+        respond_with_directory_listing_html(); // will build dir listing response
     }
     catch (ResponseException& e) {
         respond_to_error(); // will build error response
@@ -431,6 +444,48 @@ void Response::respond_to_error() {
     response_to_string();
 }
 
+void Response::respond_with_directory_listing_html() {
+    DIR *dir;
+    struct dirent *ent;
+    int i = 0;
+    
+    _body.str(std::string());
+    _fields_stream.str(std::string());
+    _response_str = std::string();
+    
+    std::string tmp_ent_d_name;
+    std::string tmp_path = _resource.path;
+    remove_leading_slash(tmp_path);
+    append_slash(tmp_path);
+    std::string current_directory = _resource.root + tmp_path;
+    
+    add_field("Server", "ZHero serv/1.0");
+    add_formatted_timestamp();
+    add_field("Content-type", "text/html");
+    _body << "<!DOCTYPE html>\n<html lang=\"en\">\n";
+    _body << "<head><title>Index</title></head>\n";
+    _body << "<body>";
+    _body << "<h1>Index of " << tmp_path << "<br></h1>";
+    _body << "<p>";
+    if ((dir = opendir(&(*(current_directory.c_str())))) != NULL) {
+        while ((ent = readdir (dir)) != NULL) {
+            tmp_ent_d_name = ent->d_name;
+            append_slash(tmp_ent_d_name);
+            if (_resource.path == "/" && i == 1)
+                _body << tmp_ent_d_name << "<br>";
+            else
+                _body << "<a href=\"" << tmp_ent_d_name << "\">" << tmp_ent_d_name << "</a><br>";
+            i++;
+        }
+        closedir (dir);
+    }
+    else
+        throw_error_status(WS_404_NOT_FOUND, strerror(errno));
+    _body << "</p>";
+    _body << "</body>\r\n";
+    response_to_string();
+}
+
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // further TARGET PARSING
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -456,33 +511,64 @@ void Response::interpret_target() {
     }
     catch (std::exception& e) {
         throw_error_status(WS_500_INTERNAL_SERVER_ERROR, "Uri could not be parsed, format error");
-    }
-    if (DEBUG) {
-        std::cout << "Separated URI components:" << std::endl;
-        std::cout << "path: " << _resource.path << std::endl;
-        std::cout << "query: " << _resource.query << std::endl;
-    }
-    _resource.root = _config.root; // always ?
-    _resource.file = (_resource.path == "/") ? _config.index : _resource.path;
+    }    _resource.root = _config.root; // always ?
+    
     append_slash(_resource.root);
+    _resource.file = (_resource.path == "/") ? _config.index : _resource.path;
     remove_leading_slash(_resource.file);
     _resource.abs_path = _resource.root + _resource.file;
-    if (DEBUG)
-        std::cout << "PATH: " << _resource.abs_path << std::endl;
+
+    if (DEBUG) {
+        std::cout << "RESOURCE:" << std::endl;
+        std::cout << "root: " << _resource.root << std::endl;
+        std::cout << "file: " << _resource.file << std::endl;
+        std::cout << "path: " << _resource.path << std::endl;
+        std::cout << "query: " << _resource.query << std::endl;
+        std::cout << "abs path: " << _resource.abs_path << std::endl;
+    }
+}
+
+static bool is_directory(const std::string& path) {
+    struct stat statbuf;
+    if (stat(path.c_str(), &statbuf) != 0)
+        return 0;
+    return S_ISDIR(statbuf.st_mode);
 }
 
 void Response::validate_target_abs_path() {
     int tmp_fd;
     std::string temp_path;
+    std::string index = _config.index;
+    remove_leading_slash(index);
+
+    if (is_directory(_resource.abs_path) && _request.header.method == "GET") {
+        std::cout << YELLOW << "IS DIR! Responding with dir list" << NC << std::endl;
+        throw Respond_with_directory_listing();
+    }
+
     if (!(_config.location.compare("non")) )
         temp_path = _resource.abs_path;
     else
         temp_path = _config.location + "/" + _config.index;
+
     if ((tmp_fd = open(temp_path.c_str(), O_RDONLY)) < 0) {
-        if (errno == ENOENT)
+        if (errno == ENOENT) {
+            if (_resource.file == index && _config.directory_listing == true) {
+                // config has index file but it was not found
+                std::cout << YELLOW << "Responding with dir list" << NC << std::endl;
+                throw Respond_with_directory_listing();
+            }
             throw_error_status(WS_404_NOT_FOUND, strerror(errno));
+        }
         else if (errno == EACCES)
             throw_error_status(WS_403_FORBIDDEN, strerror(errno));
+        else if (_config.directory_listing == true && errno == ENOTDIR) {
+            // if navigating with directory listing the user encounters a file we have to remove "/"
+            // and try again.
+            remove_trailing_slash(_resource.abs_path);
+            remove_trailing_slash(_resource.file);
+            validate_target_abs_path();
+        }
         else
             throw_error_status(WS_500_INTERNAL_SERVER_ERROR, strerror(errno));
     }
@@ -627,8 +713,6 @@ bool Response::getValid(const std::string & nameof)
     }
     return (true);
 }
-
-
 
 } // NAMESPACE http
 } // NAMESPACE ws

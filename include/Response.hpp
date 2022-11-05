@@ -21,6 +21,10 @@
 #include <list>
 #include <cstdio>
 
+#include <dirent.h> // dir listing
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 namespace ws {
 namespace http {
@@ -44,6 +48,11 @@ class Response {
     public:
 
         class ResponseException: public ws::exception {
+            public:
+                virtual const char* what() const throw();
+        };
+
+        class Respond_with_directory_listing: public ws::exception  {
             public:
                 virtual const char* what() const throw();
         };
@@ -78,6 +87,7 @@ class Response {
         void respond_to_delete();
         void build_response();
         void respond_to_error();
+        void respond_with_directory_listing_html() ;
         void respond_get();
         void respond_cgi_get();
         void respond_post();
