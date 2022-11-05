@@ -29,7 +29,7 @@ Response::Response(const Request& request, const config_data& config, const Toke
     _request(request), _config(config), _tokens(tokens), _status(request.status()),
     _is_persistent(request._is_persistent)
 {
-    _status = 501; // test error
+    // _status = 501; // test error
     build_response();
 }
 
