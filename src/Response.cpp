@@ -26,7 +26,6 @@ Response::Response(const Request& request, const config_data& config, const Toke
     _request(request), _config(config), _tokens(tokens), _status(request.status()),
     _is_persistent(request._is_persistent)
 {
-    _status = 501; // test error
     build_response();
 }
 
@@ -398,24 +397,37 @@ void Response::custom_error() {
     add_field("Server", "ZHero serv/1.0");
     add_formatted_timestamp();
     std::string abs_path = _config.root + path;
-    // if (check_error_path())
-
+    if (check_error_path(abs_path)) {
+        default_error();
+        return ;
+    }
     std::ifstream fin(abs_path, std::ios::in);
     _body << fin.rdbuf();
 }
 
 bool Response::check_error_path(std::string const & path) {
-
-    std::cout << path;
+    // std::cout << path;
+    int tmp_fd;
+    if ((tmp_fd = open(path.c_str(), O_RDONLY)) < 0) {
+        close(tmp_fd);
+        return (true);
+    }
+    close(tmp_fd);
     return (false);
 }
 
 void Response::respond_to_error() {
 
     if (_config.error == "non")
+    {
         default_error();
+        std::cout << "HERE  - - - - - - -- - - def - - - - \n";
+    }
     else
+    {
+        std::cout << "HERE  - - - - - - -- - - cust - - - - \n";
         custom_error();
+    }
     response_to_string();
 }
 
