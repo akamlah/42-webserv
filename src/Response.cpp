@@ -143,10 +143,15 @@ void Response::method_get()
     if (_config.isCgiOn && _config.cgi.compare(".php") == 0 && (_resource.extension == "php" || _resource.extension == "html")) {
         respond_cgi_get();
     }
+    else if (_config.isCgiOn && _config.cgi.compare(".pl") == 0 && (_resource.extension == "pl" || _resource.extension == "html")) {
+        respond_cgi_get_perl();
+    }
     else {
         add_field("Content-type", _resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
-        std::cout << CYAN << "Content-type: " <<  (_resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
-        std::cout << NC << std::endl;
+        #if DEBUG
+            std::cout << CYAN << "Content-type: " <<  (_resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
+            std::cout << NC << std::endl;
+        #endif
         respond_get();
     }
 }
@@ -249,6 +254,38 @@ void Response::respond_cgi_get()
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// perl
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+void Response::respond_cgi_get_perl()
+{
+	std::stringstream response;
+	Cgi test;
+	std::string phpresp;
+	phpresp +=  perl_cgiRespCreator();
+    if (phpresp.empty())
+        return ;
+	_body << phpresp;
+	add_field("Content-length", std::to_string(phpresp.length()));
+	response << generate_status_line() << CRLF;
+	response << _fields_stream.str() << CRLF;
+	response << _body.str() << CRLF;
+	_response_str = response.str();
+	return ;
+}
+
+std::string Response::perl_cgiRespCreator()
+{
+
+    Cgi test;
+    std::string perlresp;
+    perlresp += test.executeCgi_perl(_resource.abs_path);
+    if (perlresp.empty())
+        std::cout << "PERL unfortunetly this has nothing inside!\n";
+    return (perlresp);
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Method: POST
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -322,32 +359,27 @@ std::string Response::contentType_for_post()
     }
     return (tmp);
 }
+
 std::string Response::cgiRespCreator_post()
 {
-    	char ** env;
-		env = new char*[14];
-
-        int i = 0;
-        env[i++] = &(*((new std::string(_request._body.str())))->begin());
-		env[i++] = &(*((new std::string("CONTENT_LENGTH=" + contentLength_for_post()))->begin()));
-        env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin());
-		env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path                ))->begin()));
-        env[i++] = &(*((new std::string("PATH_INFO=" + _resource.abs_path                ))->begin()));
-        env[i++] = &(*((new std::string("SERVER_PROTOCOL=HTTP/1.1")))->begin());
-        env[i++] = &(*((new std::string("GATEWAY_INTERFACE=CGI/1.1")))->begin());
-        env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin());
-		env[i++] = &(*((new std::string("CONTENT_TYPE=" +   contentType_for_post() ))->begin()));
-        env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin());
-		env[i++] = NULL;
-        // env[i++] = &(*((new std::string("REMOTE_HOST=localhost:8400")))->begin());
-        // env[i++] = &(*((new std::string("SERVER_NAME=localhost")))->begin());
-        // env[i++] = &(*((new std::string("SERVER_PORT=8400")))->begin());
-
-        Cgi test;
-        std::string phpresp;
-        phpresp += test.executeCgiNew(env);
-        delete [] env;
-
+    char ** env;
+    env = new char*[14];
+    int i = 0;
+    env[i++] = &(*((new std::string(_request._body.str())))->begin());
+    env[i++] = &(*((new std::string("CONTENT_LENGTH=" + contentLength_for_post()))->begin()));
+    env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin());
+    env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path                ))->begin()));
+    env[i++] = &(*((new std::string("PATH_INFO=" + _resource.abs_path                ))->begin()));
+    env[i++] = &(*((new std::string("SERVER_PROTOCOL=HTTP/1.1")))->begin());
+    env[i++] = &(*((new std::string("GATEWAY_INTERFACE=CGI/1.1")))->begin());
+    env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin());
+    env[i++] = &(*((new std::string("CONTENT_TYPE=" +   contentType_for_post() ))->begin()));
+    env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin());
+    env[i++] = NULL;
+    Cgi test;
+    std::string phpresp;
+    phpresp += test.executeCgiNew(env);
+    delete [] env;
     return (phpresp);
 }
 
@@ -420,7 +452,6 @@ void Response::custom_error() {
 }
 
 bool Response::check_error_path(std::string const & path) {
-    // std::cout << path;
     int tmp_fd;
     if ((tmp_fd = open(path.c_str(), O_RDONLY)) < 0) {
         close(tmp_fd);
@@ -433,15 +464,9 @@ bool Response::check_error_path(std::string const & path) {
 void Response::respond_to_error() {
 
     if (_config.error == "non")
-    {
         default_error();
-        std::cout << "HERE  - - - - - - -- - - def - - - - \n";
-    }
     else
-    {
-        std::cout << "HERE  - - - - - - -- - - cust - - - - \n";
         custom_error();
-    }
     response_to_string();
 }
 
@@ -660,43 +685,36 @@ void Response::upload_file() { // + error handeling & target check here !
     }
 }
 
+void Response::fill_up_env(char **env)
+{
+    int i = 0;
+    std::string cokie;
+    std::list<std::string> tempcokie = _request.get_field_value("cookie");
+    if (!(tempcokie.empty()))
+        cokie = *(tempcokie.begin());
+    else if (DEBUG)
+        std::cout << "\nSORRYYYYY there is no cokie in the request\n";
+    env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin());
+    env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path   ))->begin()));
+    env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin());
+    env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin());
+    env[i++] = &(*((new std::string("HTTP_COOKIE=" + cokie)))->begin());
+    env[i++] = &(*((new std::string("HTTP_HOST=localhost:9997")))->begin());
+    env[i++] = &(*((new std::string("SERVER_NAME=localhost")))->begin());
+    env[i++] = &(*((new std::string("SERVER_PORT=8400")))->begin());
+    env[i++] = NULL;
+}
+
 std::string Response::cgiRespCreator()
 {
-    // std::string temp;
     	char ** env;
-		env = new char*[11];
-
-        int i = 0;
-        std::string cokie;
-        std::list<std::string> tempcokie = _request.get_field_value("cookie");
-        if (!(tempcokie.empty()))
-        {
-            // cokie = *(tempcokie.begin()) + ";subdomain=" + _config.host + ":" + "9997";
-            // cokie = "domain=.localhost:9997; tutu=bob;" + *(tempcokie.begin());
-            cokie = "path=./example_sites/phpGetForm/; " + *(tempcokie.begin());
-            
-            // std::cout << cokie << "\n - -- - - - -- This was my cokie  - -- - - - - - - -- \n";
-        }
-        else
-            std::cout << "\nSORRYYYYY\n";
-            
-		env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin());
-		env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path   ))->begin()));
-        env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin());
-        env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin());
-        env[i++] = &(*((new std::string("HTTP_COOKIE=" + cokie)))->begin());
-        env[i++] = &(*((new std::string("HTTP_HOST=localhost:9997")))->begin());
-        env[i++] = &(*((new std::string("SERVER_NAME=localhost")))->begin());
-        env[i++] = &(*((new std::string("SERVER_PORT=8400")))->begin());
-        // env[i++] = &(*((new std::string(cokie)))->begin());
-		env[i++] = NULL;
-
+		env = new char*[9];
+        fill_up_env(env);
         Cgi test;
         std::string phpresp;
         phpresp += test.executeCgiNew(env);
-        if (phpresp.empty())
-            std::cout << "unfortunetly this shit has nothing inside!\n";
-        cokie.clear();
+        if (DEBUG && phpresp.empty())
+            std::cout << "unfortunetly this has nothing inside!\n";
         delete [] env;
     return (phpresp);
 }
