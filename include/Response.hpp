@@ -90,6 +90,7 @@ class Response {
         void respond_with_directory_listing_html() ;
         void respond_get();
         void respond_cgi_get();
+        void respond_cgi_get_perl();
         void respond_post();
         void method_get();
         void method_post();
@@ -97,11 +98,13 @@ class Response {
         void redirection_check();
         void default_error();
         void custom_error();
+        void fill_up_env(char **env);
         std::string custom_error_check_status();
         bool check_error_path(std::string const &);
 
         void respond_cgi_post();
         std::string cgiRespCreator();
+        std::string perl_cgiRespCreator();
         std::string cgiRespCreator_post();
         std::string contentLength_for_post();
         std::string contentType_for_post();
@@ -111,10 +114,10 @@ class Response {
         void add_formatted_timestamp();
         std::string generate_status_line() const;
         void identify_resource(); // calls :
-            void interpret_target();
-            void validate_target_abs_path();
-            void extract_resource_extension();
-            void identify_resource_type();
+        void interpret_target();
+        void validate_target_abs_path();
+        void extract_resource_extension();
+        void identify_resource_type();
         void upload_file();
         void response_to_string();
 

@@ -1,68 +1,131 @@
-# **********************************************************************#
-#																		#
-#								webserv									#
-#																		#
-# ********************************************************************* #
+NAME		=	webserv
 
-EXECUTABLE_NAME = webserv
+CXX			=	c++
 
-# ********************************************************************* #
+UNAME		:=	$(shell uname)
 
-CC = clang++
+CXXFLAGS	=	-std=c++98 -Wall -Wextra -Werror
 
-CFLAGS = \
-	-Wall -Wextra -Werror \
-	-std=c++98 \
-	-Wc++98-compat \
-	-pedantic
+# CXXFLAGS	+=	-g# -fsanitize=address -fsanitize=alignment -fsanitize=unreachable -fsanitize=bounds # can be used to check for any memory faults
 
-# ********************************************************************* #
-# project-specific (setup):
+# CXXFLAGS	+=	-D SHOW_CONSTRUCTION # enables the printing of constructor/destructor messages
 
-ENTRY_POINT = webserv.cpp
+# CXXFLAGS	+=	-D SHOW_LOG_SOCKET
 
-CLASSES = \
+# CXXFLAGS	+=	-D SHOW_LOG_CONFIG
 
-OTHER_CPPFILES = \
+# CXXFLAGS	+=	-D SHOW_LOG #enables the printing of surface-level logs, server-side only
 
-INTERFACES = \
+# CXXFLAGS	+=	-D SHOW_LOG_2 #enables the printing of deep-level logs, server-side only
 
-HPP_TEMPLATES = \
+# CXXFLAGS	+=	-D SHOW_LOG_REQUEST
 
-OTHER_HEADERS = \
-	
-# ********************************************************************* #
-# internal setup:
-# (Classes must have .cpp/.hpp extension to be compiled)
+# CXXFLAGS	+=	-D SHOW_LOG_RESPONSE
 
-CLASS_CPP := $(addsuffix .cpp, $(CLASSES))
-CLASS_HPP := $(addsuffix .hpp, $(CLASSES))
-INTERFACES_HPP := $(addsuffix .hpp, $(INTERFACES))
+# CXXFLAGS	+=	-D SHOW_LOG_EXCEPTION
 
-SOURCES = $(CLASS_CPP) $(ENTRY_POINT) $(OTHER_CPPFILES)
-HEADER_DEPS = $(CLASS_HPP) $(HPP_TEMPLATES) $(OTHER_HEADERS)
+# CXXFLAGS	+=	-D SHOW_LOG_ROUTING
 
-# ********************************************************************* #
-# compile all:
+# CXXFLAGS	+=	-D SHOW_LOG_CGI
 
-all: $(EXECUTABLE_NAME)
+#directories
+PWD			=	$(shell pwd)
+SRC_DIR		=	server/src/
+OBJ_DIR		=	server/obj/
+INC_DIR		=	server/include/
 
-$(EXECUTABLE_NAME): $(SOURCES) $(HEADER_DEPS)
-	@ echo "\033[38;5;37mBuilding webserver..."
-	@ $(CC) $(CFLAGS) -o $(EXECUTABLE_NAME) $(SOURCES)
-	@ echo "Done ✓\033[0m"
+#controll codes
+RESET		=	\033[0m
+GREEN		=	\033[32m
+YELLOW		=	\033[33m
+BLUE		=	\033[34m
+RED			=	\033[31m
+UP			=	\033[A
+CUT			=	\033[K
 
-.PHONY = clean
+#source files
+SRC_FILES	=	main.cpp \
+				SocketHandler.cpp \
+				Server.cpp \
+				ServerExceptions.cpp \
+				Routing.cpp	\
+				ServerUtils.cpp \
+				Message.cpp \
+				Response.cpp \
+				Send.cpp \
+				Receive.cpp \
+				Cgi.cpp	\
+				CgiResponse.cpp \
+				Request.cpp \
+				Config.cpp \
+				SingleServerConfig.cpp
 
+OBJ_FILES	=	$(SRC_FILES:.cpp=.o)
+
+DEP			=	$(wildcard $(INC_DIR)*.hpp) $(wildcard $(INC_DIR)*/*.hpp) Makefile
+
+#paths
+SRC			=	$(addprefix $(SRC_DIR), $(SRC_FILES))
+OBJ			=	$(addprefix $(OBJ_DIR), $(OBJ_FILES))
+
+#all rule
+all: $(NAME)
+#ascii art can be found at: https://patorjk.com/software/taag/#p=display&f=Calvin%20S&t=ft%20containers
+	@printf "\n"
+	@printf "$(GREEN)┬ ┬┌─┐┌┐ ┌─┐┌─┐┬─┐┬  ┬ \n$(RESET)"
+	@printf "$(GREEN)│││├┤ ├┴┐└─┐├┤ ├┬┘└┐┌┘ \n$(RESET)"
+	@printf "$(GREEN)└┴┘└─┘└─┘└─┘└─┘┴└─ └┘  \n$(RESET)"
+	@printf "\n"
+
+#compile the executable
+$(NAME): $(OBJ)
+	@echo "$(YELLOW)Compiling [$(NAME)]...$(RESET)"
+	@$(CXX) $(CXXFLAGS) $(OBJ) -o $(NAME)
+	@echo "$(GREEN)Finished [$(NAME)]$(RESET)"
+
+#compile objects
+$(OBJ_DIR)%.o:$(SRC_DIR)%.cpp $(DEP)
+	@mkdir -p $(OBJ_DIR)
+	@echo "$(YELLOW)Compiling [$@]...$(RESET)"
+	@$(CXX) $(CXXFLAGS) -I $(INC_DIR) -o $@ -c $<
+	@printf "$(UP)$(CUT)"
+	@echo "$(GREEN)Finished [$@]$(RESET)"
+	@printf "$(UP)$(CUT)"
+
+#clean rule
 clean:
-	@ rm -rf $(EXECUTABLE_NAME)
+	@if [ -d "$(OBJ_DIR)" ]; then \
+	rm -rf $(OBJ_DIR); \
+	echo "$(BLUE)Deleting all objects from $(PWD)...$(RESET)"; else \
+	echo "No objects to remove from $(PWD)."; \
+	fi;
 
+#fclean rule
 fclean: clean
-	@ rm -f $(EXECUTABLE_NAME)
-	@ rm -rf *.dSYM
-	@ rm -rf
+	@if [ -f "$(NAME)" ]; then \
+	rm -f $(NAME); \
+	echo "$(BLUE)Deleting $(NAME) from $(PWD)...$(RESET)"; else \
+	echo "No Executable to remove from $(PWD)."; \
+	fi;
 
+#re rule
 re: fclean all
 
-dbg: re
-	$(CC) $(CFLAGS) -o $(EXECUTABLE_NAME) $(SOURCES) -g3 -fsanitize=address
+#run rule
+run: all
+	./$(NAME) server/config/site.conf
+
+trans: all
+	./$(NAME) server/config/trans.conf
+
+our: all
+	./$(NAME) server/config/ourTester.conf
+
+tester:
+	@make -C ./ourTester
+
+rmtester:
+	@make clean -C ./ourTester
+
+#phony
+.PHONY: all clean fclean re run trans our tester rmtester
