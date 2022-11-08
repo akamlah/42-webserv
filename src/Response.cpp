@@ -46,7 +46,8 @@ void Response::send(const int fd) { // more error handeling here too [ + ]
     if (DEBUG)
         std::cout << "SENDING RESPONSE:\n" << _response_str;
         // std::cout << "SENDING RESPONSE:\n" << _response_str.substr(0 , _response_str.size() - _body.str().size());
-    int error = ::send(fd, _response_str.c_str(), _response_str.length(), 0);
+    // int error = ::send(fd, _response_str.c_str(), _response_str.length(), 0);
+    int error = ::send(fd, &(*(_response_str.begin())), _response_str.length(), 0);
     if (error < 0)
         throw_error_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
     if (error == 0)
@@ -267,9 +268,10 @@ void Response::respond_cgi_get_perl()
         return ;
 	_body << phpresp;
 	add_field("Content-length", std::to_string(phpresp.length()));
+    add_field("Content-type", "text/html");
 	response << generate_status_line() << CRLF;
 	response << _fields_stream.str() << CRLF;
-	response << _body.str() << CRLF;
+	response << _body.str();
 	_response_str = response.str();
 	return ;
 }
@@ -280,7 +282,7 @@ std::string Response::perl_cgiRespCreator()
     Cgi test;
     std::string perlresp;
     perlresp += test.executeCgi_perl(_resource.abs_path);
-    if (perlresp.empty())
+    if (DEBUG && perlresp.empty())
         std::cout << "PERL unfortunetly this has nothing inside!\n";
     return (perlresp);
 }
@@ -303,14 +305,14 @@ void Response::respond_cgi_post()
 	Cgi test;
 	std::string phpresp;
 	phpresp +=  cgiRespCreator_post();
-	std::string::size_type shitindex;
+	std::string::size_type separationindex;
     if (phpresp.empty())
         return ;
-	shitindex = phpresp.find("\r\n\r\n");
-    if (shitindex == std::string::npos)
+	separationindex = phpresp.find("\r\n\r\n");
+    if (separationindex == std::string::npos)
         return ;
 	_body << phpresp;
-	std::string temp = phpresp.substr(shitindex + 4);
+	std::string temp = phpresp.substr(separationindex + 4);
 	templength = temp.length();
 	add_field("Content-length", std::to_string(templength));
 	response << generate_status_line() << CRLF;
@@ -322,18 +324,19 @@ void Response::respond_cgi_post()
 
 std::string Response::contentLength_for_post()
 {
-    std::list<std::string> konttype = _request.get_field_value("content-type");
+    std::list<std::string> konttype;
     std::list<std::string>::iterator it;
     konttype = _request.get_field_value("content-length");
     std::string tempLength;
-
     if ( !(konttype.empty()) )
     {
         it = konttype.begin();
         while (it != konttype.end())
         {
             tempLength += *it;
-            std::cout << "length:\n" << tempLength << std::endl;
+            #if DEBUG
+                std::cout << "length:\n" << tempLength << std::endl;
+            #endif
             it++;
         }
     }
@@ -345,15 +348,15 @@ std::string Response::contentType_for_post()
     std::list<std::string> konttype = _request.get_field_value("content-type");
     std::list<std::string>::iterator it;
     std::string tmp;
-    
-
     if ( !(konttype.empty()) )
     {
         it = konttype.begin();
         while (it != konttype.end())
         {
             tmp += *it;
-            std::cout << "type:\n" << tmp << std::endl;
+            #if DEBUG
+                std::cout << "type:\n" << tmp << std::endl;
+            #endif
             it++;
         }
     }
@@ -368,8 +371,8 @@ std::string Response::cgiRespCreator_post()
     env[i++] = &(*((new std::string(_request._body.str())))->begin());
     env[i++] = &(*((new std::string("CONTENT_LENGTH=" + contentLength_for_post()))->begin()));
     env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin());
-    env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path                ))->begin()));
-    env[i++] = &(*((new std::string("PATH_INFO=" + _resource.abs_path                ))->begin()));
+    env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path ))->begin()));
+    env[i++] = &(*((new std::string("PATH_INFO=" + _resource.abs_path ))->begin()));
     env[i++] = &(*((new std::string("SERVER_PROTOCOL=HTTP/1.1")))->begin());
     env[i++] = &(*((new std::string("GATEWAY_INTERFACE=CGI/1.1")))->begin());
     env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin());
@@ -416,7 +419,7 @@ void Response::default_error() {
         << "<h1>" << _tokens.status_phrases[_status] << "</h1>"
         << "<h3>" << _request.error_msg << "</h3>\n"
         << "<h3>" << error_msg << "</h3>\n"
-        << "</body></html>\r\n";
+        << "</body></html>";
 }
 
 std::string Response::custom_error_check_status() {
@@ -655,7 +658,7 @@ void Response::response_to_string() {
         add_field("Content-length", std::to_string(_body.str().size()));
     response << generate_status_line() << CRLF;
     response << _fields_stream.str() << CRLF;
-    response << _body.str() << CRLF << CRLF;
+    response << _body.str();
     _response_str = response.str();
 }
 
