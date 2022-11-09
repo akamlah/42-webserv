@@ -93,27 +93,6 @@ static void remove_trailing_slash(std::string& path) {
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-// Private methods. Content:
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-// Main fuction for response generation 
-//      build_response()
-// Method: GET
-//      
-// Method: POST
-//      
-// Method: Delete
-//      
-// Method: exceptions (errors and directory listing)
-//      
-// further TARGET PARSING
-//      
-// Utilities :
-//      generate_status_line()
-//      add_formatted_timestamp()
-//      add_field()
-//      response_to_string()
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Main fuction for response generation
@@ -135,52 +114,6 @@ void Response::redirection_check()
     add_field("Location", _config.http_redirects);
     add_formatted_timestamp();
     response_to_string();
-}
-
-void Response::method_get()
-{
-    if (getValid("GET"))
-        throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
-    if (_config.isCgiOn && _config.cgi.compare(".php") == 0 && (_resource.extension == "php" || _resource.extension == "html")) {
-        respond_cgi_get();
-    }
-    else if (_config.isCgiOn && _config.cgi.compare(".pl") == 0 && (_resource.extension == "pl" || _resource.extension == "html")) {
-        respond_cgi_get_perl();
-    }
-    else {
-        add_field("Content-type", _resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
-        #if DEBUG
-            std::cout << CYAN << "Content-type: " <<  (_resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
-            std::cout << NC << std::endl;
-        #endif
-        respond_get();
-    }
-}
-
-void Response::method_post()
-{
-    if (getValid("POST"))
-        throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
-    if (_config.isCgiOn && _config.cgi.compare(".php") == 0 && (_resource.extension == "php" || _resource.extension == "html")) {
-        respond_cgi_post();
-    }
-    else {
-        add_field("Content-type", _resource.subtype.empty() ? _resource.type : (_resource.type + "/" + _resource.subtype));
-        respond_get();
-    }
-}
-
-void Response::method_delete()
-{
-    if (getValid("DELETE"))
-        throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
-    if (std::remove(_resource.abs_path.c_str()) == 0) {
-        add_field("Content-length", "0");
-        respond_to_delete();
-    }
-    else {
-        throw_error_status(WS_404_NOT_FOUND, "The file is not there!");
-    }
 }
 
 void Response::build_response() {
@@ -218,177 +151,23 @@ void Response::build_response() {
     }
 }
 
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-// Method: GET
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-void Response::respond_get() {
-    add_field("Accept-Ranges", "bytes");
-    upload_file();
-    response_to_string();
-}
-
-void Response::respond_cgi_get()
-{
-	add_field("accept-ranges", "bytes");
-	add_field("Cache-Control", "no-cache");
-	int templength;
-	std::stringstream response;
-	Cgi test;
-	std::string phpresp;
-	phpresp +=  cgiRespCreator();
-	std::string::size_type shitindex;
-    if (phpresp.empty())
-        return ;
-	shitindex = phpresp.find("\r\n\r\n");
-    if (shitindex == std::string::npos)
-        return ;
-	_body << phpresp;
-	std::string temp = phpresp.substr(shitindex + 4);
-	templength = temp.length();
-	add_field("Content-length", std::to_string(templength));
-	response << generate_status_line() << CRLF;
-	response << _fields_stream.str();
-	response << _body.str();
-	_response_str = response.str();
-	return ;
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-// perl
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-void Response::respond_cgi_get_perl()
-{
-	std::stringstream response;
-	Cgi test;
-	std::string phpresp;
-	phpresp +=  perl_cgiRespCreator();
-    if (phpresp.empty())
-        return ;
-	_body << phpresp;
-	add_field("Content-length", std::to_string(phpresp.length()));
-    add_field("Content-type", "text/html");
-	response << generate_status_line() << CRLF;
-	response << _fields_stream.str() << CRLF;
-	response << _body.str();
-	_response_str = response.str();
-	return ;
-}
-
-std::string Response::perl_cgiRespCreator()
-{
-
-    Cgi test;
-    std::string perlresp;
-    perlresp += test.executeCgi_perl(_resource.abs_path);
-    if (DEBUG && perlresp.empty())
-        std::cout << "PERL unfortunetly this has nothing inside!\n";
-    return (perlresp);
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-// Method: POST
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-void Response::respond_post() {
-    upload_file();
-    response_to_string();
-}
-
-void Response::respond_cgi_post()
-{
-    add_field("accept-ranges", "bytes");
-	add_field("Cache-Control", "no-cache");
-	int templength;
-	std::stringstream response;
-	Cgi test;
-	std::string phpresp;
-	phpresp +=  cgiRespCreator_post();
-	std::string::size_type separationindex;
-    if (phpresp.empty())
-        return ;
-	separationindex = phpresp.find("\r\n\r\n");
-    if (separationindex == std::string::npos)
-        return ;
-	_body << phpresp;
-	std::string temp = phpresp.substr(separationindex + 4);
-	templength = temp.length();
-	add_field("Content-length", std::to_string(templength));
-	response << generate_status_line() << CRLF;
-	response << _fields_stream.str();
-	response << _body.str();
-	_response_str = response.str();
-	return ;
-}
-
-std::string Response::contentLength_for_post()
-{
-    std::list<std::string> konttype;
-    std::list<std::string>::iterator it;
-    konttype = _request.get_field_value("content-length");
-    std::string tempLength;
-    if ( !(konttype.empty()) )
-    {
-        it = konttype.begin();
-        while (it != konttype.end())
-        {
-            tempLength += *it;
-            #if DEBUG
-                std::cout << "length:\n" << tempLength << std::endl;
-            #endif
-            it++;
-        }
-    }
-    return (tempLength);
-}
-
-std::string Response::contentType_for_post()
-{
-    std::list<std::string> konttype = _request.get_field_value("content-type");
-    std::list<std::string>::iterator it;
-    std::string tmp;
-    if ( !(konttype.empty()) )
-    {
-        it = konttype.begin();
-        while (it != konttype.end())
-        {
-            tmp += *it;
-            #if DEBUG
-                std::cout << "type:\n" << tmp << std::endl;
-            #endif
-            it++;
-        }
-    }
-    return (tmp);
-}
-
-std::string Response::cgiRespCreator_post()
-{
-    char ** env;
-    env = new char*[14];
-    int i = 0;
-    env[i++] = &(*((new std::string(_request._body.str())))->begin());
-    env[i++] = &(*((new std::string("CONTENT_LENGTH=" + contentLength_for_post()))->begin()));
-    env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin());
-    env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path ))->begin()));
-    env[i++] = &(*((new std::string("PATH_INFO=" + _resource.abs_path ))->begin()));
-    env[i++] = &(*((new std::string("SERVER_PROTOCOL=HTTP/1.1")))->begin());
-    env[i++] = &(*((new std::string("GATEWAY_INTERFACE=CGI/1.1")))->begin());
-    env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin());
-    env[i++] = &(*((new std::string("CONTENT_TYPE=" +   contentType_for_post() ))->begin()));
-    env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin());
-    env[i++] = NULL;
-    Cgi test;
-    std::string phpresp;
-    phpresp += test.executeCgiNew(env);
-    delete [] env;
-    return (phpresp);
-}
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Method: Delete
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+void Response::method_delete()
+{
+    if (getValid("DELETE"))
+        throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
+    if (std::remove(_resource.abs_path.c_str()) == 0) {
+        add_field("Content-length", "0");
+        respond_to_delete();
+    }
+    else {
+        throw_error_status(WS_404_NOT_FOUND, "The file is not there!");
+    }
+}
 
 void Response::respond_to_delete() {
     _body.str(std::string());
@@ -686,40 +465,6 @@ void Response::upload_file() { // + error handeling & target check here !
         std::cout << e.what() << std::endl;
         throw_error_status(WS_500_INTERNAL_SERVER_ERROR, strerror(errno));
     }
-}
-
-void Response::fill_up_env(char **env)
-{
-    int i = 0;
-    std::string cokie;
-    std::list<std::string> tempcokie = _request.get_field_value("cookie");
-    if (!(tempcokie.empty()))
-        cokie = *(tempcokie.begin());
-    else if (DEBUG)
-        std::cout << "\nSORRYYYYY there is no cokie in the request\n";
-    env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin());
-    env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path   ))->begin()));
-    env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin());
-    env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin());
-    env[i++] = &(*((new std::string("HTTP_COOKIE=" + cokie)))->begin());
-    env[i++] = &(*((new std::string("HTTP_HOST=localhost:9997")))->begin());
-    env[i++] = &(*((new std::string("SERVER_NAME=localhost")))->begin());
-    env[i++] = &(*((new std::string("SERVER_PORT=8400")))->begin());
-    env[i++] = NULL;
-}
-
-std::string Response::cgiRespCreator()
-{
-    	char ** env;
-		env = new char*[9];
-        fill_up_env(env);
-        Cgi test;
-        std::string phpresp;
-        phpresp += test.executeCgiNew(env);
-        if (DEBUG && phpresp.empty())
-            std::cout << "unfortunetly this has nothing inside!\n";
-        delete [] env;
-    return (phpresp);
 }
 
 bool Response::getValid(const std::string & nameof)
