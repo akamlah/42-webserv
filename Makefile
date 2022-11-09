@@ -34,6 +34,8 @@ CLASSES_NAME = \
 	Connection 
 	
 OTHER_CPPFILES = \
+	GetResponse.cpp\
+	PostResponse.cpp
 
 INTERFACES = \
 

@@ -43,6 +43,14 @@ struct Resource {
     std::string extension;
 };
 
+// class RespGet {
+
+// };
+
+// class RespPost {
+
+// };
+
 class Response {
 
     public:
@@ -79,8 +87,8 @@ class Response {
         std::stringstream   _fields_stream; // buffered header fields
         std::stringstream   _body; // buffered resource body if any
         std::string         _response_str; // the whole response
-
-        std::string error_msg;
+        std::string         error_msg;
+        int                 _allbytes;
 
     private:
 
