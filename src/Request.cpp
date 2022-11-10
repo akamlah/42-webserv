@@ -68,40 +68,40 @@ int Request::status() const { return (_status); }
 
 bool Request::is_persistent() const { return (_is_persistent);}
 
-int Request::parse(const int fd) {
+int Request::parse( const char* buffer, int brecv) {
     if (!_waiting_for_chunks) {
-        _parser.parse(*this, fd);
-            #if (DEBUG)
-            (_status < 400) ? std::cout << GREEN : std::cout << RED;
-            std::cout << "PARSED REQUEST STATUS: " << _status << NC << std::endl;
-            std::cout << CYAN << "PARSED HEADER:\n" \
-                << "\tMethod: " << header.method << "\n" \
-                << "\tTarget: " << header.target << "\n" \
-                << "\tVersion: " << header.version << NC << std::endl;
+        _parser.parse(*this, buffer, brecv);
+            // #if (DEBUG)
+            // (_status < 400) ? std::cout << GREEN : std::cout << RED;
+            // std::cout << "PARSED REQUEST STATUS: " << _status << NC << std::endl;
+            // std::cout << CYAN << "PARSED HEADER:\n" \
+            //     << "\tMethod: " << header.method << "\n" \
+            //     << "\tTarget: " << header.target << "\n" \
+            //     << "\tVersion: " << header.version << NC << std::endl;
 
-            // std::cout << CYAN << "PARSED FIELDS:\n" << NC;
-            // for (std::map<std::string, std::list<std::string> >::const_iterator it = _fields._map.begin();
-            //     it != _fields._map.end(); it++)
-            // {
-            //     std::cout << CYAN << it->first<< NC << "|" ;
-            //     for (std::list<std::string>::const_iterator itl = it->second.begin(); itl != it->second.end(); itl++)
-            //         std::cout << YELLOW << *itl << NC << "|";
-            //     std::cout << std::endl;
-            // }
-            // std::cout << "request msg length after parse: " << _parser.msg_length << std::endl;
-            std::cout << CYAN << "\nPARSER: Message recieved: ---------\n" << NC << _parser.buffer << std::endl;
-            std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
-            // std::cout << CYAN << "\nBODY IS:---------------------------\n" << this->_body.str() << NC << std::endl;
+            // // std::cout << CYAN << "PARSED FIELDS:\n" << NC;
+            // // for (std::map<std::string, std::list<std::string> >::const_iterator it = _fields._map.begin();
+            // //     it != _fields._map.end(); it++)
+            // // {
+            // //     std::cout << CYAN << it->first<< NC << "|" ;
+            // //     for (std::list<std::string>::const_iterator itl = it->second.begin(); itl != it->second.end(); itl++)
+            // //         std::cout << YELLOW << *itl << NC << "|";
+            // //     std::cout << std::endl;
+            // // }
+            // // std::cout << "request msg length after parse: " << _parser.msg_length << std::endl;
+            // std::cout << CYAN << "\nPARSER: Message recieved: ---------\n" << NC << _parser.buffer << std::endl;
             // std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
-            // std::cout << GREEN << "Is persistent: ";
-            // std::cout << this->_is_persistent << NC << std::endl;
-            // std::cout << GREEN << "Waiting for chunks: ";
-            // std::cout << this->_waiting_for_chunks << NC << std::endl;
-            #endif
-            std::cout << "Request class: client sent request for '" << this->header.target << "' on fd " << fd << std::endl;
+            // // std::cout << CYAN << "\nBODY IS:---------------------------\n" << this->_body.str() << NC << std::endl;
+            // // std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
+            // // std::cout << GREEN << "Is persistent: ";
+            // // std::cout << this->_is_persistent << NC << std::endl;
+            // // std::cout << GREEN << "Waiting for chunks: ";
+            // // std::cout << this->_waiting_for_chunks << NC << std::endl;
+            // #endif
+            // std::cout << "Request class: client sent request for '" << this->header.target << "' on fd " << fd << std::endl;
     }
     else {
-        _parser.parse_chunks(*this, fd);
+        _parser.parse_chunks(*this);
         if (_status >= 400)
             _waiting_for_chunks = false; // VERY IMPORTANT!!! [ ! ]
     }
@@ -204,12 +204,12 @@ bool parser::is_method(const char *word, size_t word_length) const {
 // message up to here has either te = chunked or no TE but A content -> if no cl at this point it is an error -> 411
 // A server MAY reject a request that contains a message body but not a 
 // Content-Length by responding with 411 (Length Required).
-int parser::parse_body(Request& request, int fd) {
-    if (DEBUG)
-        std::cout << "parsing body" << std::endl;
+int parser::parse_body(Request& request) {
+    // if (DEBUG)
+        // std::cout << "parsing body" << std::endl;
     size_t body_length = 0;
     int status = request._status;
-    // request._content_length = 0; // (should be so in constr already) [ - ]
+    request._content_length = 0; // (should be so in constr already) [ - ]
     if (request.has_field_of_name("content-length")) {
         if (request.has_field_of_name("transfer-encoding"))
             return(error_status(request, WS_400_BAD_REQUEST, "Non compatible content-length and transfer-encoding fields detected"));
@@ -227,7 +227,7 @@ int parser::parse_body(Request& request, int fd) {
     // if (request.header.method == "POST" && request.get_field_value("content-type").begin()->find("multipart/form-data") != std::string::npos)
         // return(error_status(request, WS_501_NOT_IMPLEMENTED, "Sry :("));
     while (body_length <= request._content_length && msg_length < BUFFER_SIZE) {
-        status =  get_byte(request, fd);
+        status =  get_byte(request);
         if (!status || buffer[msg_length] == '\0') {
                 #if DEBUG
                 std::cout << "EOF Body" << std::endl;
@@ -250,9 +250,9 @@ int parser::parse_body(Request& request, int fd) {
 }
 
 
-int parser::parse_chunks(Request& request, int fd) {
-    if (DEBUG)
-        std::cout << YELLOW << "parsing chunks" << NC << std::endl;
+int parser::parse_chunks(Request& request) {
+    // if (DEBUG)
+    //     std::cout << YELLOW << "parsing chunks" << NC << std::endl;
     int status = request._status;
     int chunk_size = 0;
     line_length = 0;
@@ -260,7 +260,7 @@ int parser::parse_chunks(Request& request, int fd) {
     int content_size = 0;
     bool size_done = false;
     while (msg_length < BUFFER_SIZE) {
-        status = get_byte(request, fd);
+        status = get_byte(request);
         if (!status || buffer[msg_length] == '\0')
             break ;
         if (status >= 400)
@@ -313,17 +313,18 @@ int parser::parse_chunks(Request& request, int fd) {
 // PARSE HEADER - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 // goes through byte by byte and at every newline reads the previous line into the data structure.
-int parser::parse(Request& request, int fd) {
-    if (DEBUG) std::cout << "about to parse a new request on fd: " << fd << std::endl;
+int parser::parse(Request& request,  const char* xbuffer, int brecv) {
+    memcpy(buffer, xbuffer, brecv + 1);
+    if (DEBUG) std::cout << "about to parse a new request on fd: " << std::endl;
     int status = request._status;
-    while (msg_length < BUFFER_SIZE) {
+    while (msg_length < (size_t)brecv) {
         if (header_done && !body_done) {
-            status = parse_body(request, fd);
+            status = parse_body(request);
             body_done = true;
             break ;
         }
         // keep BEFORE null byte check, bcs I want to check contet length field even if no body provided.
-        if (!header_done && !(status = get_byte(request, fd)))
+        if (!header_done && !(status = get_byte(request)))
             break ;
         if (status != WS_200_OK) // NEED THIS [ ? ]
             return (status) ; // if 0 it is end of file
@@ -358,14 +359,10 @@ int parser::parse(Request& request, int fd) {
 // reads a byte and does some primary checks
 // encoding must be a superset of US-ASCII [USASCII] -> max 128 (hex 80) (RFC 9112)
 // ANY CR_int not folowed by LF_int is invalid and message is rejected (RFC 9112)
-int parser::get_byte(Request& request, int fd) {
-    size_t bytes_read = 0;
-    if ((bytes_read = recv(fd, buffer + msg_length, 1, MSG_DONTWAIT)) < 0)
-        return (error_status(request, WS_500_INTERNAL_SERVER_ERROR, "Error recieving data"));
-    if (!bytes_read)
-        return (0);
-    if (!header_done && buffer[msg_length] >= 0x80)
-        return (error_status(request, WS_400_BAD_REQUEST, "Bad encoding"));
+int parser::get_byte(Request& request) {
+
+    // if (!header_done && buffer[msg_length] > (int)0x80)
+    //     return (error_status(request, WS_400_BAD_REQUEST, "Bad encoding"));
     if (line_length > 1 && buffer[msg_length - 1] == CR_int && buffer[msg_length] != LF_int)
         return (error_status(request, WS_400_BAD_REQUEST, "CR not followed by LF"));
     // if (buffer[msg_length] == LF_int)
@@ -514,9 +511,9 @@ int parser::parse_field_line(Request& request, std::string line) {
     return (WS_200_OK);
 }
 
-// --------------------------------------------------------------------------------------------------------
-// Class HeaderFields
-// --------------------------------------------------------------------------------------------------------
+// // --------------------------------------------------------------------------------------------------------
+// // Class HeaderFields
+// // --------------------------------------------------------------------------------------------------------
 
 HeaderFields::HeaderFields(){}
 
