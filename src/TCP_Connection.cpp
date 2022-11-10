@@ -58,9 +58,12 @@ TCP_Connection::cn_state& TCP_Connection::state()
 // Core - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 void TCP_Connection::response_to_str() { // replace with class response later.
+
     http::Response response(_request, _conf, _tokens);
     _response_str = response.string();
     _btosend = _response_str.length() + 1;
+    if (!response.status_is_success())
+        _state = HTTP_ERROR;
 }
 
 // handle buffer size: read again if bytes read > socket buffer etc...
@@ -96,19 +99,19 @@ void TCP_Connection::rdwr() {
         _request.parse(_buffer, _brecv);
 
         _state = ESTABLISHED; // redundant, for safety
-        // else
-            // _state = to close
+
 
         // PREPARE WRITE :
 
         // Maybe do a check for writing func, set to pollout and check that before actually writing
-        // _socket.configure(); // [ ! ] HERE OR BEFORE RECV ??
+        _socket.configure(); // [ ! ] HERE OR BEFORE RECV ??
         response_to_str();
         write();
     }
 }
 
 void TCP_Connection::write() {
+
     WS_connection_debug("Responding on fd: " << _socket.fd());
     // int n = ::send(_socket.fd(), &(*(_s.str().begin() + _bsent)), _btosend - _bsent, 0);
     int n = ::send(_socket.fd(), _response_str.c_str() + _bsent, _btosend - _bsent, 0);
@@ -129,11 +132,12 @@ void TCP_Connection::write() {
         std::cout << "bytes sent now " << n << " for a total of " << _bsent << " of " << _btosend << std::endl;
         if (_bsent == _btosend) {
             std::cout << "DONE" << std::endl;
-            std::cout << "|" << _response_str << "|" << std::endl;
+            // std::cout << "|" << _response_str << "|" << std::endl;
             _bsent = 0;
             _btosend = 0;
             _response_str = std::string();
-            _state = ESTABLISHED;
+            if (_state != HTTP_ERROR)
+                _state = ESTABLISHED;
             return ;
         }
         _state = PARTIAL_RESPONSE;

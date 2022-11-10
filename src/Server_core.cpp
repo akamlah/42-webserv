@@ -237,7 +237,11 @@ void Server::handle_connection(int id) {
             WS_events_debug(CYAN << "CLOSE WAIT" << NC);
         case TCP_Connection::TIMED_OUT:
             WS_events_debug(CYAN << "TIMEOUT" << NC);
-            half_close_connection(id);
+        case TCP_Connection::HTTP_ERROR:
+            WS_events_debug(CYAN << "TO CLOSE" << NC);
+            // half_close_connection(id);
+            close_connection(id);
+
             break;
 
         case TCP_Connection::RD_ERROR:
