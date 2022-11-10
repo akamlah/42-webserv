@@ -52,6 +52,7 @@ class TCP_Connection {
             PARTIAL_RESPONSE ,
             CLOSE_WAIT ,
             TIMED_OUT ,
+            HTTP_ERROR ,
             RD_ERROR ,
             WR_ERROR
         };

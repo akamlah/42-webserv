@@ -69,19 +69,14 @@ class Response {
         ~Response();
 
         int status() const { return (_status); }
-        void send(const int fd);
-        bool is_persistent() const;
         static void append_slash(std::string& path);
         static void remove_leading_slash(std::string& path);
-
-        std::string string() {
-            // response_to_string();
-            return (_response_str);
-        }
+        std::string& string();
+        bool status_is_success() const ;
 
     private:
+
         int throw_error_status(int status, const char* msg = NULL) ;
-        // mainly for target check (fstream open error handeling)
 
         const Request&      _request;
         const config_data&  _config;
@@ -97,8 +92,8 @@ class Response {
 
     private:
 
-        void respond_to_delete();
         void build_response();
+        void respond_to_delete();
         void respond_to_error();
         void respond_with_directory_listing_html() ;
         void respond_get();
