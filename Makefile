@@ -25,25 +25,24 @@ SOURCES_DIR = ./src/
 INCLUDE_DIR = ./include/
 
 CLASSES_NAME = \
-	Server \
-	Request \
-	Response \
 	Config \
-	Poll \
 	CGI \
-	Connection 
-	
+	PollDescriptors \
+	Response \
+	Request \
+	TCP_Connection
+
 OTHER_CPPFILES = \
 	GetResponse.cpp\
-	PostResponse.cpp
-
-INTERFACES = \
-
-HPP_TEMPLATES = \
+	PostResponse.cpp \
+	Server_signals.cpp \
+	Server_core.cpp
 
 OTHER_HEADERS = \
 	utility.hpp \
-	http_type_traits.hpp
+	http_tokens.hpp \
+	Server.hpp \
+	sockets.hpp
 
 # ********************************************************************* #
 # internal setup:

@@ -86,12 +86,12 @@ namespace http {
 #define WS_507_HTTP_VERSION_NOT_SUPPORTED 507
 #define WS_511_NETWORK_AUTHENTICATION_REQUIRED 511
 // ---------------------------------------------------------------------------
-
 #define BUFFER_SIZE 100000
 
 // It is RECOMMENDED that all HTTP senders and recipients support, at a 
 // minimum, request-line lengths of 8000 octets.
 #define REQUEST_LINE_LENGTH 9000
+#define MAX_WORD_LENGTH 9000
 
 // HTTP does not place a predefined limit on the length of a request-line, as described in Section 2.3 of [HTTP]. 
 // A server that receives a method longer than any that it implements SHOULD respond with a 501 (Not Implemented) 

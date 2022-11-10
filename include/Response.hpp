@@ -11,7 +11,7 @@
 #include "utility.hpp"
 #include "CGI.hpp"
 #include "Config.hpp"
-#include "http_type_traits.hpp"
+#include "http_tokens.hpp"
 #include <fstream>
 #include <sstream>
 #include <ctime>
@@ -73,6 +73,11 @@ class Response {
         bool is_persistent() const;
         static void append_slash(std::string& path);
         static void remove_leading_slash(std::string& path);
+
+        std::string string() {
+            // response_to_string();
+            return (_response_str);
+        }
 
     private:
         int throw_error_status(int status, const char* msg = NULL) ;
