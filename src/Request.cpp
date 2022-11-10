@@ -79,15 +79,15 @@ int Request::parse( const char* buffer, int brecv) {
             //     << "\tTarget: " << header.target << "\n" \
             //     << "\tVersion: " << header.version << NC << std::endl;
 
-            // // std::cout << CYAN << "PARSED FIELDS:\n" << NC;
-            // // for (std::map<std::string, std::list<std::string> >::const_iterator it = _fields._map.begin();
-            // //     it != _fields._map.end(); it++)
-            // // {
-            // //     std::cout << CYAN << it->first<< NC << "|" ;
-            // //     for (std::list<std::string>::const_iterator itl = it->second.begin(); itl != it->second.end(); itl++)
-            // //         std::cout << YELLOW << *itl << NC << "|";
-            // //     std::cout << std::endl;
-            // // }
+            // std::cout << CYAN << "PARSED FIELDS:\n" << NC;
+            // for (std::map<std::string, std::list<std::string> >::const_iterator it = _fields._map.begin();
+            //     it != _fields._map.end(); it++)
+            // {
+            //     std::cout << CYAN << it->first<< NC << "|" ;
+            //     for (std::list<std::string>::const_iterator itl = it->second.begin(); itl != it->second.end(); itl++)
+            //         std::cout << YELLOW << *itl << NC << "|";
+            //     std::cout << std::endl;
+            // }
             // // std::cout << "request msg length after parse: " << _parser.msg_length << std::endl;
             // std::cout << CYAN << "\nPARSER: Message recieved: ---------\n" << NC << _parser.buffer << std::endl;
             // std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
