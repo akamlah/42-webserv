@@ -92,7 +92,7 @@ void TCP_Connection::rdwr() {
         _state = CLOSE_WAIT;
     }
     else {
-        std::cout << "|" << _buffer << "|" << std::endl;
+        // std::cout << "|" << _buffer << "|" << std::endl;
         _brecv += n;
 
         // _request.parse_header(_buffer, _brecv);
@@ -116,7 +116,7 @@ void TCP_Connection::write() {
     // int n = ::send(_socket.fd(), &(*(_s.str().begin() + _bsent)), _btosend - _bsent, 0);
     int n = ::send(_socket.fd(), _response_str.c_str() + _bsent, _btosend - _bsent, 0);
     if (n < 0) {
-        std::cout << "bytes sent now " << n << std::endl;
+        // std::cout << "bytes sent now " << n << std::endl;
         
         #ifdef DEBUG_CONNECTIONS
         if (errno == EPIPE) { WS_connection_debug("Pipe error - RD"); }
@@ -129,9 +129,9 @@ void TCP_Connection::write() {
     else {
         // [ ! ] make case for 0 to not get stuck in infinite loop 0 ? or maybe poll is enough
         _bsent += n;
-        std::cout << "bytes sent now " << n << " for a total of " << _bsent << " of " << _btosend << std::endl;
+        // std::cout << "bytes sent now " << n << " for a total of " << _bsent << " of " << _btosend << std::endl;
         if (_bsent == _btosend) {
-            std::cout << "DONE" << std::endl;
+            // std::cout << "DONE" << std::endl;
             // std::cout << "|" << _response_str << "|" << std::endl;
             _bsent = 0;
             _btosend = 0;
@@ -141,7 +141,7 @@ void TCP_Connection::write() {
             return ;
         }
         _state = PARTIAL_RESPONSE;
-        std::cout << "NEXT ROUND" << std::endl;
+        // std::cout << "NEXT ROUND" << std::endl;
         return ;
     }
 }

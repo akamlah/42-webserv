@@ -58,8 +58,8 @@ int Server::TCP_ConnectionMap::add_new(const TCP_IP6_ListeningSocket& l_socket) 
     if (new_connection.socket().fd() < 0)
         return (-1);
     _map.insert(std::make_pair(new_connection.socket().fd(), new_connection));
-    WS_events_debug("Established new connection with fd "
-        << new_connection.socket().fd());
+    // WS_events_debug("Established new connection with fd "
+    //     << new_connection.socket().fd());
     return (new_connection.socket().fd());
 }
 
@@ -68,10 +68,10 @@ void Server::TCP_ConnectionMap::remove(int fd) {
 }
 
 void Server::TCP_ConnectionMap::print() {
-    WS_events_debug("CONN:");
-    for (std::map<int, TCP_Connection>::const_iterator it = _map.begin(); it != _map.end(); it++) {
-        WS_events_debug("fd: " << it->first << " sock_fd " << it->second.socket().fd());
-    }
+    // WS_events_debug("CONN:");
+    // for (std::map<int, TCP_Connection>::const_iterator it = _map.begin(); it != _map.end(); it++) {
+    //     WS_events_debug("fd: " << it->first << " sock_fd " << it->second.socket().fd());
+    // }
 }
 
 
@@ -106,7 +106,7 @@ void Server::run() {
     this->listen(BACKLOG);
     int events;
     for (;;) {
-        WS_events_debug("- - - - POLL - - - - ");
+        // WS_events_debug("- - - - POLL - - - - ");
         events = _fd_pool.poll(TIMEOUT_MS);
         if (events < 0)
             throw_print_error(SystemError(), "poll() failed");
@@ -120,10 +120,10 @@ void Server::run() {
         handle_events_incoming(events);
         handle_events_connections(events);
         _fd_pool.compress();
-        WS_events_debug(std::endl);
+        // WS_events_debug(std::endl);
         if (events)
             throw_print_error(SystemError(), "Missed events - fatal"); // other error
-        WS_events_debug("- - - - - - - - - - - ");
+        // WS_events_debug("- - - - - - - - - - - ");
     }
 }
 
@@ -172,7 +172,9 @@ void Server::listen(const int backlog) const {
 void Server::handle_events_incoming(int& events) {
     for (size_t id = 0; id < _listening_sockets.size(); id++) {
         if (_fd_pool[id].revents != 0)
-            { log_pool_id_events(id); WS_events_debug("    [ Ls ] "); }
+            { log_pool_id_events(id);
+            //  WS_events_debug("    [ Ls ] ");
+              }
         if (_fd_pool[id].revents & POLLRDNORM) {
             if (_fd_pool.size() < MAX_POLLFD_NB) {
                 accept_on_listening_socket(id);
@@ -187,21 +189,23 @@ void Server::handle_events_incoming(int& events) {
 }
 
 void Server::accept_on_listening_socket(int id) {
-    WS_events_debug("Accepting new connections on fd " << _fd_pool[id].fd);
+    // WS_events_debug("Accepting new connections on fd " << _fd_pool[id].fd);
     int fd = -1;
     while((fd = _connections.add_new(_listening_sockets[id])) > 0
      && errno != ECONNABORTED) { // Stevens, c 5.11
         _fd_pool.add_descriptor(fd, POLLRDNORM);
         _connections.print();
     }
-    WS_events_debug("Exiting accept loop");
+    // WS_events_debug("Exiting accept loop");
 }
 
 void Server::handle_events_connections(int& events) {
     size_t current_size = _fd_pool.size();
     for (size_t id = _listening_sockets.size(); id < current_size && events > 0; id++) {
         if (_fd_pool[id].revents != 0)
-            { log_pool_id_events(id); WS_events_debug("    [ Cn ]"); }
+            { log_pool_id_events(id); 
+            // WS_events_debug("    [ Cn ]");
+            }
         if (_fd_pool[id].revents & (POLLRDNORM | POLLERR) || _fd_pool[id].revents & (POLLWRNORM | POLLERR)) { // == RST
         // if (_fd_pool[id].revents & (POLLRDNORM | POLLERR)) { // == RST
             handle_connection(id);
@@ -217,7 +221,7 @@ void Server::handle_connection(int id) {
     switch (_connections[cid].state()) {
 
         case TCP_Connection::ESTABLISHED:
-            WS_events_debug(CYAN << "ESTABLISHED" << NC);
+            // WS_events_debug(CYAN << "ESTABLISHED" << NC);
             _connections[cid].rdwr(); // separate later and set wr only if pollwrnorm ?
             if (_connections[cid].state() == TCP_Connection::PARTIAL_RESPONSE)
                 _fd_pool[id].events = POLLWRNORM;
@@ -225,7 +229,7 @@ void Server::handle_connection(int id) {
             break ;
 
         case TCP_Connection::PARTIAL_RESPONSE:
-            WS_events_debug(CYAN << "PARTIAL RESP" << NC);
+            // WS_events_debug(CYAN << "PARTIAL RESP" << NC);
             _connections[cid].write();
             if (_connections[cid].state() == TCP_Connection::ESTABLISHED)
                 _fd_pool[id].events = POLLRDNORM;
@@ -234,11 +238,11 @@ void Server::handle_connection(int id) {
             break ;
 
         case TCP_Connection::CLOSE_WAIT:
-            WS_events_debug(CYAN << "CLOSE WAIT" << NC);
+            // WS_events_debug(CYAN << "CLOSE WAIT" << NC);
         case TCP_Connection::TIMED_OUT:
-            WS_events_debug(CYAN << "TIMEOUT" << NC);
+            // WS_events_debug(CYAN << "TIMEOUT" << NC);
         case TCP_Connection::HTTP_ERROR:
-            WS_events_debug(CYAN << "TO CLOSE" << NC);
+            // WS_events_debug(CYAN << "TO CLOSE" << NC);
             // half_close_connection(id);
             close_connection(id);
 
@@ -257,7 +261,7 @@ void Server::handle_connection(int id) {
 }
 
 void Server::close_connection(int id) {
-    WS_events_debug(CYAN << "Closing connection on fd " << _fd_pool[id].fd << NC);
+    // WS_events_debug(CYAN << "Closing connection on fd " << _fd_pool[id].fd << NC);
     _connections.remove(_fd_pool[id].fd);
     ::close(_fd_pool[id].fd);
     _fd_pool.mark_to_cancel(id);
@@ -265,18 +269,18 @@ void Server::close_connection(int id) {
 
 // gracefully close -> leave client time to read remaining data on socket
 void Server::half_close_connection(int id) {
-    WS_events_debug(CYAN << "Half closing connection on fd " << _fd_pool[id].fd << NC);
+    // WS_events_debug(CYAN << "Half closing connection on fd " << _fd_pool[id].fd << NC);
     _connections.remove(_fd_pool[id].fd);
     ::shutdown(_fd_pool[id].fd, SHUT_RDWR);
     _fd_pool.mark_to_cancel(id);
 }
 
 void Server::log_pool_id_events(int id) {
-    WS_events_debug_n("id: " << id << " "
-        << "events: " << _fd_pool[id].events << " "
-        << "revents: " << _fd_pool[id].revents << " "
-        << "fd: " << _fd_pool[id].fd << " "
-        << "descriptor: " << &_fd_pool[id] << " ");
+    // WS_events_debug_n("id: " << id << " "
+    //     << "events: " << _fd_pool[id].events << " "
+    //     << "revents: " << _fd_pool[id].revents << " "
+    //     << "fd: " << _fd_pool[id].fd << " "
+    //     << "descriptor: " << &_fd_pool[id] << " ");
     (void)id;
 }
 
