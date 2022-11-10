@@ -25,11 +25,9 @@ const char* Response::Respond_with_directory_listing::what() const throw() {
 // Construction/destruction
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-Response::Response(const Request& request, const config_data& config, const Tokens& tokens):
-    _request(request), _config(config), _tokens(tokens), _status(request.status()),
-    _is_persistent(request._is_persistent)
+Response::Response(const Request& request, const config_data& config, const Tokens& tokens) :
+    _request(request), _config(config), _tokens(tokens), _status(request.status())
 {
-    // _status = 501; // test error
     build_response();
 }
 
@@ -40,20 +38,12 @@ Response::~Response() {}
 // PUBLIC Member fuctions
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-bool Response::is_persistent() const { return (_is_persistent); }
+std::string& Response::string() { return (_response_str); }
 
-void Response::send(const int fd) { // more error handeling here too [ + ]
-    if (DEBUG)
-        std::cout << "SENDING RESPONSE:\n" << _response_str;
-        // std::cout << "SENDING RESPONSE:\n" << _response_str.substr(0 , _response_str.size() - _body.str().size());
-    // int error = ::send(fd, _response_str.c_str(), _response_str.length(), 0);
-    int error = ::send(fd, &(*(_response_str.begin())), _response_str.length(), 0);
-    if (error < 0)
-        throw_error_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
-    if (error == 0)
-        throw_error_status(WS_500_INTERNAL_SERVER_ERROR, "Error sending data");
-    std::cout << "Response class: Server sent " << _body.str().size() << " bytes to fd " << fd \
-        << " (" << _resource.file << ")" << std::endl;
+bool Response::status_is_success() const {
+    if (_status >= 400)
+        return (false);
+    return (true);
 }
 
 int Response::throw_error_status(int status, const char* msg) {
@@ -67,7 +57,6 @@ int Response::throw_error_status(int status, const char* msg) {
     throw Response::ResponseException();
     return (status);
 }
-
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // PUBLIC non-member fuctions
@@ -92,9 +81,6 @@ static void remove_trailing_slash(std::string& path) {
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Main fuction for response generation
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -117,7 +103,6 @@ void Response::redirection_check()
 }
 
 void Response::build_response() {
-    // if (true) {
     if (_status != WS_200_OK) {
         respond_to_error();
         return ;
@@ -306,8 +291,6 @@ void Response::identify_resource() {
     identify_resource_type();
 }
 
-// separate uri components, decoding done in request parser
-// -> root always ends in '/' and file never starts with '/'
 void Response::interpret_target() {
     std::string uri = _request.header.target;
     try {
@@ -319,7 +302,7 @@ void Response::interpret_target() {
     }
     catch (std::exception& e) {
         throw_error_status(WS_500_INTERNAL_SERVER_ERROR, "Uri could not be parsed, format error");
-    }    _resource.root = _config.root; // always ?
+    }    _resource.root = _config.root;
     
     append_slash(_resource.root);
     _resource.file = (_resource.path == "/") ? _config.index : _resource.path;
@@ -348,17 +331,14 @@ void Response::validate_target_abs_path() {
     std::string temp_path;
     std::string index = _config.index;
     remove_leading_slash(index);
-
     if (is_directory(_resource.abs_path) && _request.header.method == "GET") {
         std::cout << YELLOW << "IS DIR! Responding with dir list" << NC << std::endl;
         throw Respond_with_directory_listing();
     }
-
     if (!(_config.location.compare("non")) )
         temp_path = _resource.abs_path;
     else
         temp_path = _config.location + "/" + _config.index;
-
     if ((tmp_fd = open(temp_path.c_str(), O_RDONLY)) < 0) {
         if (errno == ENOENT) {
             if (_resource.file == index && _config.directory_listing == true) {
@@ -371,8 +351,6 @@ void Response::validate_target_abs_path() {
         else if (errno == EACCES)
             throw_error_status(WS_403_FORBIDDEN, strerror(errno));
         else if (_config.directory_listing == true && errno == ENOTDIR) {
-            // if navigating with directory listing the user encounters a file we have to remove "/"
-            // and try again.
             remove_trailing_slash(_resource.abs_path);
             remove_trailing_slash(_resource.file);
             validate_target_abs_path();

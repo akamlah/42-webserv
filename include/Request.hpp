@@ -8,13 +8,15 @@
 # define REQUEST_HPP
 
 #include "utility.hpp"
-#include "http_type_traits.hpp"
+#include "http_tokens.hpp"
 
 #include <string>
 #include <stdlib.h>
 #include <iostream>
 #include <map>
 #include <list>
+#include <sstream>
+#include <sys/socket.h> //recv()
 
 namespace ws {
 namespace http {
@@ -41,8 +43,8 @@ class parser {
         parser();
         ~parser();
 
-        int parse(Request& request, const int fd);
-        int parse_chunks(Request& request, const int fd);
+        int parse(Request& request, const char* buffer, int brecv);
+        int parse_chunks(Request& request);
         int error_status(Request& request, const int status, const char* msg = NULL) const ;
 
 #if (!DEBUG)
@@ -56,6 +58,7 @@ class parser {
         size_t  word_length;
         int     host_fields;
         int     word_count;
+
         bool    start_content;
         bool    request_line_done;
         bool    header_done;
@@ -73,8 +76,8 @@ class parser {
 #endif
 
         bool is_method(const char *word, size_t word_length) const;
-        int get_byte(Request& request, int fd);
-        int parse_body(Request& request, int fd);
+        int get_byte(Request& request);
+        int parse_body(Request& request );
         int parse_previous_header_line(Request& request, const char* line);
         int parse_request_line(Request& request, const char* line);
         int parse_next_word_request_line(Request& request, int i, int skip);
@@ -101,7 +104,7 @@ class Request {
         Request& operator=(const Request& other);
         ~Request();
 
-        int parse(const int fd);
+        int parse( const char* buffer, int brecv);
 
         int status() const;
         bool is_persistent() const;

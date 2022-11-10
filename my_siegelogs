@@ -1,0 +1,18 @@
+      Date & Time,  Trans,  Elap Time,  Data Trans,  Resp Time,  Trans Rate,  Throughput,  Concurrent,    OKAY,   Failed
+2022-11-10 15:32:02,    174,       9.16,          24,       0.32,       19.00,        2.62,        6.14,     174,       9
+**** siege aborted due to excessive socket failure. ****
+2022-11-10 15:32:22,      0,       2.58,           0,        nan,        0.00,        0.00,        0.00,       0,       9
+**** siege aborted due to excessive socket failure. ****
+2022-11-10 15:33:22,   1179,      29.93,         178,       0.19,       39.39,        5.95,        7.64,    1179,       0
+2022-11-10 15:34:36,   9142,      27.59,        1403,       0.01,      331.35,       50.85,        3.47,    9142,       0
+2022-11-10 15:35:00,    214,       5.49,          30,       0.04,       38.98,        5.46,        1.66,     214,       3
+**** siege aborted due to excessive socket failure. ****
+2022-11-10 15:36:09,    211,      29.12,          30,       0.05,        7.25,        1.03,        0.33,     211,       7
+**** siege aborted due to excessive socket failure. ****
+2022-11-10 15:36:15,      0,       5.17,           0,        inf,        0.00,        0.00,        0.01,       0,       9
+**** siege aborted due to excessive socket failure. ****
+2022-11-10 15:36:17,      0,       1.62,           0,        inf,        0.00,        0.00,        0.06,       0,       9
+**** siege aborted due to excessive socket failure. ****
+2022-11-10 15:36:19,      0,       1.66,           0,        inf,        0.00,        0.00,        0.05,       0,       9
+**** siege aborted due to excessive socket failure. ****
+2022-11-10 15:37:19,  12913,      39.01,        1983,       0.01,      331.02,       50.83,        4.21,   12913,       0

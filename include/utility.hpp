@@ -9,12 +9,6 @@
 
 #include <stdexcept>
 #include <iostream>
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <cctype>
-#include <vector>
-#include <netinet/in.h>
 
 namespace ws {
 
@@ -25,18 +19,10 @@ namespace ws {
 #define GREEN "\033[0;32m"
 #define NC "\033[0m"
 
-#define BACKLOG 100
-
-
 #ifndef DEBUG
 #define DEBUG 0 // rule "make dbg" defines this at compiletime
 #endif
 
-// #ifdef DEBUG
-// #define DEBUG 1
-// #endif
-
-// maybe we will not need this
 class exception : public std::exception { }; // might put stuff in here ?
 
 // throw error and print errno to stdout + eventually a custom message
@@ -47,23 +33,6 @@ void throw_print_error(const Exception& e, const char* message = NULL) {
     std::cout << RED << strerror(errno) << NC << std::endl;
     throw e;
 }
-
-typedef struct address_struct
-{
-    struct sockaddr_in6 _address;
-    address_struct()
-	{
-		memset(&_address, 0, sizeof(_address));
-		memcpy(&_address.sin6_addr, &in6addr_any, sizeof(in6addr_any));
-	}
-	address_struct(const address_struct& other) : _address(other._address) { }
-	address_struct& operator=(const address_struct& other)
-	{
-		if (this != &other)
-			_address = other._address;
-		return *this;
-	} 
-}s_address;
 
 } // NAMESPACE ws
 
