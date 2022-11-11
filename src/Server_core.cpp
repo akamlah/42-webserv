@@ -115,15 +115,20 @@ void Server::run() {
         if (++i > TCP_LOG_MAC_OS_MAX_ENTRIES)
             system("echo \"\n\" > stats");
         #endif
+        // for (size_t id = _listening_sockets.size(); id < _fd_pool.size(); id++) {
+        //     /* if ( */_connections[_fd_pool[id].fd].is_timedout();/* ) */
+        //         // close_connection(id);
+        // }
+        
         if (!events)
             continue ;
         handle_events_incoming(events);
         handle_events_connections(events);
         _fd_pool.compress();
-        // WS_events_debug(std::endl);
-        if (events)
-            throw_print_error(SystemError(), "Missed events - fatal"); // other error
-        // WS_events_debug("- - - - - - - - - - - ");
+        WS_events_debug(std::endl);
+        // if (events)
+        //     throw_print_error(SystemError(), "Missed events - fatal"); // other error
+        WS_events_debug("- - - - - - - - - - - ");
     }
 }
 
@@ -179,8 +184,6 @@ void Server::handle_events_incoming(int& events) {
             if (_fd_pool.size() < MAX_POLLFD_NB) {
                 accept_on_listening_socket(id);
                 _connections.print();
-                // _fd_pool[id].events = POLLRDNORM;
-                // _fd_pool[id].revents = 0; // [ ? ]
                 if (--events <= 0)
                     break ;
             }
@@ -201,16 +204,13 @@ void Server::accept_on_listening_socket(int id) {
 
 void Server::handle_events_connections(int& events) {
     size_t current_size = _fd_pool.size();
-    for (size_t id = _listening_sockets.size(); id < current_size && events > 0; id++) {
+    for (size_t id = _listening_sockets.size(); id < current_size; id++) {
         if (_fd_pool[id].revents != 0)
-            { log_pool_id_events(id); 
-            // WS_events_debug("    [ Cn ]");
-            }
+            { log_pool_id_events(id); WS_events_debug("    [ Cn ]"); }
+        // if (_connections[_fd_pool[id].fd].is_timedout())
+        //     handle_connection(id);
         if (_fd_pool[id].revents & (POLLRDNORM | POLLERR) || _fd_pool[id].revents & (POLLWRNORM | POLLERR)) { // == RST
-        // if (_fd_pool[id].revents & (POLLRDNORM | POLLERR)) { // == RST
             handle_connection(id);
-            // _fd_pool[id].events = POLLRDNORM;
-            // _fd_pool[id].revents = 0; // [ ? ]
             --events;
         }
     }
@@ -218,40 +218,30 @@ void Server::handle_events_connections(int& events) {
 
 void Server::handle_connection(int id) {
     int cid = _fd_pool[id].fd; // connections are mapped by fd
+    WS_events_debug(CYAN << _connections[cid].state_to_str() << NC);
     switch (_connections[cid].state()) {
 
         case TCP_Connection::ESTABLISHED:
-            // WS_events_debug(CYAN << "ESTABLISHED" << NC);
-            _connections[cid].rdwr(); // separate later and set wr only if pollwrnorm ?
-            if (_connections[cid].state() == TCP_Connection::PARTIAL_RESPONSE)
+            _connections[cid].rdwr();
+            if (_connections[cid].state() == TCP_Connection::PARTIAL_RESP)
                 _fd_pool[id].events = POLLWRNORM;
-                // _fd_pool[id].revents = 0; // [ ? ]
             break ;
 
-        case TCP_Connection::PARTIAL_RESPONSE:
-            // WS_events_debug(CYAN << "PARTIAL RESP" << NC);
+        case TCP_Connection::PARTIAL_RESP:
             _connections[cid].write();
             if (_connections[cid].state() == TCP_Connection::ESTABLISHED)
                 _fd_pool[id].events = POLLRDNORM;
-            else
-                _fd_pool[id].events = POLLWRNORM;
             break ;
 
         case TCP_Connection::CLOSE_WAIT:
-            // WS_events_debug(CYAN << "CLOSE WAIT" << NC);
         case TCP_Connection::TIMED_OUT:
-            // WS_events_debug(CYAN << "TIMEOUT" << NC);
         case TCP_Connection::HTTP_ERROR:
-            // WS_events_debug(CYAN << "TO CLOSE" << NC);
-            // half_close_connection(id);
+            // half_close_connection(id); // siege problem! ("cn. reset by peer" error)
             close_connection(id);
-
             break;
 
         case TCP_Connection::RD_ERROR:
-            WS_events_debug(CYAN << "RD ERROR" << NC);
         case TCP_Connection::WR_ERROR:
-            WS_events_debug(CYAN << "WR ERROR" << NC);
             close_connection(id);
             break ;
 

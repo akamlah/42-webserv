@@ -3,6 +3,8 @@
 
 #include <iostream>
 #include <sstream>
+#include <chrono>
+
 #include "utility.hpp"
 #include "http_tokens.hpp"
 #include "sockets.hpp"
@@ -21,7 +23,7 @@ namespace ws {
 #endif
 
 #if DEBUG
- #ifndef WS_connection_debug
+//  #ifndef WS_connection_debug
   #ifdef DEBUG_CONNECTIONS
 //  #define WS_connection_debug(message) (std::cout << __FILE__ << ": " << message << std::endl)
 //  #define WS_connection_debug(message) (std::cout << __FILE__ << ":" << __LINE__ << " " << message << std::endl)
@@ -31,7 +33,7 @@ namespace ws {
    #define WS_connection_debug(message) ((void) 0)
    #define WS_connection_debug_n(message) ((void) 0)
   #endif
- #endif
+//  #endif
 #else
  #define WS_connection_debug(message) ((void) 0)
  #define WS_connection_debug_n(message) ((void) 0)
@@ -49,7 +51,7 @@ class TCP_Connection {
 
         enum cn_state {
             ESTABLISHED = 0 ,
-            PARTIAL_RESPONSE ,
+            PARTIAL_RESP ,
             CLOSE_WAIT ,
             TIMED_OUT ,
             HTTP_ERROR ,
@@ -75,6 +77,10 @@ class TCP_Connection {
         size_t _bsent; // total bytes sent so far // [ ! ] refresh correctly
         // std::stringstream _s; // remove later and replace with _response. // [ ! ] refresh correctly
         std::string _response_str;
+
+        // TIMEOUT
+        std::clock_t _timer;
+
     public:
 
     // Constr/destr/cpy  - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -88,12 +94,21 @@ class TCP_Connection {
 
         const TCP_IP6_ConnectionSocket& socket() const ;
         cn_state& state();
+        std::string state_to_str() const ;
     
     // Core - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
+        
         void rdwr();
-        void response_to_str();// tmp
+
+        void read();
         void write();
+
+        bool is_timedout();
+
+    private:
+
+        void prepare_read_buffer();
+        void prepare_response();
 
 }; // class Connection
 
