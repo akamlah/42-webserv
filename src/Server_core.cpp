@@ -115,10 +115,10 @@ void Server::run() {
         if (++i > TCP_LOG_MAC_OS_MAX_ENTRIES)
             system("echo \"\n\" > stats");
         #endif
-        for (size_t id = _listening_sockets.size(); id < _fd_pool.size(); id++) {
-            /* if ( */_connections[_fd_pool[id].fd].is_timedout();/* ) */
-                // close_connection(id);
-        }
+        // for (size_t id = _listening_sockets.size(); id < _fd_pool.size(); id++) {
+        //     /* if ( */_connections[_fd_pool[id].fd].is_timedout();/* ) */
+        //         // close_connection(id);
+        // }
         
         if (!events)
             continue ;
