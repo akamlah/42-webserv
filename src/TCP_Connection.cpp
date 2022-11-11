@@ -27,12 +27,12 @@ TCP_Connection::TCP_Connection(const TCP_IP6_ListeningSocket& l_socket, const ws
     memset(_buffer, 0, BUFFER_SIZE);
     WS_connection_debug("Opened Connection on fd " << _socket.fd());
     _socket.configure();
-    _timer = std::clock();
+    refresh_timer();
     _request.reset();
 }
 
 TCP_Connection& TCP_Connection::operator=(const TCP_Connection& other) {
-    _timer = std::clock();
+    refresh_timer();
     _state = other._state;
     _request.reset();
     return (*this);
@@ -43,6 +43,7 @@ TCP_Connection::TCP_Connection(const TCP_Connection& other) : _socket(other._soc
 {
     WS_connection_debug("Connection: cpy constr " << _socket.fd());
     _request.reset();
+    refresh_timer();
 }
 
 TCP_Connection::~TCP_Connection() {}
@@ -59,10 +60,18 @@ TCP_Connection::cn_state& TCP_Connection::state()
 
 // Core - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+void TCP_Connection::refresh_timer() {
+    struct timeval	tvx;
+    gettimeofday(&tvx, NULL);
+    _time_last = ((tvx.tv_usec / 1000) + (tvx.tv_sec * 1000));
+}
+
 bool TCP_Connection::is_timedout() {
-    std::clock_t t_now = std::clock();
-    int elapsed_sec = ((double)(t_now - _timer) / CLOCKS_PER_SEC) * 1000;
-    if (elapsed_sec > 60) {
+    struct timeval	tvx;
+    gettimeofday(&tvx, NULL);
+    long t_now = ((tvx.tv_usec / 1000) + (tvx.tv_sec * 1000));
+    long diff = t_now - _time_last;
+    if (diff > 60000) { // 60 sec
         _state = TIMED_OUT;
         return (true);
     }
@@ -75,6 +84,7 @@ void TCP_Connection::prepare_read_buffer() {
 }
 
 void TCP_Connection::prepare_response() {
+    _bsent = 0;
     _socket.configure();
     http::Response response(_request, _conf, _tokens);
     _response_str = response.string();
@@ -87,7 +97,7 @@ void TCP_Connection::prepare_response() {
 void TCP_Connection::read() {
     WS_connection_debug("Reading on fd: " << _socket.fd());
     int n = ::recv(_socket.fd(), _buffer, BUFFER_SIZE, 0);
-    _timer = std::clock();
+    refresh_timer();
     WS_connection_debug("BYTES read: " << n);
     if (n < 0) {
         WS_connection_debug("Error reading: " << strerror(errno));
@@ -100,7 +110,7 @@ void TCP_Connection::read() {
     else {
         _brecv += n;
         _state = ESTABLISHED;
-        _timer = std::clock();
+        refresh_timer();
     }
 }
 
@@ -118,7 +128,7 @@ void TCP_Connection::rdwr() {
 void TCP_Connection::write() {
     WS_connection_debug("Responding on fd: " << _socket.fd());
     int n = ::send(_socket.fd(), _response_str.c_str() + _bsent, _btosend - _bsent, 0);
-    _timer = std::clock();
+    refresh_timer();
     if (n <= 0) {
         WS_connection_debug("Bytes sent now " << n);
         WS_connection_debug("Error writing: " << strerror(errno));

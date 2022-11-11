@@ -3,7 +3,7 @@
 
 #include <iostream>
 #include <sstream>
-#include <chrono>
+# include <sys/time.h>
 
 #include "utility.hpp"
 #include "http_tokens.hpp"
@@ -79,7 +79,7 @@ class TCP_Connection {
         std::string _response_str;
 
         // TIMEOUT
-        std::clock_t _timer;
+        long _time_last;
 
     public:
 
@@ -104,6 +104,7 @@ class TCP_Connection {
         void write();
 
         bool is_timedout();
+        void refresh_timer();
 
     private:
 
