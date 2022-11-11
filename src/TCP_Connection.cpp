@@ -107,7 +107,7 @@ void TCP_Connection::read() {
         _state = CLOSE_WAIT;
     }
     else {
-        std::cout << "|" << _buffer << "|" << std::endl;
+        // std::cout << "|" << _buffer << "|" << std::endl;
         _brecv += n;
         // if (_brecv == content length)
         _state = ESTABLISHED; // redundant

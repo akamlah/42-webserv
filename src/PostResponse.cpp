@@ -129,8 +129,5 @@ namespace http {
 		return (tmp);
 	}
 
-
-
-
 } // NAMESPACE http
 } // NAMESPACE ws
