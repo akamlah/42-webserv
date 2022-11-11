@@ -120,8 +120,8 @@ void Server::run() {
         //         // close_connection(id);
         // }
         
-        if (!events)
-            continue ;
+        // if (!events)
+        //     continue ;
         handle_events_incoming(events);
         handle_events_connections(events);
         _fd_pool.compress();
@@ -207,9 +207,9 @@ void Server::handle_events_connections(int& events) {
     for (size_t id = _listening_sockets.size(); id < current_size; id++) {
         if (_fd_pool[id].revents != 0)
             { log_pool_id_events(id); WS_events_debug("    [ Cn ]"); }
-        // if (_connections[_fd_pool[id].fd].is_timedout())
-        //     handle_connection(id);
-        if (_fd_pool[id].revents & (POLLRDNORM | POLLERR) || _fd_pool[id].revents & (POLLWRNORM | POLLERR)) { // == RST
+        if (_connections[_fd_pool[id].fd].is_timedout())
+            close_connection(id);
+        else if (_fd_pool[id].revents & (POLLRDNORM | POLLERR) || _fd_pool[id].revents & (POLLWRNORM | POLLERR)) { // == RST
             handle_connection(id);
             --events;
         }

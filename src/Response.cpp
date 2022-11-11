@@ -28,6 +28,10 @@ const char* Response::Respond_with_directory_listing::what() const throw() {
 Response::Response(const Request& request, const config_data& config, const Tokens& tokens) :
     _request(request), _config(config), _tokens(tokens), _status(request.status())
 {
+    // std::list<std::string> templng = _request.get_field_value("content-length");
+    // if (templng.empty())
+    // {
+    // }
     build_response();
 }
 
@@ -109,6 +113,13 @@ void Response::build_response() {
     add_field("Server", "ZHero serv/1.0");
     add_formatted_timestamp();
     try {
+        if (_config.limit_body != 0)
+        {
+            int bodysize = 0;
+            bodysize = _request._body.str().length();
+            if (bodysize > _config.limit_body)
+                throw_error_status(WS_413_PAYLOAD_TOO_LARGE, "Config setting not alowing such a big request.");
+        }
         identify_resource();
         if (_config.http_redirects != "non")
             redirection_check();
