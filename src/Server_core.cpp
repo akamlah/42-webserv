@@ -74,11 +74,9 @@ void Server::TCP_ConnectionMap::print() {
     }
 }
 
-
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 // Server - core
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-
 // Constr/destr - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 Server::Server(const std::vector<ws::config_data>& config_server_blocks)
@@ -115,11 +113,6 @@ void Server::run() {
         if (++i > TCP_LOG_MAC_OS_MAX_ENTRIES)
             system("echo \"\n\" > stats");
         #endif
-        // for (size_t id = _listening_sockets.size(); id < _fd_pool.size(); id++) {
-        //     /* if ( */_connections[_fd_pool[id].fd].is_timedout();/* ) */
-        //         // close_connection(id);
-        // }
-        
         if (!events)
             continue ;
         handle_events_incoming(events);
@@ -162,7 +155,7 @@ void Server::listen(const int backlog) const {
             throw_print_error(SystemError(), "Failed to bind socket");
         if (::listen(it->fd(), backlog) < 0)
             throw_print_error(SystemError(), "Server unable to listen for connections");
-        // WS_events_debug(CYAN << "Server listening on port " << it->port() << NC);
+        std::cout << CYAN << "Server listening on port " << it->port() << NC << std::endl;
     }
     #ifdef EVENTS_DEBUG
     for (std::vector<TCP_IP6_ListeningSocket>::const_iterator it = _listening_sockets.begin();
@@ -205,8 +198,6 @@ void Server::handle_events_connections(int& events) {
     for (size_t id = _listening_sockets.size(); id < current_size; id++) {
         if (_fd_pool[id].revents != 0)
             { log_pool_id_events(id); WS_events_debug("    [ Cn ]"); }
-        // if (_connections[_fd_pool[id].fd].is_timedout())
-        //     handle_connection(id);
         if (_fd_pool[id].revents & (POLLRDNORM | POLLERR) || _fd_pool[id].revents & (POLLWRNORM | POLLERR)) { // == RST
             handle_connection(id);
             --events;

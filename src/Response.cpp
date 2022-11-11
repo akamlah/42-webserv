@@ -332,7 +332,6 @@ void Response::validate_target_abs_path() {
     std::string index = _config.index;
     remove_leading_slash(index);
     if (is_directory(_resource.abs_path) && _request.header.method == "GET") {
-        std::cout << YELLOW << "IS DIR! Responding with dir list" << NC << std::endl;
         throw Respond_with_directory_listing();
     }
     if (!(_config.location.compare("non")) )

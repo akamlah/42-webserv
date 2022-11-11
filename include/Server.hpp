@@ -30,9 +30,9 @@ namespace ws {
 #endif
 
 
-#ifndef DEBUG_EVENTS
- #define DEBUG_EVENTS 1 // comment out to avoid events log
-#endif
+// #ifndef DEBUG_EVENTS
+//  #define DEBUG_EVENTS 1 // comment out to avoid events log
+// #endif
 
 #ifdef DEBUG
  #ifndef WS_events_debug

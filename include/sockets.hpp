@@ -130,7 +130,7 @@ class TCP_IP6_ConnectionSocket : public TCP_IP6_Socket_base {
 
         ~TCP_IP6_ConnectionSocket() {}
 
-        int configure() { // [ ? ]
+        int configure() {
             int n = 1;
             int error;
             error = setsockopt(_fd, SOL_SOCKET, SO_NOSIGPIPE, &n, sizeof(n));
