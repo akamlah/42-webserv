@@ -79,15 +79,15 @@ int Request::parse( const char* buffer, int brecv) {
             //     << "\tTarget: " << header.target << "\n" \
             //     << "\tVersion: " << header.version << NC << std::endl;
 
-            std::cout << CYAN << "PARSED FIELDS:\n" << NC;
-            for (std::map<std::string, std::list<std::string> >::const_iterator it = _fields._map.begin();
-                it != _fields._map.end(); it++)
-            {
-                std::cout << CYAN << it->first<< NC << "|" ;
-                for (std::list<std::string>::const_iterator itl = it->second.begin(); itl != it->second.end(); itl++)
-                    std::cout << YELLOW << *itl << NC << "|";
-                std::cout << std::endl;
-            }
+            // std::cout << CYAN << "PARSED FIELDS:\n" << NC;
+            // for (std::map<std::string, std::list<std::string> >::const_iterator it = _fields._map.begin();
+            //     it != _fields._map.end(); it++)
+            // {
+            //     std::cout << CYAN << it->first<< NC << "|" ;
+            //     for (std::list<std::string>::const_iterator itl = it->second.begin(); itl != it->second.end(); itl++)
+            //         std::cout << YELLOW << *itl << NC << "|";
+            //     std::cout << std::endl;
+            // }
 
             // // std::cout << "request msg length after parse: " << _parser.msg_length << std::endl;
             // std::cout << CYAN << "\nPARSER: Message recieved: ---------\n" << NC << _parser.buffer << std::endl;
@@ -507,12 +507,7 @@ int parser::parse_field_line(Request& request, std::string line) {
         colon++;
     if (colon != line.length() && line[colon + 1] == ' ')
         return (error_status(request, WS_400_BAD_REQUEST, "Too many whitespaces after ':' in field line"));
-    std::string::size_type endoffield = line.find("\n");
-    if (endoffield == std::string::npos)
-        endoffield = line.length();
-    // values = (colon == line.length()) ? std::string() : line.substr(colon + 1);
-    values = (colon == line.length()) ? std::string() : line.substr(colon + 1, endoffield - colon);
-    std::cout << name << ": " << values << "\n";
+    values = (colon == line.length()) ? std::string() : line.substr(colon + 1);
     request._fields.make_field(name, values);
     return (WS_200_OK);
 }
@@ -549,7 +544,6 @@ void HeaderFields::make_field(const std::string& name, const std::string& values
             prev_delimiter_pos++;
         list.push_back(values.substr(prev_delimiter_pos, delimiter_pos - prev_delimiter_pos));
     }
-    // (*(list.begin())).pop_back();
     _map.insert(std::pair<std::string, std::list<std::string> >(name, list));
 }
 
