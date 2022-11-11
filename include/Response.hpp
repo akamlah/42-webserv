@@ -16,7 +16,7 @@
 #include <sstream>
 #include <ctime>
 #include <fcntl.h> // open
-#include <unistd.h> //
+#include <unistd.h>
 #include <errno.h>
 #include <list>
 #include <cstdio>
@@ -42,14 +42,6 @@ struct Resource {
     std::string subtype;
     std::string extension;
 };
-
-// class RespGet {
-
-// };
-
-// class RespPost {
-
-// };
 
 class Response {
 

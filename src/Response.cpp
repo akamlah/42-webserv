@@ -28,10 +28,6 @@ const char* Response::Respond_with_directory_listing::what() const throw() {
 Response::Response(const Request& request, const config_data& config, const Tokens& tokens) :
     _request(request), _config(config), _tokens(tokens), _status(request.status())
 {
-    // std::list<std::string> templng = _request.get_field_value("content-length");
-    // if (templng.empty())
-    // {
-    // }
     build_response();
 }
 
@@ -343,7 +339,6 @@ void Response::validate_target_abs_path() {
     std::string index = _config.index;
     remove_leading_slash(index);
     if (is_directory(_resource.abs_path) && _request.header.method == "GET") {
-        std::cout << YELLOW << "IS DIR! Responding with dir list" << NC << std::endl;
         throw Respond_with_directory_listing();
     }
     if (!(_config.location.compare("non")) )
@@ -353,8 +348,6 @@ void Response::validate_target_abs_path() {
     if ((tmp_fd = open(temp_path.c_str(), O_RDONLY)) < 0) {
         if (errno == ENOENT) {
             if (_resource.file == index && _config.directory_listing == true) {
-                // config has index file but it was not found
-                std::cout << YELLOW << "Responding with dir list" << NC << std::endl;
                 throw Respond_with_directory_listing();
             }
             throw_error_status(WS_404_NOT_FOUND, strerror(errno));

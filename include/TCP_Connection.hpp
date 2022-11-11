@@ -18,9 +18,9 @@ namespace ws {
 // Debugging
 
 // Activate/deactivate debugging for this file if DEBUG flag is set
-#ifndef DEBUG_CONNECTIONS
- #define DEBUG_CONNECTIONS 1 // 0
-#endif
+// #ifndef DEBUG_CONNECTIONS
+//  #define DEBUG_CONNECTIONS 1 // 0
+// #endif
 
 #if DEBUG
 //  #ifndef WS_connection_debug

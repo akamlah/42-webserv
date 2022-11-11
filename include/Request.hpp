@@ -16,7 +16,7 @@
 #include <map>
 #include <list>
 #include <sstream>
-#include <sys/socket.h> //recv()
+#include <sys/socket.h>
 
 namespace ws {
 namespace http {
@@ -44,7 +44,6 @@ class parser {
         ~parser();
 
         int parse(Request& request, const char* buffer, int brecv);
-        int parse_chunks(Request& request);
         int error_status(Request& request, const int status, const char* msg = NULL) const ;
         void reset();
 
@@ -66,8 +65,6 @@ class parser {
         bool    start_fields;
         bool    body_done;
 
-        //  A server that receives a method longer than any that it implements SHOULD 
-        //  respond with a 501 (Not Implemented) status code -> BUFFER SIZES -> [ ! ] centralise later
         unsigned char   buffer[BUFFER_SIZE];
         char            request_line[REQUEST_LINE_LENGTH];
         char            word[10000];
@@ -101,8 +98,6 @@ class Request {
     public:
 
         Request();
-        // Request(const Request& other);
-        // Request& operator=(const Request& other);
         ~Request();
 
         int parse( const char* buffer, int brecv);
@@ -118,21 +113,19 @@ class Request {
     private:
 
         static const char                   methods[4][10];
-        /* = {"GET", "HEAD", "POST", "DELETE"}; */
 
         parser                              _parser;
         header_t                            header;
-        // std::map<std::string, std::string>  fields;
-        HeaderFields _fields;
-        // must be a list of parsed values split by comma -> have class
-        // to have find & search functions.
+        HeaderFields                        _fields;
         bool                                _is_persistent;
         std::string                         error_msg;
         int                                 _status;
         bool                                _is_chunked;
         std::stringstream                   _body;
         size_t                              _content_length;
- public:
+
+    public:
+
         bool                                _waiting_for_chunks;
 
 }; // CLASS Request

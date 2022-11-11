@@ -93,9 +93,6 @@ namespace http {
 		env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin());
 		env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin());
 		env[i++] = &(*((new std::string("HTTP_COOKIE=" + cokie)))->begin());
-		// env[i++] = &(*((new std::string("HTTP_HOST=" + _config.host + "/" + std::to_string(_config.ports[0]))))->begin());
-		// env[i++] = &(*((new std::string("SERVER_NAME=" + _config.host)))->begin());
-		// env[i++] = &(*((new std::string("SERVER_PORT=" + std::to_string(_config.ports[0]))))->begin());
 		env[i++] = NULL;
 	}
 

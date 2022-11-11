@@ -15,7 +15,7 @@
 namespace ws {
 
 typedef struct c_data {
-	std::vector<int>			ports; /// note dublication? same port in confi file how to handle.
+	std::vector<int>			ports;
 	int							limit_body;
 	std::string 				server_name;
 	std::string					error;

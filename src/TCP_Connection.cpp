@@ -18,13 +18,10 @@ namespace ws {
 
 // Constr/destr/cpy  - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-//  MAKE CPY FUNC / INIT FUNC [ + ] [ ! ]
-
 TCP_Connection::TCP_Connection(const TCP_IP6_ListeningSocket& l_socket, const ws::config_data& conf,
     const http::Tokens& tokens) : _socket(l_socket), _conf(conf), _tokens(tokens),
     _state(ESTABLISHED),
     _brecv(0),
- /*    _request(_tokens), */
     _btosend(0), _bsent(0)
 {
     memset(_buffer, 0, BUFFER_SIZE);
@@ -35,7 +32,6 @@ TCP_Connection::TCP_Connection(const TCP_IP6_ListeningSocket& l_socket, const ws
 }
 
 TCP_Connection& TCP_Connection::operator=(const TCP_Connection& other) {
-    // WS_connection_debug("Connection: cpy ass ope " << _socket.fd());
     _timer = std::clock();
     _state = other._state;
     _request.reset();
@@ -65,17 +61,13 @@ TCP_Connection::cn_state& TCP_Connection::state()
 
 bool TCP_Connection::is_timedout() {
     std::clock_t t_now = std::clock();
-    // std::cout << CYAN << " - " << t_now << " - " << NC << std::endl;
-    // std::cout << RED << " - " << _timer << " - " << NC << std::endl;
     int elapsed_sec = ((double)(t_now - _timer) / CLOCKS_PER_SEC) * 1000;
-    // std::cout << YELLOW << " - " << elapsed_sec << " - " << NC << std::endl;
     if (elapsed_sec > 60) {
         _state = TIMED_OUT;
         return (true);
     }
     return (false);
 }
-
 
 void TCP_Connection::prepare_read_buffer() {
     _brecv = 0;
@@ -90,11 +82,8 @@ void TCP_Connection::prepare_response() {
     _btosend = _response_str.length();
     if (!response.status_is_success())
         _state = HTTP_ERROR;
-    // else if (response.()) HAS "CLOSE"
-        // _state = CLOSE_WAIT;
 }
 
-// handle buffer size: read again if bytes read > socket buffer etc...
 void TCP_Connection::read() {
     WS_connection_debug("Reading on fd: " << _socket.fd());
     int n = ::recv(_socket.fd(), _buffer, BUFFER_SIZE, 0);
@@ -109,11 +98,8 @@ void TCP_Connection::read() {
         _state = CLOSE_WAIT;
     }
     else {
-        // std::cout << "|" << _buffer << "|" << std::endl;
         _brecv += n;
-        // if (_brecv == content length)
-        _state = ESTABLISHED; // redundant
-        // return
+        _state = ESTABLISHED;
         _timer = std::clock();
     }
 }
@@ -122,7 +108,7 @@ void TCP_Connection::rdwr() {
     prepare_read_buffer();
     read();
     if (_state == ESTABLISHED) {
-        _request.reset(); // request.reset() method ?
+        _request.reset();
         _request.parse(_buffer, _brecv);
         prepare_response();
         write();
@@ -140,12 +126,10 @@ void TCP_Connection::write() {
         return ;
     }
     else {
-        // [ ! ] make case for 0 to not get stuck in infinite loop 0 ? or maybe poll is enough
         _bsent += n;
         WS_connection_debug("bytes sent now " << n << " for a total of " << _bsent << " of " << _btosend);
         if (_bsent == _btosend) {
             WS_connection_debug("DONE");
-            // std::cout << "|" << _response_str << "|" << std::endl;
             _bsent = 0;
             _btosend = 0;
             _response_str = std::string();
