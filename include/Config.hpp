@@ -43,7 +43,7 @@ class Config {
 	std::vector<int>  helpChecPorts(std::string const & , std::string const &);
 	std::vector<std::string> helpCheckHTTPmethods(std::string const & , std::string const &);
 	bool helpGetDirecotry_listing(std::string const & configDataString, std::string const & checkThis);
-
+	bool check_ports_repeat(config_data const &);
 	std::vector<ws::config_data> const & getAllConfigData() const;
 	config_data const & getNumberConfigData(int number) const;
 	
