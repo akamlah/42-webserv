@@ -15,26 +15,26 @@ namespace http {
 Request::Request(): _is_persistent(true), _status(WS_200_OK),
     _is_chunked(false), _waiting_for_chunks(false) { }
 
-// In HTTP 1.1, all connections are considered persistent unless declared otherwise.
-Request::Request(const Request& other): _is_persistent(true), _status(WS_200_OK),
-    _is_chunked(false), _waiting_for_chunks(false) {
-    header.method = other.header.method;
-    header.target = other.header.target;
-    header.version = other.header.version;
-    _fields = other._fields;
-    _status = other._status;
-}
+// // In HTTP 1.1, all connections are considered persistent unless declared otherwise.
+// Request::Request(const Request& other): _is_persistent(true), _status(WS_200_OK),
+//     _is_chunked(false), _waiting_for_chunks(false) {
+//     header.method = other.header.method;
+//     header.target = other.header.target;
+//     header.version = other.header.version;
+//     _fields = other._fields;
+//     _status = other._status;
+// }
 
-Request& Request::operator=(const Request& other) {
-    header.method = other.header.method;
-    header.target = other.header.target;
-    header.version = other.header.version;
-    _fields = other._fields;
-    _status = other._status;
-    _is_chunked = other._is_chunked;
-    _waiting_for_chunks = other._waiting_for_chunks;
-    return (*this);
-}
+// Request& Request::operator=(const Request& other) {
+//     header.method = other.header.method;
+//     header.target = other.header.target;
+//     header.version = other.header.version;
+//     _fields = other._fields;
+//     _status = other._status;
+//     _is_chunked = other._is_chunked;
+//     _waiting_for_chunks = other._waiting_for_chunks;
+//     return (*this);
+// }
 
 Request::~Request() { }
 
@@ -64,6 +64,35 @@ std::list<std::string> Request::get_field_value(const std::string& field_name) c
     return (std::list<std::string>() );
 }
 
+void Request::reset() {
+    _parser.reset();
+    memset(&header, 0, sizeof(header));
+    error_msg = std::string();
+    _is_chunked = 0;
+    _body.str("");
+    _body.clear();
+    _content_length = 0;
+    _fields._map.clear();
+}
+
+void parser::reset() {
+    memset(&buffer, 0, BUFFER_SIZE);
+    memset(&word, 0, 10000);
+    memset(&request_line, 0, REQUEST_LINE_LENGTH);
+    line_length = 0;
+    nb_lines = 0;
+    msg_length = 0;
+    nb_empty_lines_beginning = 0;
+    word_length = 0;
+    host_fields = 0;
+    word_count = 0;
+    start_content = 0;
+    request_line_done = 0;
+    header_done = 0;
+    start_fields = 0;
+    body_done = 0;
+}
+
 int Request::status() const { return (_status); }
 
 bool Request::is_persistent() const { return (_is_persistent);}
@@ -72,12 +101,12 @@ int Request::parse( const char* buffer, int brecv) {
     if (!_waiting_for_chunks) {
         _parser.parse(*this, buffer, brecv);
             // #if (DEBUG)
-            // (_status < 400) ? std::cout << GREEN : std::cout << RED;
-            // std::cout << "PARSED REQUEST STATUS: " << _status << NC << std::endl;
-            // std::cout << CYAN << "PARSED HEADER:\n" \
-            //     << "\tMethod: " << header.method << "\n" \
-            //     << "\tTarget: " << header.target << "\n" \
-            //     << "\tVersion: " << header.version << NC << std::endl;
+            (_status < 400) ? std::cout << GREEN : std::cout << RED;
+            std::cout << "PARSED REQUEST STATUS: " << _status << NC << std::endl;
+            std::cout << CYAN << "PARSED HEADER:\n" \
+                << "\tMethod: " << header.method << "\n" \
+                << "\tTarget: " << header.target << "\n" \
+                << "\tVersion: " << header.version << NC << std::endl;
 
             std::cout << CYAN << "PARSED FIELDS:\n" << NC;
             for (std::map<std::string, std::list<std::string> >::const_iterator it = _fields._map.begin();
@@ -88,15 +117,15 @@ int Request::parse( const char* buffer, int brecv) {
                     std::cout << YELLOW << *itl << NC << "|";
                 std::cout << std::endl;
             }
-            // // std::cout << "request msg length after parse: " << _parser.msg_length << std::endl;
+            // std::cout << "request msg length after parse: " << _parser.msg_length << std::endl;
             // std::cout << CYAN << "\nPARSER: Message recieved: ---------\n" << NC << _parser.buffer << std::endl;
             // std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
-            // // std::cout << CYAN << "\nBODY IS:---------------------------\n" << this->_body.str() << NC << std::endl;
-            // // std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
-            // // std::cout << GREEN << "Is persistent: ";
-            // // std::cout << this->_is_persistent << NC << std::endl;
-            // // std::cout << GREEN << "Waiting for chunks: ";
-            // // std::cout << this->_waiting_for_chunks << NC << std::endl;
+            std::cout << CYAN << "\nBODY IS:---------------------------\n" << this->_body.str() << NC << std::endl;
+            std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
+            // std::cout << GREEN << "Is persistent: ";
+            // std::cout << this->_is_persistent << NC << std::endl;
+            // std::cout << GREEN << "Waiting for chunks: ";
+            // std::cout << this->_waiting_for_chunks << NC << std::endl;
             // #endif
             // std::cout << "Request class: client sent request for '" << this->header.target << "' on fd " << fd << std::endl;
     }
@@ -226,7 +255,7 @@ int parser::parse_body(Request& request) {
     }
     // if (request.header.method == "POST" && request.get_field_value("content-type").begin()->find("multipart/form-data") != std::string::npos)
         // return(error_status(request, WS_501_NOT_IMPLEMENTED, "Sry :("));
-    while (body_length <= request._content_length && msg_length < BUFFER_SIZE) {
+    while (body_length <= request._content_length) {
         status =  get_byte(request);
         if (!status || buffer[msg_length] == '\0') {
                 #if DEBUG
