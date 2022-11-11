@@ -44,7 +44,6 @@ class parser {
         ~parser();
 
         int parse(Request& request, const char* buffer, int brecv);
-        int parse_chunks(Request& request);
         int error_status(Request& request, const int status, const char* msg = NULL) const ;
         void reset();
 

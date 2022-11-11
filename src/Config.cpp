@@ -144,6 +144,31 @@ namespace ws {
 		
 	}
 
+	bool Config::check_ports_repeat(config_data const & actual)
+	{
+		std::vector<ws::config_data>::iterator it = configDataAll.begin();
+		std::vector<ws::config_data>::iterator itEnd = configDataAll.end();
+		while (it !=itEnd)
+		{
+			std::vector<int>::const_iterator vit2 = actual.ports.begin();
+			std::vector<int>::const_iterator vitend2 = actual.ports.end();
+			while (vit2 != vitend2)
+			{
+				std::vector<int>::iterator vit = (*it).ports.begin();
+				std::vector<int>::iterator vitend = (*it).ports.end();
+				while (vit != vitend)
+				{
+					if ((*vit) == (*vit2))
+						return (true);
+					vit++;
+				}
+				vit2++;
+			}
+			it++;
+		}
+		return (false);
+	}
+
 	void Config::checkContent(std::string const & configDataString)
 	{
 		config_data temp;
@@ -168,6 +193,8 @@ namespace ws {
 		else
 			temp.isCgiOn = false;
 		temp.directory_listing = helpGetDirecotry_listing(configDataString, "directory_listing:");
+		if (check_ports_repeat(temp))
+			throw ConfigFileError("ERROR: ports duplicate in server");
 		configDataAll.push_back(temp);
 	}
 

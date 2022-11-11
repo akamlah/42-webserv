@@ -1,9 +1,13 @@
+<?php
+session_id(11111);
+session_start();
+?>
 <!DOCTYPE html>
 <html>
 <body>
 <h1>That is the color I was looking for!!!!</h1>
 <?php
-$_SESSION["favcolor"] = "blue";
+// $_SESSION["favcolor"] = "blue";
 if(isset($_SESSION['favcolor']))
 {
     echo $_SESSION['favcolor'];

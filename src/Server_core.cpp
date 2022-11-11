@@ -104,7 +104,7 @@ void Server::run() {
     this->listen(BACKLOG);
     int events;
     for (;;) {
-        WS_events_debug("- - - - POLL - - - - ");
+        // WS_events_debug("- - - - POLL - - - - ");
         events = _fd_pool.poll(TIMEOUT_MS);
         if (events < 0)
             throw_print_error(SystemError(), "poll() failed");
@@ -113,14 +113,10 @@ void Server::run() {
         if (++i > TCP_LOG_MAC_OS_MAX_ENTRIES)
             system("echo \"\n\" > stats");
         #endif
-        if (!events)
-            continue ;
         handle_events_incoming(events);
         handle_events_connections(events);
         _fd_pool.compress();
         WS_events_debug(std::endl);
-        // if (events)
-        //     throw_print_error(SystemError(), "Missed events - fatal"); // other error
         WS_events_debug("- - - - - - - - - - - ");
     }
 }
@@ -198,7 +194,9 @@ void Server::handle_events_connections(int& events) {
     for (size_t id = _listening_sockets.size(); id < current_size; id++) {
         if (_fd_pool[id].revents != 0)
             { log_pool_id_events(id); WS_events_debug("    [ Cn ]"); }
-        if (_fd_pool[id].revents & (POLLRDNORM | POLLERR) || _fd_pool[id].revents & (POLLWRNORM | POLLERR)) { // == RST
+        if (_connections[_fd_pool[id].fd].is_timedout())
+            close_connection(id);
+        else if (_fd_pool[id].revents & (POLLRDNORM | POLLERR) || _fd_pool[id].revents & (POLLWRNORM | POLLERR)) { // == RST
             handle_connection(id);
             --events;
         }

@@ -109,6 +109,13 @@ void Response::build_response() {
     add_field("Server", "ZHero serv/1.0");
     add_formatted_timestamp();
     try {
+        if (_config.limit_body != 0)
+        {
+            int bodysize = 0;
+            bodysize = _request._body.str().length();
+            if (bodysize > _config.limit_body)
+                throw_error_status(WS_413_PAYLOAD_TOO_LARGE, "Config setting not alowing such a big request.");
+        }
         identify_resource();
         if (_config.http_redirects != "non")
             redirection_check();
@@ -341,8 +348,6 @@ void Response::validate_target_abs_path() {
     if ((tmp_fd = open(temp_path.c_str(), O_RDONLY)) < 0) {
         if (errno == ENOENT) {
             if (_resource.file == index && _config.directory_listing == true) {
-                // config has index file but it was not found
-                std::cout << YELLOW << "Responding with dir list" << NC << std::endl;
                 throw Respond_with_directory_listing();
             }
             throw_error_status(WS_404_NOT_FOUND, strerror(errno));

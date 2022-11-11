@@ -63,7 +63,7 @@ namespace http {
 	std::string Response::cgiRespCreator()
 	{
 			char ** env;
-			env = new char*[9];
+			env = new char*[10];
 			fill_up_env(env);
 			Cgi test;
 			std::string phpresp;
@@ -87,14 +87,12 @@ namespace http {
 			cokie = *(tempcokie.begin());
 		else if (DEBUG)
 			std::cout << "\nSORRYYYYY there is no cokie in the request\n";
+		env[i++] = &(*((new std::string(cokie)))->begin());
 		env[i++] = &(*((new std::string("REQUEST_METHOD=" + _request.header.method)))->begin());
 		env[i++] = &(*((new std::string("PATH_TRANSLATED=" + _resource.abs_path   ))->begin()));
 		env[i++] = &(*((new std::string("REDIRECT_STATUS=200")))->begin());
 		env[i++] = &(*((new std::string("QUERY_STRING=" + _resource.query)))->begin());
 		env[i++] = &(*((new std::string("HTTP_COOKIE=" + cokie)))->begin());
-		env[i++] = &(*((new std::string("HTTP_HOST=localhost:9997")))->begin());
-		env[i++] = &(*((new std::string("SERVER_NAME=localhost")))->begin());
-		env[i++] = &(*((new std::string("SERVER_PORT=8400")))->begin());
 		env[i++] = NULL;
 	}
 
