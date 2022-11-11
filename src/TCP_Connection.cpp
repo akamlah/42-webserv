@@ -65,8 +65,10 @@ TCP_Connection::cn_state& TCP_Connection::state()
 
 bool TCP_Connection::is_timedout() {
     std::clock_t t_now = std::clock();
+    // std::cout << CYAN << " - " << t_now << " - " << NC << std::endl;
+    // std::cout << RED << " - " << _timer << " - " << NC << std::endl;
     int elapsed_sec = ((double)(t_now - _timer) / CLOCKS_PER_SEC) * 1000;
-    std::cout << YELLOW << " - " << elapsed_sec << " - " << NC << std::endl;
+    // std::cout << YELLOW << " - " << elapsed_sec << " - " << NC << std::endl;
     if (elapsed_sec > 60) {
         _state = TIMED_OUT;
         return (true);
