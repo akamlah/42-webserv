@@ -33,7 +33,6 @@ Response::Response(const Request& request, const config_data& config, const Toke
 
 Response::~Response() {}
 
-
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // PUBLIC Member fuctions
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -174,6 +173,7 @@ void Response::default_error() {
     _fields_stream.str(std::string());
     _response_str = std::string();
     add_field("Server", "ZHero serv/1.0");
+    add_field("Connection", "close");
     add_formatted_timestamp();
     _body << "<!DOCTYPE html>\n<html lang=\"en\">\n"
         << "<head><title>Error " << _status << "</title></head>\n"
@@ -208,6 +208,7 @@ void Response::custom_error() {
     _fields_stream.str(std::string());
     _response_str = std::string();
     add_field("Server", "ZHero serv/1.0");
+    add_field("Connection", "close");
     add_formatted_timestamp();
     std::string abs_path = _config.root + path;
     if (check_error_path(abs_path)) {
@@ -229,7 +230,6 @@ bool Response::check_error_path(std::string const & path) {
 }
 
 void Response::respond_to_error() {
-
     if (_config.error == "non")
         default_error();
     else

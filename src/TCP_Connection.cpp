@@ -31,19 +31,22 @@ TCP_Connection::TCP_Connection(const TCP_IP6_ListeningSocket& l_socket, const ws
     WS_connection_debug("Opened Connection on fd " << _socket.fd());
     _socket.configure();
     _timer = std::clock();
+    _request.reset();
 }
 
 TCP_Connection& TCP_Connection::operator=(const TCP_Connection& other) {
     // WS_connection_debug("Connection: cpy ass ope " << _socket.fd());
     _timer = std::clock();
     _state = other._state;
+    _request.reset();
     return (*this);
 }
 
 TCP_Connection::TCP_Connection(const TCP_Connection& other) : _socket(other._socket),
- _conf(other._conf), _tokens(other._tokens), _state(other._state), _request(other._request)
+ _conf(other._conf), _tokens(other._tokens), _state(other._state)
 {
     WS_connection_debug("Connection: cpy constr " << _socket.fd());
+    _request.reset();
 }
 
 TCP_Connection::~TCP_Connection() {}
@@ -75,13 +78,13 @@ bool TCP_Connection::is_timedout() {
 void TCP_Connection::prepare_read_buffer() {
     _brecv = 0;
     memset(&_buffer, 0, BUFFER_SIZE);
-    _request = http::Request(); // request.reset() method ?
 }
 
 void TCP_Connection::prepare_response() {
     _socket.configure();
     http::Response response(_request, _conf, _tokens);
     _response_str = response.string();
+    _request.reset();
     _btosend = _response_str.length();
     if (!response.status_is_success())
         _state = HTTP_ERROR;
@@ -117,6 +120,7 @@ void TCP_Connection::rdwr() {
     prepare_read_buffer();
     read();
     if (_state == ESTABLISHED) {
+        _request.reset(); // request.reset() method ?
         _request.parse(_buffer, _brecv);
         prepare_response();
         write();

@@ -46,6 +46,7 @@ class parser {
         int parse(Request& request, const char* buffer, int brecv);
         int parse_chunks(Request& request);
         int error_status(Request& request, const int status, const char* msg = NULL) const ;
+        void reset();
 
 #if (!DEBUG)
     private:
@@ -100,8 +101,8 @@ class Request {
     public:
 
         Request();
-        Request(const Request& other);
-        Request& operator=(const Request& other);
+        // Request(const Request& other);
+        // Request& operator=(const Request& other);
         ~Request();
 
         int parse( const char* buffer, int brecv);
@@ -112,6 +113,7 @@ class Request {
         bool has_field_of_name(const std::string& field_name) const;
         std::list<std::string> get_field_value(const std::string& field_name) const;
         static bool replace_placeholders(std::string& token);
+        void reset();
 
     private:
 
