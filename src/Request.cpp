@@ -79,15 +79,15 @@ int Request::parse( const char* buffer, int brecv) {
             //     << "\tTarget: " << header.target << "\n" \
             //     << "\tVersion: " << header.version << NC << std::endl;
 
-            // std::cout << CYAN << "PARSED FIELDS:\n" << NC;
-            // for (std::map<std::string, std::list<std::string> >::const_iterator it = _fields._map.begin();
-            //     it != _fields._map.end(); it++)
-            // {
-            //     std::cout << CYAN << it->first<< NC << "|" ;
-            //     for (std::list<std::string>::const_iterator itl = it->second.begin(); itl != it->second.end(); itl++)
-            //         std::cout << YELLOW << *itl << NC << "|";
-            //     std::cout << std::endl;
-            // }
+            std::cout << CYAN << "PARSED FIELDS:\n" << NC;
+            for (std::map<std::string, std::list<std::string> >::const_iterator it = _fields._map.begin();
+                it != _fields._map.end(); it++)
+            {
+                std::cout << CYAN << it->first<< NC << "|" ;
+                for (std::list<std::string>::const_iterator itl = it->second.begin(); itl != it->second.end(); itl++)
+                    std::cout << YELLOW << *itl << NC << "|";
+                std::cout << std::endl;
+            }
             // // std::cout << "request msg length after parse: " << _parser.msg_length << std::endl;
             // std::cout << CYAN << "\nPARSER: Message recieved: ---------\n" << NC << _parser.buffer << std::endl;
             // std::cout << CYAN << "-----------------------------------\n" << NC << std::endl;
@@ -339,7 +339,9 @@ int parser::parse(Request& request,  const char* xbuffer, int brecv) {
         ++line_length;
         if (!header_done && buffer[msg_length - 1] == LF_int) { // if newline found:
             ++nb_lines;
-            if (!(status = parse_previous_header_line(request, (char *)buffer + msg_length - line_length))) // final CRLF
+            char line[LINE_MAX];
+            strlcpy(line, ((char *)buffer + msg_length - line_length), line_length + 1 /*?*/);
+            if (!(status = parse_previous_header_line(request, line))) // final CRLF
                 break ;
         }
         if (status != WS_200_OK) // [ - ] [ ? ]
@@ -352,25 +354,12 @@ int parser::parse(Request& request,  const char* xbuffer, int brecv) {
         return (error_status(request, WS_400_BAD_REQUEST, "No request line provided"));
     if (!host_fields)
         return (error_status(request, WS_400_BAD_REQUEST, "No host field provided"));
-    // buffer[msg_length] = '\0';
     return (status);
 }
 
-// reads a byte and does some primary checks
-// encoding must be a superset of US-ASCII [USASCII] -> max 128 (hex 80) (RFC 9112)
-// ANY CR_int not folowed by LF_int is invalid and message is rejected (RFC 9112)
 int parser::get_byte(Request& request) {
-
-    // if (!header_done && buffer[msg_length] > (int)0x80)
-    //     return (error_status(request, WS_400_BAD_REQUEST, "Bad encoding"));
     if (line_length > 1 && buffer[msg_length - 1] == CR_int && buffer[msg_length] != LF_int)
         return (error_status(request, WS_400_BAD_REQUEST, "CR not followed by LF"));
-    // if (buffer[msg_length] == LF_int)
-    //     std::cout << CYAN << "GET byte: " << "LF " << NC << std::endl;
-    // else if (buffer[msg_length] == CR_int)
-    //     std::cout << CYAN << "GET byte: " << "CR " << NC << std::endl;
-    // else
-    //     std::cout << CYAN << "GET byte: " << buffer + msg_length << " " << NC << std::endl;
     return (WS_200_OK);
 }
 
