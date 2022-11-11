@@ -131,11 +131,26 @@ class TCP_IP6_ConnectionSocket : public TCP_IP6_Socket_base {
         ~TCP_IP6_ConnectionSocket() {}
 
         int configure() { // [ ? ]
-            // int n = 1;
+            int n = 1;
             int error;
-            // error = setsockopt(_fd, SOL_SOCKET, SO_NOSIGPIPE, &n, sizeof(n));
-            // if (!error)
-                error = fcntl(_fd, F_SETFL, O_NONBLOCK);
+            error = setsockopt(_fd, SOL_SOCKET, SO_NOSIGPIPE, &n, sizeof(n));
+            if (error)
+                return(error);
+
+            error = fcntl(_fd, F_SETFL, O_NONBLOCK);
+            if (error)
+                return(error);
+            
+            struct timeval tv;
+            tv.tv_sec = 7;
+            tv.tv_usec = 0;
+            error = setsockopt(_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+            if (error)
+                return(error);
+            error = setsockopt(_fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+            if (error)
+                return(error);
+
             return (error);
         }
 };

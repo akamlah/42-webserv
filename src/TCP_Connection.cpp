@@ -29,10 +29,13 @@ TCP_Connection::TCP_Connection(const TCP_IP6_ListeningSocket& l_socket, const ws
 {
     memset(_buffer, 0, BUFFER_SIZE);
     WS_connection_debug("Opened Connection on fd " << _socket.fd());
+    _socket.configure();
+    _timer = std::clock();
 }
 
 TCP_Connection& TCP_Connection::operator=(const TCP_Connection& other) {
     // WS_connection_debug("Connection: cpy ass ope " << _socket.fd());
+    _timer = std::clock();
     _state = other._state;
     return (*this);
 }
@@ -57,34 +60,43 @@ TCP_Connection::cn_state& TCP_Connection::state()
 
 // Core - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-void TCP_Connection::response_to_str() { // replace with class response later.
+bool TCP_Connection::is_timedout() {
+    std::clock_t t_now = std::clock();
+    int elapsed_sec = ((double)(t_now - _timer) / CLOCKS_PER_SEC) * 1000;
+    std::cout << YELLOW << " - " << elapsed_sec << " - " << NC << std::endl;
+    if (elapsed_sec > 60) {
+        _state = TIMED_OUT;
+        return (true);
+    }
+    return (false);
+}
 
+
+void TCP_Connection::prepare_read_buffer() {
+    _brecv = 0;
+    memset(&_buffer, 0, BUFFER_SIZE);
+    _request = http::Request(); // request.reset() method ?
+}
+
+void TCP_Connection::prepare_response() {
+    _socket.configure();
     http::Response response(_request, _conf, _tokens);
     _response_str = response.string();
-    _btosend = _response_str.length() + 1;
+    _btosend = _response_str.length();
     if (!response.status_is_success())
         _state = HTTP_ERROR;
+    // else if (response.()) HAS "CLOSE"
+        // _state = CLOSE_WAIT;
 }
 
 // handle buffer size: read again if bytes read > socket buffer etc...
-void TCP_Connection::rdwr() {
-
+void TCP_Connection::read() {
     WS_connection_debug("Reading on fd: " << _socket.fd());
-
-    _brecv = 0;
-    memset(&_buffer, 0, BUFFER_SIZE);
-    _request = http::Request();
-
     int n = ::recv(_socket.fd(), _buffer, BUFFER_SIZE, 0);
+    _timer = std::clock();
     WS_connection_debug("BYTES read: " << n);
     if (n < 0) {
-        
-        #ifdef DEBUG_CONNECTIONS
-        if (errno == ECONNRESET) { WS_connection_debug("Connection reset"); }
-        else if (errno == EPIPE) { WS_connection_debug("Pipe error - RD"); }
-        WS_connection_debug("READ ERROR" << strerror(errno));
-        #endif
-        
+        WS_connection_debug("Error reading: " << strerror(errno));
         _state = RD_ERROR;
     }
     else if (n == 0) {
@@ -94,44 +106,39 @@ void TCP_Connection::rdwr() {
     else {
         std::cout << "|" << _buffer << "|" << std::endl;
         _brecv += n;
+        // if (_brecv == content length)
+        _state = ESTABLISHED; // redundant
+        // return
+        _timer = std::clock();
+    }
+}
 
-        // _request.parse_header(_buffer, _brecv);
+void TCP_Connection::rdwr() {
+    prepare_read_buffer();
+    read();
+    if (_state == ESTABLISHED) {
         _request.parse(_buffer, _brecv);
-
-        _state = ESTABLISHED; // redundant, for safety
-
-
-        // PREPARE WRITE :
-
-        // Maybe do a check for writing func, set to pollout and check that before actually writing
-        _socket.configure(); // [ ! ] HERE OR BEFORE RECV ??
-        response_to_str();
+        prepare_response();
         write();
     }
 }
 
 void TCP_Connection::write() {
-
     WS_connection_debug("Responding on fd: " << _socket.fd());
-    // int n = ::send(_socket.fd(), &(*(_s.str().begin() + _bsent)), _btosend - _bsent, 0);
     int n = ::send(_socket.fd(), _response_str.c_str() + _bsent, _btosend - _bsent, 0);
-    if (n < 0) {
-        std::cout << "bytes sent now " << n << std::endl;
-        
-        #ifdef DEBUG_CONNECTIONS
-        if (errno == EPIPE) { WS_connection_debug("Pipe error - RD"); }
-        WS_connection_debug("READ ERROR" << strerror(errno));
-        #endif
-        
+    _timer = std::clock();
+    if (n <= 0) {
+        WS_connection_debug("Bytes sent now " << n);
+        WS_connection_debug("Error writing: " << strerror(errno));
         _state = WR_ERROR;
         return ;
     }
     else {
         // [ ! ] make case for 0 to not get stuck in infinite loop 0 ? or maybe poll is enough
         _bsent += n;
-        std::cout << "bytes sent now " << n << " for a total of " << _bsent << " of " << _btosend << std::endl;
+        WS_connection_debug("bytes sent now " << n << " for a total of " << _bsent << " of " << _btosend);
         if (_bsent == _btosend) {
-            std::cout << "DONE" << std::endl;
+            WS_connection_debug("DONE");
             // std::cout << "|" << _response_str << "|" << std::endl;
             _bsent = 0;
             _btosend = 0;
@@ -140,11 +147,23 @@ void TCP_Connection::write() {
                 _state = ESTABLISHED;
             return ;
         }
-        _state = PARTIAL_RESPONSE;
-        std::cout << "NEXT ROUND" << std::endl;
+        _state = PARTIAL_RESP;
+        WS_connection_debug("NEXT ROUND");
         return ;
     }
 }
 
+std::string TCP_Connection::state_to_str() const {
+    switch (_state) {
+        case TCP_Connection::ESTABLISHED: return("ESTABLISHED");
+        case TCP_Connection::PARTIAL_RESP: return("PARTIAL_RESP");
+        case TCP_Connection::CLOSE_WAIT: return("CLOSE WAIT");
+        case TCP_Connection::TIMED_OUT: return("TIMEOUT");
+        case TCP_Connection::HTTP_ERROR: return("HTTP_ERROR");
+        case TCP_Connection::RD_ERROR: return("RD_ERROR");
+        case TCP_Connection::WR_ERROR: return("WR_ERROR");
+        default: return (std::string());
+    }
+}
 
 } // namespace ws
