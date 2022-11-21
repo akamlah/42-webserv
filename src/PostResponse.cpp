@@ -45,7 +45,7 @@ namespace http {
 		phpresp +=  cgiRespCreator_post();
 		std::string::size_type separationindex;
 		if (phpresp.empty())
-			return ;
+			throw_error_status(WS_500_INTERNAL_SERVER_ERROR , "We are terripbly sorry,Something went wrong! Most likly it's your fault!!!");
 		separationindex = phpresp.find("\r\n\r\n");
 		if (separationindex == std::string::npos)
 			return ;

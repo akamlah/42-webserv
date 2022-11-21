@@ -45,7 +45,7 @@ namespace http {
 		phpresp +=  cgiRespCreator();
 		std::string::size_type shitindex;
 		if (phpresp.empty())
-			return ;
+			throw_error_status(WS_500_INTERNAL_SERVER_ERROR , "We are terripbly sorry,Something went wrong! Most likly it's your fault!!!");
 		shitindex = phpresp.find("\r\n\r\n");
 		if (shitindex == std::string::npos)
 			return ;
@@ -107,7 +107,7 @@ namespace http {
 		std::string phpresp;
 		phpresp +=  perl_cgiRespCreator();
 		if (phpresp.empty())
-			return ;
+			throw_error_status(WS_500_INTERNAL_SERVER_ERROR , "We are terripbly sorry,Something went wrong! Most likly it's your fault!!!");
 		_body << phpresp;
 		add_field("Content-length", std::to_string(phpresp.length()));
 		add_field("Content-type", "text/html");

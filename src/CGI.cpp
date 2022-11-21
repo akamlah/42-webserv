@@ -140,10 +140,11 @@ namespace ws {
 			fclose(bobin);
 			close(outy);
 			close(inty);
-			if (execve("./CGI/php-cgi",test , env) == -1 )
+			if (execve("./CGI/php-cgi",test , env) == -1 ) {
 				std::cerr << "Error in cgi Execution\n";
+			}
 			delete [] test;
-			exit(0);
+			exit(EXIT_FAILURE);
 		}
 		else
 		{

@@ -183,9 +183,7 @@ namespace ws {
 		temp.index = helpCheckContent(configDataString, "index:", false);
 		temp.http_redirects = helpCheckContent(configDataString, "http_redirects:", false);
 		temp.download = helpCheckContent(configDataString, "download:", false);
-
 		temp.http_methods = helpCheckHTTPmethods(configDataString, "http_methods:");
-
 		temp.cgi = helpCheckContent(configDataString, "cgi:", false);
 		temp.location = helpCheckContent(configDataString, "location:", false);
 		if (temp.cgi.find("non") == std::string::npos)
@@ -193,6 +191,8 @@ namespace ws {
 		else
 			temp.isCgiOn = false;
 		temp.directory_listing = helpGetDirecotry_listing(configDataString, "directory_listing:");
+		if (temp.directory_listing == true && temp.location != "non")
+			throw ConfigFileError("ERROR: Conflict in settings! You can't set your directory visible if you hide your location!");
 		if (check_ports_repeat(temp))
 			throw ConfigFileError("ERROR: ports duplicate in server");
 		configDataAll.push_back(temp);
