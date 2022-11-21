@@ -48,7 +48,7 @@ namespace http {
 			throw_error_status(WS_500_INTERNAL_SERVER_ERROR , "We are terripbly sorry,Something went wrong! Most likly it's your fault!!!");
 		separationindex = phpresp.find("\r\n\r\n");
 		if (separationindex == std::string::npos)
-			return ;
+			throw_error_status(WS_500_INTERNAL_SERVER_ERROR , "We are terripbly sorry,Something went wrong! Most likly it's your fault!!!");
 		_body << phpresp;
 		std::string temp = phpresp.substr(separationindex + 4);
 		templength = temp.length();

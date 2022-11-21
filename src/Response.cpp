@@ -109,7 +109,7 @@ void Response::build_response() {
     add_field("Server", "ZHero serv/1.0");
     add_formatted_timestamp();
     try {
-        if (_config.limit_body != 0)
+        if (_config.limit_body != -1)
         {
             int bodysize = 0;
             bodysize = _request._body.str().length();
