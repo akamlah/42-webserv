@@ -344,7 +344,7 @@ void Response::validate_target_abs_path() {
     if (!(_config.location.compare("non")) )
         temp_path = _resource.abs_path;
     else
-        temp_path = _config.location + "/" + _config.index;
+        temp_path = _config.location + "/" + _resource.path;
     if ((tmp_fd = open(temp_path.c_str(), O_RDONLY)) < 0) {
         if (errno == ENOENT) {
             if (_resource.file == index && _config.directory_listing == true) {
