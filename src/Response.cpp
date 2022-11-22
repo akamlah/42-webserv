@@ -317,7 +317,8 @@ void Response::interpret_target() {
     _resource.file = (_resource.path == "/") ? _config.index : _resource.path;
     remove_leading_slash(_resource.file);
     _resource.abs_path = _resource.root + _resource.file;
-
+    // if (is_directory(_resource.file))
+    //     append_slash(_resource.file);
     if (DEBUG) {
         std::cout << "RESOURCE:" << std::endl;
         std::cout << "root: " << _resource.root << std::endl;
@@ -340,8 +341,27 @@ void Response::validate_target_abs_path() {
         temp_path = _resource.abs_path;
     }
     else {
-        temp_path = _config.location + "/" + _resource.path;
+        std::cout << "from validate: " << _resource.path.back() << "\n";
+        std::cout << "from validate path: " << _resource.path << "\n";
+        if (_resource.path == "/") 
+        {
+            std::string tempLocation = _config.location;
+            append_slash(tempLocation);
+            temp_path = tempLocation + index;
+        }
+        else {
+            std::string tempLocation = _config.location;
+            std::string temppath = _resource.path;
+            append_slash(tempLocation);
+            remove_leading_slash(temppath);
+            temp_path = tempLocation + temppath;
+        }
+        if (is_directory(temp_path)) {
+            throw_error_status(WS_404_NOT_FOUND, strerror(errno));
+            // mase of shit !!!!!!
+        }
     }
+    std::cout << "validate this: " << temp_path << "\n";
     if ((tmp_fd = open(temp_path.c_str(), O_RDONLY)) < 0) {
         if (errno == ENOENT) {
             if (_resource.file == index && _config.directory_listing == true) {

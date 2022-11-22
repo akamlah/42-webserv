@@ -174,11 +174,11 @@ namespace ws {
 		config_data temp;
 
 		temp.ports = helpChecPorts(configDataString, "port:"); // new multiple ports.
-
+		temp.host = helpCheckContent(configDataString, "host:", false);
 		temp.limit_body = std::stoi(helpCheckContent(configDataString, "limit_body:", true));
 		temp.server_name = helpCheckContent(configDataString, "server_name:", false);
 		temp.error = helpCheckContent(configDataString, "error:", false);
-		temp.host = helpCheckContent(configDataString, "host:", false);
+
 		temp.root = helpCheckContent(configDataString, "root:", false);
 		temp.index = helpCheckContent(configDataString, "index:", false);
 		temp.http_redirects = helpCheckContent(configDataString, "http_redirects:", false);
