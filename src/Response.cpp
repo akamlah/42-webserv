@@ -73,10 +73,11 @@ void Response::remove_leading_slash(std::string& path) {
             path.erase(0, 1);
 }
 
-static void remove_trailing_slash(std::string& path) {
-    if (!path.empty())
-        if (path[path.length() - 1] == '/')
-            path.erase(path.length() - 1, path.length());
+static bool is_directory(const std::string& path) {
+    struct stat statbuf;
+    if (stat(path.c_str(), &statbuf) != 0)
+        return 0;
+    return S_ISDIR(statbuf.st_mode);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -258,7 +259,6 @@ void Response::respond_with_directory_listing_html() {
     remove_leading_slash(tmp_path);
     append_slash(tmp_path);
     std::string current_directory = _resource.root + tmp_path;
-    
     add_field("Server", "ZHero serv/1.0");
     add_formatted_timestamp();
     add_field("Content-type", "text/html");
@@ -270,7 +270,9 @@ void Response::respond_with_directory_listing_html() {
     if ((dir = opendir(&(*(current_directory.c_str())))) != NULL) {
         while ((ent = readdir (dir)) != NULL) {
             tmp_ent_d_name = ent->d_name;
-            append_slash(tmp_ent_d_name);
+            std::string tmp = current_directory + tmp_ent_d_name;
+            if (is_directory(tmp))
+                append_slash(tmp_ent_d_name);
             if (_resource.path == "/" && i == 1)
                 _body << tmp_ent_d_name << "<br>";
             else
@@ -326,13 +328,6 @@ void Response::interpret_target() {
     }
 }
 
-static bool is_directory(const std::string& path) {
-    struct stat statbuf;
-    if (stat(path.c_str(), &statbuf) != 0)
-        return 0;
-    return S_ISDIR(statbuf.st_mode);
-}
-
 void Response::validate_target_abs_path() {
     int tmp_fd;
     std::string temp_path;
@@ -341,26 +336,29 @@ void Response::validate_target_abs_path() {
     if (is_directory(_resource.abs_path) && _request.header.method == "GET") {
         throw Respond_with_directory_listing();
     }
-    if (!(_config.location.compare("non")) )
+    if (!(_config.location.compare("non")) ) {
         temp_path = _resource.abs_path;
-    else
+    }
+    else {
         temp_path = _config.location + "/" + _resource.path;
+    }
     if ((tmp_fd = open(temp_path.c_str(), O_RDONLY)) < 0) {
         if (errno == ENOENT) {
             if (_resource.file == index && _config.directory_listing == true) {
+                close(tmp_fd);
                 throw Respond_with_directory_listing();
             }
+            close(tmp_fd);
             throw_error_status(WS_404_NOT_FOUND, strerror(errno));
         }
-        else if (errno == EACCES)
+        else if (errno == EACCES) {
+            close(tmp_fd);
             throw_error_status(WS_403_FORBIDDEN, strerror(errno));
-        else if (_config.directory_listing == true && errno == ENOTDIR) {
-            remove_trailing_slash(_resource.abs_path);
-            remove_trailing_slash(_resource.file);
-            validate_target_abs_path();
         }
-        else
+        else {
+            close(tmp_fd);
             throw_error_status(WS_500_INTERNAL_SERVER_ERROR, strerror(errno));
+        }
     }
     close(tmp_fd);
 }

@@ -121,8 +121,8 @@ void Server::run() {
             }
             _fd_pool.compress();
         }
-        WS_events_debug(std::endl);
-        WS_events_debug("- - - - - - - - - - - ");
+        // WS_events_debug(std::endl);
+        // WS_events_debug("- - - - - - - - - - - ");
     }
 }
 
