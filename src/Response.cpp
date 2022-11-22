@@ -110,7 +110,7 @@ void Response::build_response() {
     add_field("Server", "ZHero serv/1.0");
     add_formatted_timestamp();
     try {
-        if (_config.limit_body != 0)
+        if (_config.limit_body != -1)
         {
             int bodysize = 0;
             bodysize = _request._body.str().length();
@@ -340,7 +340,7 @@ void Response::validate_target_abs_path() {
         temp_path = _resource.abs_path;
     }
     else {
-        temp_path = _config.location + "/" + _config.index;
+        temp_path = _config.location + "/" + _resource.path;
     }
     if ((tmp_fd = open(temp_path.c_str(), O_RDONLY)) < 0) {
         if (errno == ENOENT) {

@@ -25,7 +25,7 @@ server {
 Inside this block, you have to provide at least a host, a port, the root of your webpage's directory and the index file. Each field have to contain a value. If the functionality is optional but not requered the non or off world has to be there.
 --> cgi: .php; (the webpage contain php code)
 --> cgi: non; (the webpage don't run any cgi)
---> limit_body: 0; (no limit)
+--> limit_body: -1; (no limit)
 
 Example configuration (with minimal requered fields): 
 
