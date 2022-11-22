@@ -38,6 +38,10 @@ int main(int argc, char **argv) {
 		ws::Server server(configData.getAllConfigData());
         server.run();
 	}
+	catch (std::invalid_argument const& ex)
+    {
+        std::cerr << "Error in config, field not a number:\n" << ex.what() << '\n';
+    }
 	catch(const std::exception& e)
 	{
 		std::cerr << e.what() << '\n';

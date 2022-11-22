@@ -3,7 +3,7 @@
 
 A simple HTTP 1.1 web server written in C++.
 The aim of this project is to learn the theory behind network programming: only a few C functions related to socket programming were allowed, so tht we had to face the HTTP parsing and response handeling ourselves. The multiplexing part is handeled using poll() for siplicity; we don't use threads.  
-The structur of the configuration file is inspired by nginx's. A default configuration is provided if no file is selected when starting the sever.
+We set up our own simple config structure based on the requirements. A default configuration is provided if no file is selected when starting the sever.
 
 ## Usage
 
@@ -37,7 +37,7 @@ server {
 	index: index.html;
 	server_name: non;
 	error: non;
-	limit_body: 0;
+	limit_body: -1;
 	http_methods: GET;
 	http_redirects: non;
 	location: non;
@@ -65,4 +65,6 @@ server {
 	cgi: .php;
 }
 ```
+### Cgi
 
+Our server suports two Common Gateway Interface (cgi): php and perl. For php-cgi we use the standard binary of php-cgi. In the case of perl we wrote a simple perl-cgi on our own. What will run the code in perl. It suports embed perl in html code.
