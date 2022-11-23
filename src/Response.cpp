@@ -342,7 +342,7 @@ void Response::interpret_target() {
 	
 	_resource.root = _config.root;
 
-	std::cout << _resource.root << "\n  * * * * * ** * * * * ** * * * * * ** * * * * * ** \n";
+	std::cout << _resource.root << "\n\n\n  * * * * * *    * * * * * * S T A R T * * * * * * *    * * * * * * ** \n";
 	
 	append_slash(_resource.root);
 	_resource.file = (_resource.path == "/") ? _config.index : _resource.path;
@@ -350,6 +350,11 @@ void Response::interpret_target() {
 	std::string tempercPath = _resource.path;
 	remove_leading_slash(tempercPath);
 	remove_trailing_slash(tempercPath);
+
+	std::cout << "root: " << _resource.root << std::endl;
+	std::cout << "file: " << _resource.file << std::endl;
+	std::cout << "path: " << _resource.path << std::endl;
+	std::cout << "abs path: " << _resource.abs_path << std::endl;
 
 	// if ( _config.location != "[" && tempercPath == (*(_config.routs.begin())).folder )
 	if ( _config.location != "[")
@@ -374,10 +379,13 @@ void Response::interpret_target() {
 			// if (!is_directory(_resource.file))
 			// validate_target_abs_path();
 	//firs loop problem....
-				_resource.root += tempercPath;
-				_resource.file = _config.index;
 				remove_leading_slash(_resource.file);
 				append_slash(_resource.root);
+				_resource.root += tempercPath;
+				append_slash(_resource.root);
+				_resource.file = _config.index;
+				// _resource.file = (*it).folder + _resource.path; // _recource.path ??
+				// _resource.root += _resource.file;
 		}
 		if (it == iendt) {
 			std::__1::list<std::__1::string> fieldtemp = _request.get_field_value("referer");
@@ -399,19 +407,21 @@ void Response::interpret_target() {
 
 					remove_leading_slash(_resource.file);
 					append_slash(_resource.root);
-		std::cout << "root: " << _resource.root << std::endl;
-		std::cout << "file: " << _resource.file << std::endl;
-		std::cout << "path: " << _resource.path << std::endl;
-		std::cout << "abs path: " << _resource.abs_path << std::endl;
+		
 			std::cout << " - - - - - - -- - - - - - -- - - - S e c o n d L o o p   -- - - - - - -- - - - - - - -- \n";
 					
 					_resource.file = (*it).folder + _resource.path; // _recource.path ??
 					_resource.root += _resource.file;
+
 				}
 
 			}
 		}
 
+		std::cout << "root: " << _resource.root << std::endl;
+		std::cout << "file: " << _resource.file << std::endl;
+		std::cout << "path: " << _resource.path << std::endl;
+		std::cout << "abs path: " << _resource.abs_path << std::endl;
 		// else
 		//     throw_error_status(WS_500_INTERNAL_SERVER_ERROR, "Something went wrong in the loaction!");
 
