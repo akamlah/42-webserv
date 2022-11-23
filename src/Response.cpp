@@ -254,6 +254,9 @@ void Response::respond_to_error() {
 }
 
 void Response::respond_with_directory_listing_html() {
+	std::cout << _request.header.method << "\n";
+	if (getValid(_request.header.method))
+			throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
 	DIR *dir;
 	struct dirent *ent;
 	int i = 0;
@@ -544,6 +547,7 @@ bool Response::getValid(const std::string & nameof)
 	std::vector<std::string>::iterator eit = temp.end();
 	while (it != eit)
 	{
+		std::cout << "inside: " << *it << "\n";
 		if (!((*it).compare(nameof)))
 			return (false);
 		it++;
