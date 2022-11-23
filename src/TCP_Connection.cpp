@@ -86,12 +86,97 @@ void TCP_Connection::prepare_read_buffer() {
 void TCP_Connection::prepare_response() {
     _bsent = 0;
     _socket.configure();
-    http::Response response(_request, _conf, _tokens);
-    _response_str = response.string();
-    _request.reset();
-    _btosend = _response_str.length();
-    if (!response.status_is_success())
-        _state = HTTP_ERROR;
+    config_data tempconf;
+
+    //_conf.root;
+
+   // std::cout << _request.header.target << "\n";
+   if (_conf.location != "[") {
+    // && _request.header.target.find((*(_conf.routs.begin())).folder) != std::string::npos 
+    //     && _request.header.target.find((*(_conf.routs.begin())).folder) < 2) 
+        std::vector<ws::config_route>::const_iterator it = _conf.routs.begin();
+        std::vector<ws::config_route>::const_iterator iendt = _conf.routs.end();
+        std::string::size_type secondloc = _request.header.target.find("/", 1);
+        if (secondloc == std::string::npos)
+            secondloc = _request.header.target.length() - 1;
+        std::string tempercPath = _request.header.target.substr(1, secondloc);
+         while (tempercPath != (*it).folder && it != iendt) {
+            it++;
+         }
+        if (it == iendt) {
+            std::__1::list<std::__1::string> fieldtemp = _request.get_field_value("referer");
+            std::__1::list<std::__1::string> fieldhost = _request.get_field_value("host");
+            std::string temphost = *(fieldhost.begin());
+            std::string tempRef = *(fieldtemp.begin());
+            std::string::size_type whereTheFront = tempRef.find(temphost);
+
+       //  std::cout << whereTheFront << "\nHERE 1\n";
+
+            if (whereTheFront != std::string::npos)
+            {
+                it = _conf.routs.begin();
+                    //std::cout << (*it).folder << "\n";
+
+                std::string::size_type startcutsign = whereTheFront + temphost.length() + 1;
+    
+         std::string temRefutEnd;
+
+        if (startcutsign < tempRef.length())
+           temRefutEnd = tempRef.substr(startcutsign, tempRef.length() - startcutsign);
+  
+              while (it != iendt && temRefutEnd != (*it).folder)
+                    it++;
+
+
+            }
+        } 
+
+        if (it != iendt) {
+        //always the same
+            tempconf.host = _conf.host;
+            tempconf.ports = _conf.ports;
+            tempconf.error = _conf.error;
+            tempconf.limit_body = _conf.limit_body;
+            tempconf.server_name = _conf.server_name;
+            tempconf.routs = _conf.routs;
+        // rest of it
+
+            tempconf.cgi = (*it).cgi;
+            tempconf.root = (*it).root;
+            tempconf.http_methods = (*it).http_methods;
+            tempconf.http_redirects = (*it).http_redirects;
+            tempconf.index = (*it).index ;
+            tempconf.directory_listing = (*it).directory_listing ;
+            tempconf.download = (*it).download ;
+            tempconf.isCgiOn = (*it).isCgiOn ;
+
+            http::Response response(_request, tempconf, _tokens);
+            _response_str = response.string();
+            _request.reset();
+            _btosend = _response_str.length();
+            if (!response.status_is_success())
+                _state = HTTP_ERROR;
+        }
+        else
+        {
+            http::Response response(_request, _conf, _tokens);
+            _response_str = response.string();
+            _request.reset();
+            _btosend = _response_str.length();
+            if (!response.status_is_success())
+                _state = HTTP_ERROR;
+
+        }
+    }
+    else
+    {
+        http::Response response(_request, _conf, _tokens);
+        _response_str = response.string();
+        _request.reset();
+        _btosend = _response_str.length();
+        if (!response.status_is_success())
+            _state = HTTP_ERROR;
+    }
 }
 
 void TCP_Connection::read() {
