@@ -362,24 +362,22 @@ void Response::interpret_target() {
 		if (secondloc == std::string::npos)
 			secondloc = _request.header.target.length() - 1;
 		std::string tempercPath = _request.header.target.substr(1, secondloc);
+
+		// std::cout << tempercPath << "----why?????\n";
+		remove_trailing_slash(tempercPath);
 		while (tempercPath != (*it).folder && it != iendt)
 			it++;
 		// std::cout << "\nLOOP: " << (*it).folder << "\n";
 		if (it != iendt)
 		{
-			std::cout << "HERE 1\n";
+			std::cout << " - - -- - - - - -- - - - - - -- - - First loop ------- - - - - - - -- - - - -\n";
 			// if (!is_directory(_resource.file))
 			// validate_target_abs_path();
-
+	//firs loop problem....
 				_resource.root += tempercPath;
 				_resource.file = _config.index;
 				remove_leading_slash(_resource.file);
 				append_slash(_resource.root);
-
-					std::cout << " - - - - - - -- - - - - - -- - - - KKKKKKKKK  -- - - - - - -- - - - - - - -- \n";
-
-			// else
-				// _resource.file = _resource.file + "/" + _resource.path;
 		}
 		if (it == iendt) {
 			std::__1::list<std::__1::string> fieldtemp = _request.get_field_value("referer");
@@ -401,15 +399,13 @@ void Response::interpret_target() {
 
 					remove_leading_slash(_resource.file);
 					append_slash(_resource.root);
-					std::cout << " - - - - - - -- - - - - - -- - - - heer  -- - - - - - -- - - - - - - -- \n";
 		std::cout << "root: " << _resource.root << std::endl;
 		std::cout << "file: " << _resource.file << std::endl;
 		std::cout << "path: " << _resource.path << std::endl;
 		std::cout << "abs path: " << _resource.abs_path << std::endl;
-					std::cout << " = = = = = = = == = = = = = = = = = = = = == == = " << std::endl;
+			std::cout << " - - - - - - -- - - - - - -- - - - S e c o n d L o o p   -- - - - - - -- - - - - - - -- \n";
 					
-					//_resource.file = (*it).folder + _resource.path; /// this one in and out... somtimes works somtimes doesnt... fucking shit
-					
+					_resource.file = (*it).folder + _resource.path; // _recource.path ??
 					_resource.root += _resource.file;
 				}
 
@@ -430,7 +426,7 @@ void Response::interpret_target() {
 		std::cout << "root: " << _resource.root << std::endl;
 		std::cout << "file: " << _resource.file << std::endl;
 		std::cout << "path: " << _resource.path << std::endl;
-		std::cout << "query: " << _resource.query << std::endl;
+		// std::cout << "query: " << _resource.query << std::endl;
 		std::cout << "abs path: " << _resource.abs_path << std::endl;
 	// }
 }
