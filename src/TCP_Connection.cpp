@@ -94,19 +94,16 @@ void TCP_Connection::prepare_response() {
 	_bsent = 0;
 	_socket.configure();
 	config_data tempconf;
-if (_conf.location != "[") {
-
+	if (_conf.location != "[") {
 		std::vector<ws::config_route>::const_iterator it = _conf.routs.begin();
 		std::vector<ws::config_route>::const_iterator iendt = _conf.routs.end();
 		std::string::size_type secondloc = _request.header.target.find("/", 1);
 		if (secondloc == std::string::npos)
 			secondloc = _request.header.target.length() - 1;
-
 		std::string tempercPath = _request.header.target.substr(1, secondloc);
 		remove_trailing_slash(tempercPath);
-		while (tempercPath != (*it).folder && it != iendt) {
+		while (tempercPath != (*it).folder && it != iendt) 
 			it++;
-		}
 		if (it == iendt) {
 			std::__1::list<std::__1::string> fieldtemp = _request.get_field_value("referer");
 			std::__1::list<std::__1::string> fieldhost = _request.get_field_value("host");
@@ -114,17 +111,14 @@ if (_conf.location != "[") {
 			std::string tempRef = *(fieldtemp.begin());
 			std::string::size_type whereTheFront = tempRef.find(temphost);
 
-	//  std::cout << whereTheFront << "\nHERE 1\n";
-
 			if (whereTheFront != std::string::npos)
 			{
 				it = _conf.routs.begin();
 				std::string::size_type startcutsign = whereTheFront + temphost.length() + 1;
-	
 				std::string temRefutEnd;
-
 				if (startcutsign < tempRef.length())
 					temRefutEnd = tempRef.substr(startcutsign, tempRef.length() - startcutsign);
+				remove_trailing_slash(temRefutEnd);
 				while (it != iendt && temRefutEnd != (*it).folder)
 					it++;
 			}
@@ -162,6 +156,7 @@ if (_conf.location != "[") {
 			_btosend = _response_str.length();
 			if (!response.status_is_success())
 				_state = HTTP_ERROR;
+
 		}
 	}
 	else

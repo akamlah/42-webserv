@@ -407,7 +407,9 @@ void Response::interpret_target() {
 		std::cout << "path: " << _resource.path << std::endl;
 		std::cout << "abs path: " << _resource.abs_path << std::endl;
 					std::cout << " = = = = = = = == = = = = = = = = = = = = == == = " << std::endl;
-					_resource.file = (*it).folder + _resource.path;
+					
+					//_resource.file = (*it).folder + _resource.path; /// this one in and out... somtimes works somtimes doesnt... fucking shit
+					
 					_resource.root += _resource.file;
 				}
 
