@@ -254,7 +254,7 @@ void Response::respond_to_error() {
 }
 
 void Response::respond_with_directory_listing_html() {
-	std::cout << _request.header.method << "\n";
+	std::cout << "DIR LIST" << _request.header.method << "\n";
 	if (getValid(_request.header.method))
 			throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
 	DIR *dir;
@@ -303,7 +303,7 @@ void Response::respond_with_directory_listing_html() {
 			if (_resource.path == "/" && i == 1)
 				_body << tmp_ent_d_name << "<br>";
 			else
-				_body << "<a href=\"" << tmp_ent_d_name << "\">" << tmp_ent_d_name << "</a><br>";
+				_body << "<a href=\"./" << tmp_ent_d_name << "\">" << tmp_ent_d_name << "</a><br>";
 			i++;
 		}
 		closedir (dir);
@@ -379,11 +379,30 @@ void Response::interpret_target() {
 			// if (!is_directory(_resource.file))
 			// validate_target_abs_path();
 	//firs loop problem....
+			std::string temp_path = _resource.path;
+
+				remove_trailing_slash(temp_path);
+				remove_leading_slash(temp_path);
 				remove_leading_slash(_resource.file);
 				append_slash(_resource.root);
-				_resource.root += tempercPath;
-				append_slash(_resource.root);
-				_resource.file = _config.index;
+					std::cout << "tempercPath: " << temp_path << std::endl;
+
+				if (is_directory(_resource.root + _resource.file)) {
+						_resource.root += temp_path;
+						// _resource.root += tempercPath;
+						append_slash(_resource.root);
+						_resource.file = _config.index;
+				}
+				else {
+					// remove root from file ?
+				}
+
+					std::cout << "AFTER"<< std::endl;
+					std::cout << "root: " << _resource.root << std::endl;
+	std::cout << "file: " << _resource.file << std::endl;
+	std::cout << "path: " << _resource.path << std::endl;
+	std::cout << "abs path: " << _resource.abs_path << std::endl;
+
 				// _resource.file = (*it).folder + _resource.path; // _recource.path ??
 				// _resource.root += _resource.file;
 		}

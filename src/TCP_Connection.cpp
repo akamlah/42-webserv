@@ -141,32 +141,47 @@ void TCP_Connection::prepare_response() {
 			tempconf.download = (*it).download ;
 			tempconf.isCgiOn = (*it).isCgiOn ;
 
-			http::Response response(_request, tempconf, _tokens);
-			_response_str = response.string();
-			_request.reset();
-			_btosend = _response_str.length();
-			if (!response.status_is_success())
-				_state = HTTP_ERROR;
+			try {
+				http::Response response(_request, tempconf, _tokens);
+				_response_str = response.string();
+				_request.reset();
+				_btosend = _response_str.length();
+				if (!response.status_is_success())
+					_state = HTTP_ERROR;
+			}
+			catch (std::exception& e) {
+				_state = RD_ERROR;
+			}
 		}
 		else
 		{
-			http::Response response(_request, _conf, _tokens);
-			_response_str = response.string();
-			_request.reset();
-			_btosend = _response_str.length();
-			if (!response.status_is_success())
-				_state = HTTP_ERROR;
+			try {
+				http::Response response(_request, tempconf, _tokens);
+				_response_str = response.string();
+				_request.reset();
+				_btosend = _response_str.length();
+				if (!response.status_is_success())
+					_state = HTTP_ERROR;
+			}
+			catch (std::exception& e) {
+				_state = RD_ERROR;
+			}
 
 		}
 	}
 	else
 	{
-		http::Response response(_request, _conf, _tokens);
-		_response_str = response.string();
-		_request.reset();
-		_btosend = _response_str.length();
-		if (!response.status_is_success())
-			_state = HTTP_ERROR;
+			try {
+				http::Response response(_request, tempconf, _tokens);
+				_response_str = response.string();
+				_request.reset();
+				_btosend = _response_str.length();
+				if (!response.status_is_success())
+					_state = HTTP_ERROR;
+			}
+			catch (std::exception& e) {
+				_state = RD_ERROR;
+			}
 	}
 }
 
@@ -197,7 +212,8 @@ void TCP_Connection::rdwr() {
 		_request.reset();
 		_request.parse(_buffer, _brecv);
 		prepare_response();
-		write();
+		if (_state != RD_ERROR)
+			write();
 	}
 }
 
