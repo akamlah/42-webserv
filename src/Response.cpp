@@ -254,9 +254,6 @@ void Response::respond_to_error() {
 }
 
 void Response::respond_with_directory_listing_html() {
-	std::cout << "DIR LIST" << _request.header.method << "\n";
-	if (getValid(_request.header.method))
-			throw_error_status(WS_405_METHOD_NOT_ALLOWED, "Method forbidden by config file");
 	DIR *dir;
 	struct dirent *ent;
 	int i = 0;
@@ -274,10 +271,6 @@ void Response::respond_with_directory_listing_html() {
 	std::string::size_type isitthere = _resource.root.find(tmp_path);
 	if (isitthere == std::string::npos)
 		current_directory += tmp_path;
-
-	// if (_resource.root.find(_resource.path) >= (_resource.root.length() - _resource.path.length() - 1))
-	// 	current_directory = _resource.abs_path.substr(0, _resource.abs_path.length() - _resource.file.length());// - _resource.file;
-		// current_directory = _resource.root;
 	add_field("Server", "ZHero serv/1.0");
 	add_formatted_timestamp();
 	add_field("Content-type", "text/html");
@@ -286,14 +279,6 @@ void Response::respond_with_directory_listing_html() {
 	_body << "<body>";
 	_body << "<h1>Index of " << tmp_path << "<br></h1>";
 	_body << "<p>";
-			std::cout << "DIRECTORY:" << std::endl;
-		std::cout << "root: " << _resource.root << std::endl;
-		std::cout << "file: " << _resource.file << std::endl;
-		std::cout << "path: " << _resource.path << std::endl;
-		std::cout << "current_directory: " << current_directory << std::endl;
-		std::cout << "abs path: " << _resource.abs_path << std::endl;
-		// std::cout << "current_directory: " << current_directory << std::endl;
-	// std::cout << "here tooooo " << current_directory << std::endl;
 	if ((dir = opendir(&(*(current_directory.c_str())))) != NULL) {
 		while ((ent = readdir (dir)) != NULL) {
 			tmp_ent_d_name = ent->d_name;
@@ -342,8 +327,6 @@ void Response::interpret_target() {
 	
 	_resource.root = _config.root;
 
-	std::cout << _resource.root << "\n\n\n  * * * * * *    * * * * * * S T A R T * * * * * * *    * * * * * * ** \n";
-	
 	append_slash(_resource.root);
 	_resource.file = (_resource.path == "/") ? _config.index : _resource.path;
 	
@@ -351,15 +334,8 @@ void Response::interpret_target() {
 	remove_leading_slash(tempercPath);
 	remove_trailing_slash(tempercPath);
 
-	std::cout << "root: " << _resource.root << std::endl;
-	std::cout << "file: " << _resource.file << std::endl;
-	std::cout << "path: " << _resource.path << std::endl;
-	std::cout << "abs path: " << _resource.abs_path << std::endl;
-
-	// if ( _config.location != "[" && tempercPath == (*(_config.routs.begin())).folder )
 	if ( _config.location != "[")
 	{
-
 		std::vector<ws::config_route>::const_iterator it = _config.routs.begin();
 		std::vector<ws::config_route>::const_iterator iendt = _config.routs.end();
 
@@ -368,43 +344,20 @@ void Response::interpret_target() {
 			secondloc = _request.header.target.length() - 1;
 		std::string tempercPath = _request.header.target.substr(1, secondloc);
 
-		// std::cout << tempercPath << "----why?????\n";
 		remove_trailing_slash(tempercPath);
 		while (tempercPath != (*it).folder && it != iendt)
 			it++;
-		// std::cout << "\nLOOP: " << (*it).folder << "\n";
-		if (it != iendt)
-		{
-			std::cout << " - - -- - - - - -- - - - - - -- - - First loop ------- - - - - - - -- - - - -\n";
-			// if (!is_directory(_resource.file))
-			// validate_target_abs_path();
-	//firs loop problem....
+		if (it != iendt) {
 			std::string temp_path = _resource.path;
-
-				remove_trailing_slash(temp_path);
-				remove_leading_slash(temp_path);
-				remove_leading_slash(_resource.file);
+			remove_trailing_slash(temp_path);
+			remove_leading_slash(temp_path);
+			remove_leading_slash(_resource.file);
+			append_slash(_resource.root);
+			if (is_directory(_resource.root + _resource.file)) {
+				_resource.root += temp_path;
 				append_slash(_resource.root);
-					std::cout << "tempercPath: " << temp_path << std::endl;
-
-				if (is_directory(_resource.root + _resource.file)) {
-						_resource.root += temp_path;
-						// _resource.root += tempercPath;
-						append_slash(_resource.root);
-						_resource.file = _config.index;
-				}
-				else {
-					// remove root from file ?
-				}
-
-					std::cout << "AFTER"<< std::endl;
-					std::cout << "root: " << _resource.root << std::endl;
-	std::cout << "file: " << _resource.file << std::endl;
-	std::cout << "path: " << _resource.path << std::endl;
-	std::cout << "abs path: " << _resource.abs_path << std::endl;
-
-				// _resource.file = (*it).folder + _resource.path; // _recource.path ??
-				// _resource.root += _resource.file;
+				_resource.file = _config.index;
+			}
 		}
 		if (it == iendt) {
 			std::__1::list<std::__1::string> fieldtemp = _request.get_field_value("referer");
@@ -419,62 +372,42 @@ void Response::interpret_target() {
 				std::string temRefutEnd;
 				if (startcutsign < tempRef.length())
 					temRefutEnd = tempRef.substr(startcutsign, tempRef.length() - startcutsign);
-
 				while (it != iendt && temRefutEnd != (*it).folder)
 					it++;
 				if (it != iendt) {
-
 					remove_leading_slash(_resource.file);
 					append_slash(_resource.root);
-		
-			std::cout << " - - - - - - -- - - - - - -- - - - S e c o n d L o o p   -- - - - - - -- - - - - - - -- \n";
-					
-					_resource.file = (*it).folder + _resource.path; // _recource.path ??
+					_resource.file = (*it).folder + _resource.path;
 					_resource.root += _resource.file;
-
 				}
-
 			}
 		}
-
-		std::cout << "root: " << _resource.root << std::endl;
-		std::cout << "file: " << _resource.file << std::endl;
-		std::cout << "path: " << _resource.path << std::endl;
-		std::cout << "abs path: " << _resource.abs_path << std::endl;
-		// else
-		//     throw_error_status(WS_500_INTERNAL_SERVER_ERROR, "Something went wrong in the loaction!");
-
 	}
 	remove_leading_slash(_resource.file);
 	std::string::size_type isthisthere = _resource.root.find(_resource.file);
 	_resource.abs_path = _resource.root;
 	if (isthisthere == std::string::npos)
 		_resource.abs_path += _resource.file;
-	// if (DEBUG) {
+	if (DEBUG) { 
 		std::cout << "RESOURCE:" << std::endl;
 		std::cout << "root: " << _resource.root << std::endl;
 		std::cout << "file: " << _resource.file << std::endl;
 		std::cout << "path: " << _resource.path << std::endl;
-		// std::cout << "query: " << _resource.query << std::endl;
+		std::cout << "query: " << _resource.query << std::endl;
 		std::cout << "abs path: " << _resource.abs_path << std::endl;
-	// }
+	}
 }
 
 void Response::validate_target_abs_path() {
 	int tmp_fd;
 	std::string index = _config.index;
 	remove_leading_slash(index);
-
-	//std::cout << "\nTo feed: " << _resource.abs_path << std::endl;
-
-	if (is_directory(_resource.abs_path) && _request.header.method == "GET"/*  &&  _config.directory_listing == true */) {
+	if (is_directory(_resource.abs_path) && _request.header.method == "GET") {
 		throw Respond_with_directory_listing();
 	}
 	if ((tmp_fd = open(_resource.abs_path.c_str(), O_RDONLY)) < 0) {
 		if (errno == ENOENT) {
-			std::cout << "here" << std::endl;
 			if (_resource.file == index && _config.directory_listing == true) {
-			std::cout << "here too" << std::endl;
 				close(tmp_fd);
 				throw Respond_with_directory_listing();
 			}
@@ -507,7 +440,7 @@ void Response::identify_resource_type() {
 	std::map<std::string, std::string>::const_iterator it \
 		= _tokens.extensions.typemap.find(_resource.extension);
 	if (it == _tokens.extensions.typemap.end()) {
-		_resource.type = _resource.extension; //    [ ? ]
+		_resource.type = _resource.extension;
 		return ;
 	}
 	size_t separator_pos = it->second.find('/');
@@ -570,13 +503,16 @@ void Response::upload_file() {
 bool Response::getValid(const std::string & nameof)
 {
 	std::vector<std::string> temp = _config.http_methods;
+	if (temp.empty())
+		throw_error_status(WS_404_NOT_FOUND, "Try something else!");
 	std::vector<std::string>::iterator it = temp.begin();
 	std::vector<std::string>::iterator eit = temp.end();
 	while (it != eit)
 	{
-		std::cout << "inside: " << *it << "\n";
 		if (!((*it).compare(nameof)))
+		{
 			return (false);
+		}
 		it++;
 	}
 	return (true);

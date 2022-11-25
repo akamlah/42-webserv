@@ -156,7 +156,7 @@ void TCP_Connection::prepare_response() {
 		else
 		{
 			try {
-				http::Response response(_request, tempconf, _tokens);
+				http::Response response(_request, _conf, _tokens);
 				_response_str = response.string();
 				_request.reset();
 				_btosend = _response_str.length();
@@ -172,7 +172,7 @@ void TCP_Connection::prepare_response() {
 	else
 	{
 			try {
-				http::Response response(_request, tempconf, _tokens);
+				http::Response response(_request, _conf, _tokens);
 				_response_str = response.string();
 				_request.reset();
 				_btosend = _response_str.length();
