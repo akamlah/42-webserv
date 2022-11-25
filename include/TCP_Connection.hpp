@@ -110,6 +110,7 @@ class TCP_Connection {
 
         void prepare_read_buffer();
         void prepare_response();
+        config_data createNewlocationConfig();
 
 }; // class Connection
 

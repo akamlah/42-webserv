@@ -109,13 +109,13 @@ class Request {
         std::list<std::string> get_field_value(const std::string& field_name) const;
         static bool replace_placeholders(std::string& token);
         void reset();
+        header_t                            header;
 
     private:
 
         static const char                   methods[4][10];
 
         parser                              _parser;
-        header_t                            header;
         HeaderFields                        _fields;
         bool                                _is_persistent;
         std::string                         error_msg;

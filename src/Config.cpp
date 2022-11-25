@@ -91,6 +91,35 @@ namespace ws {
 		return (true);
 	}
 
+	std::string Config::helpCheckLocation(std::string const & configDataString, std::string const & checkThis, bool isNumber)
+	{
+		std::string::size_type portPlace = configDataString.find(checkThis);
+		if (portPlace == std::string::npos)
+			throw ConfigFileError("ERROR: " + checkThis + " Missing from config file!");
+		std::string::size_type test = configDataString.find("[");
+		if (test == std::string::npos)
+			throw ConfigFileError("ERROR: " + checkThis + " Invalid format!");
+		std::string temp;
+		portPlace += checkThis.length();
+		while (!(std::isprint(configDataString[portPlace])) || configDataString[portPlace] == ' ')
+			portPlace++;
+		for (std::string::size_type i = portPlace; configDataString[i] != ']'; i++)
+		{
+			while (!(std::isprint(configDataString[i])) || configDataString[i] == ' ')
+				i++;
+			if (configDataString[i - 1] == ']' && configDataString[i] == ';')
+				break;
+			if (isNumber && std::isdigit(configDataString[i]))
+				temp += configDataString[i];
+			else if (std::isprint(configDataString[i]))
+				temp += configDataString[i];
+			else
+				throw ConfigFileError("ERROR: " + checkThis + " wrong format in config file!");
+		}
+		if (temp.empty())
+			throw ConfigFileError("ERROR: Missing " + checkThis);
+		return (temp);
+	}
 	std::string Config::helpCheckContent(std::string const & configDataString, std::string const & checkThis, bool isNumber)
 	{
 		std::string::size_type portPlace = configDataString.find(checkThis);
@@ -169,30 +198,79 @@ namespace ws {
 		return (false);
 	}
 
+	config_route Config::helpGetrouts(std::string const & fullRout) {
+		config_route temp;
+		temp.folder = helpCheckContent(fullRout, "folder:", false);
+		temp.root = helpCheckContent(fullRout, "root:", false);
+		temp.index = helpCheckContent(fullRout, "index:", false);
+		temp.http_redirects = helpCheckContent(fullRout, "http_redirects:", false);
+		temp.download = helpCheckContent(fullRout, "download:", false);
+		temp.http_methods = helpCheckHTTPmethods(fullRout, "http_methods:");
+		temp.cgi = helpCheckContent(fullRout, "cgi:", false);
+		temp.directory_listing = helpGetDirecotry_listing(fullRout, "directory_listing:");
+		if (temp.cgi.find("non") == std::string::npos)
+			temp.isCgiOn = true;
+		else
+			temp.isCgiOn = false;
+		return (temp);
+	}
+	
+	
+	std::vector<ws::config_route> Config::locationGetRouts(std::string const & tutoofullRout){
+		std::vector<ws::config_route> tempRouts;
+
+		std::string::size_type closingsingLoc = 0;
+		std::string::size_type startsignLoc = 0;
+		std::string::size_type test = tutoofullRout.length();
+		do
+		{
+			closingsingLoc++;
+			closingsingLoc = tutoofullRout.find(']', closingsingLoc);
+			if (closingsingLoc == std::string::npos)
+				throw ConfigFileError("ERROR: Location block corrupted!");
+
+			tempRouts.push_back(
+				helpGetrouts(tutoofullRout.substr(startsignLoc, closingsingLoc - startsignLoc))
+				);
+			startsignLoc = closingsingLoc + 1;
+
+		}
+		while (test > closingsingLoc + 1 && tutoofullRout[closingsingLoc + 1] == '[');
+
+		std::cout << tempRouts.size() << "\n";
+		return (tempRouts);
+	}
+
 	void Config::checkContent(std::string const & configDataString)
 	{
 		config_data temp;
 
 		temp.ports = helpChecPorts(configDataString, "port:"); // new multiple ports.
-
+		temp.host = helpCheckContent(configDataString, "host:", false);
 		temp.limit_body = std::stoi(helpCheckContent(configDataString, "limit_body:", true));
 		temp.server_name = helpCheckContent(configDataString, "server_name:", false);
 		temp.error = helpCheckContent(configDataString, "error:", false);
-		temp.host = helpCheckContent(configDataString, "host:", false);
+
 		temp.root = helpCheckContent(configDataString, "root:", false);
 		temp.index = helpCheckContent(configDataString, "index:", false);
 		temp.http_redirects = helpCheckContent(configDataString, "http_redirects:", false);
 		temp.download = helpCheckContent(configDataString, "download:", false);
 		temp.http_methods = helpCheckHTTPmethods(configDataString, "http_methods:");
 		temp.cgi = helpCheckContent(configDataString, "cgi:", false);
-		temp.location = helpCheckContent(configDataString, "location:", false);
+		temp.location = helpCheckLocation(configDataString, "location:", false);
+		if (temp.location != "[")
+			temp.routs = locationGetRouts(temp.location);
+		
 		if (temp.cgi.find("non") == std::string::npos)
 			temp.isCgiOn = true;
 		else
 			temp.isCgiOn = false;
 		temp.directory_listing = helpGetDirecotry_listing(configDataString, "directory_listing:");
-		if (temp.directory_listing == true && temp.location != "non")
-			throw ConfigFileError("ERROR: Conflict in settings! You can't set your directory visible if you hide your location!");
+		
+		if (temp.directory_listing == true && temp.location != "[")
+			throw ConfigFileError("ERROR: Security Warning! You can't set your directory visible if you set locations!");
+		
+		
 		if (check_ports_repeat(temp))
 			throw ConfigFileError("ERROR: ports duplicate in server");
 		configDataAll.push_back(temp);

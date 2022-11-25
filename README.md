@@ -40,7 +40,7 @@ server {
 	limit_body: -1;
 	http_methods: GET;
 	http_redirects: non;
-	location: non;
+	location: [];
 	directory_listing: off;
 	download: non;
 	cgi: non;
@@ -48,6 +48,7 @@ server {
 ```
 
 Example configuration (with all fields set with correct syntax): 
+([...] ... [...]: meaning that multiple location blockes can be fused one after each other but obviously they have to be filled up)
 
 ```
 server {
@@ -63,8 +64,21 @@ server {
 	directory_listing: on;
 	download: ./downloads;
 	cgi: .php;
+	location: [
+				folder: http;
+				root:	./example_var/something/;
+				index:  index.html;
+				http_methods: GET;
+				http_redirects: non;
+				directory_listing: off;
+				download: non;
+				cgi: non;
+			]
+			[...] ... [...]
+			;
 }
 ```
+
 ### Cgi
 
 Our server suports two Common Gateway Interface (cgi): php and perl. For php-cgi we use the standard binary of php-cgi. In the case of perl we wrote a simple perl-cgi on our own. What will run the code in perl. It suports embed perl in html code.
