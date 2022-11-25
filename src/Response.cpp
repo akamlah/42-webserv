@@ -312,6 +312,57 @@ void Response::identify_resource() {
 	identify_resource_type();
 }
 
+void Response::locationOnDesiderONE() {
+	std::vector<ws::config_route>::const_iterator it = _config.routs.begin();
+	std::vector<ws::config_route>::const_iterator iendt = _config.routs.end();
+	std::string::size_type secondloc = _request.header.target.find("/", 1);
+	if (secondloc == std::string::npos)
+		secondloc = _request.header.target.length() - 1;
+	std::string tempercPath = _request.header.target.substr(1, secondloc);
+	remove_trailing_slash(tempercPath);
+	while (tempercPath != (*it).folder && it != iendt)
+		it++;
+	if (it != iendt) {
+		std::string temp_path = _resource.path;
+		remove_trailing_slash(temp_path);
+		remove_leading_slash(temp_path);
+		remove_leading_slash(_resource.file);
+		append_slash(_resource.root);
+		if (is_directory(_resource.root + _resource.file)) {
+			_resource.root += temp_path;
+			append_slash(_resource.root);
+			_resource.file = _config.index;
+		}
+	}
+	if (it == iendt)
+		locationOnDesiderTWO();
+}
+
+void Response::locationOnDesiderTWO() {
+	std::vector<ws::config_route>::const_iterator it = _config.routs.begin();
+	std::vector<ws::config_route>::const_iterator iendt = _config.routs.end();
+	std::__1::list<std::__1::string> fieldtemp = _request.get_field_value("referer");
+	std::__1::list<std::__1::string> fieldhost = _request.get_field_value("host");
+	std::string temphost = *(fieldhost.begin());
+	std::string tempRef = *(fieldtemp.begin());
+	std::string::size_type whereTheFront = tempRef.find(temphost);
+	if (whereTheFront != std::string::npos)
+	{
+		std::string::size_type startcutsign = whereTheFront + temphost.length() + 1;
+		std::string temRefutEnd;
+		if (startcutsign < tempRef.length())
+			temRefutEnd = tempRef.substr(startcutsign, tempRef.length() - startcutsign);
+		while (it != iendt && temRefutEnd != (*it).folder)
+			it++;
+		if (it != iendt) {
+			remove_leading_slash(_resource.file);
+			append_slash(_resource.root);
+			_resource.file = (*it).folder + _resource.path;
+			_resource.root += _resource.file;
+		}
+	}
+}
+
 void Response::interpret_target() {
 	std::string uri = _request.header.target;
 	try {
@@ -324,78 +375,27 @@ void Response::interpret_target() {
 	catch (std::exception& e) {
 		throw_error_status(WS_500_INTERNAL_SERVER_ERROR, "Uri could not be parsed, format error");
 	}
-	
 	_resource.root = _config.root;
-
 	append_slash(_resource.root);
 	_resource.file = (_resource.path == "/") ? _config.index : _resource.path;
-	
 	std::string tempercPath = _resource.path;
 	remove_leading_slash(tempercPath);
 	remove_trailing_slash(tempercPath);
-
 	if ( _config.location != "[")
-	{
-		std::vector<ws::config_route>::const_iterator it = _config.routs.begin();
-		std::vector<ws::config_route>::const_iterator iendt = _config.routs.end();
-
-		std::string::size_type secondloc = _request.header.target.find("/", 1);
-		if (secondloc == std::string::npos)
-			secondloc = _request.header.target.length() - 1;
-		std::string tempercPath = _request.header.target.substr(1, secondloc);
-
-		remove_trailing_slash(tempercPath);
-		while (tempercPath != (*it).folder && it != iendt)
-			it++;
-		if (it != iendt) {
-			std::string temp_path = _resource.path;
-			remove_trailing_slash(temp_path);
-			remove_leading_slash(temp_path);
-			remove_leading_slash(_resource.file);
-			append_slash(_resource.root);
-			if (is_directory(_resource.root + _resource.file)) {
-				_resource.root += temp_path;
-				append_slash(_resource.root);
-				_resource.file = _config.index;
-			}
-		}
-		if (it == iendt) {
-			std::__1::list<std::__1::string> fieldtemp = _request.get_field_value("referer");
-			std::__1::list<std::__1::string> fieldhost = _request.get_field_value("host");
-			std::string temphost = *(fieldhost.begin());
-			std::string tempRef = *(fieldtemp.begin());
-			std::string::size_type whereTheFront = tempRef.find(temphost);
-			if (whereTheFront != std::string::npos)
-			{
-				it = _config.routs.begin();
-				std::string::size_type startcutsign = whereTheFront + temphost.length() + 1;
-				std::string temRefutEnd;
-				if (startcutsign < tempRef.length())
-					temRefutEnd = tempRef.substr(startcutsign, tempRef.length() - startcutsign);
-				while (it != iendt && temRefutEnd != (*it).folder)
-					it++;
-				if (it != iendt) {
-					remove_leading_slash(_resource.file);
-					append_slash(_resource.root);
-					_resource.file = (*it).folder + _resource.path;
-					_resource.root += _resource.file;
-				}
-			}
-		}
-	}
+		locationOnDesiderONE();
 	remove_leading_slash(_resource.file);
 	std::string::size_type isthisthere = _resource.root.find(_resource.file);
 	_resource.abs_path = _resource.root;
 	if (isthisthere == std::string::npos)
 		_resource.abs_path += _resource.file;
-	if (DEBUG) { 
-		std::cout << "RESOURCE:" << std::endl;
-		std::cout << "root: " << _resource.root << std::endl;
-		std::cout << "file: " << _resource.file << std::endl;
-		std::cout << "path: " << _resource.path << std::endl;
-		std::cout << "query: " << _resource.query << std::endl;
-		std::cout << "abs path: " << _resource.abs_path << std::endl;
-	}
+#if DEBUG
+	std::cout << "RESOURCE:" << std::endl;
+	std::cout << "root: " << _resource.root << std::endl;
+	std::cout << "file: " << _resource.file << std::endl;
+	std::cout << "path: " << _resource.path << std::endl;
+	std::cout << "query: " << _resource.query << std::endl;
+	std::cout << "abs path: " << _resource.abs_path << std::endl;
+#endif
 }
 
 void Response::validate_target_abs_path() {

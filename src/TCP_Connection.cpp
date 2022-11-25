@@ -89,99 +89,76 @@ static void remove_trailing_slash(std::string& path) {
 			path.erase(path.length() - 1, path.length());
 }
 
+ config_data TCP_Connection::createNewlocationConfig() {
+	config_data tempconf;
+	std::vector<ws::config_route>::const_iterator it = _conf.routs.begin();
+	std::vector<ws::config_route>::const_iterator iendt = _conf.routs.end();
+	std::string::size_type secondloc = _request.header.target.find("/", 1);
+	if (secondloc == std::string::npos)
+		secondloc = _request.header.target.length() - 1;
+	std::string tempercPath = _request.header.target.substr(1, secondloc);
+	remove_trailing_slash(tempercPath);
+	while (tempercPath != (*it).folder && it != iendt) 
+		it++;
+	if (it == iendt) {
+		std::__1::list<std::__1::string> fieldtemp = _request.get_field_value("referer");
+		std::__1::list<std::__1::string> fieldhost = _request.get_field_value("host");
+		std::string temphost = *(fieldhost.begin());
+		std::string tempRef = *(fieldtemp.begin());
+		std::string::size_type whereTheFront = tempRef.find(temphost);
+
+		if (whereTheFront != std::string::npos)
+		{
+			it = _conf.routs.begin();
+			std::string::size_type startcutsign = whereTheFront + temphost.length() + 1;
+			std::string temRefutEnd;
+			if (startcutsign < tempRef.length())
+				temRefutEnd = tempRef.substr(startcutsign, tempRef.length() - startcutsign);
+			remove_trailing_slash(temRefutEnd);
+			while (it != iendt && temRefutEnd != (*it).folder)
+				it++;
+		}
+	} 
+	if (it != iendt) {
+		tempconf.host = _conf.host;
+		tempconf.ports = _conf.ports;
+		tempconf.error = _conf.error;
+		tempconf.limit_body = _conf.limit_body;
+		tempconf.server_name = _conf.server_name;
+		tempconf.routs = _conf.routs;
+
+		tempconf.cgi = (*it).cgi;
+		tempconf.root = (*it).root;
+		tempconf.http_methods = (*it).http_methods;
+		tempconf.http_redirects = (*it).http_redirects;
+		tempconf.index = (*it).index ;
+		tempconf.directory_listing = (*it).directory_listing ;
+		tempconf.download = (*it).download ;
+		tempconf.isCgiOn = (*it).isCgiOn ;
+		return(tempconf);
+	}
+	else
+		return (_conf);
+ }
 
 void TCP_Connection::prepare_response() {
 	_bsent = 0;
 	_socket.configure();
 	config_data tempconf;
-	if (_conf.location != "[") {
-		std::vector<ws::config_route>::const_iterator it = _conf.routs.begin();
-		std::vector<ws::config_route>::const_iterator iendt = _conf.routs.end();
-		std::string::size_type secondloc = _request.header.target.find("/", 1);
-		if (secondloc == std::string::npos)
-			secondloc = _request.header.target.length() - 1;
-		std::string tempercPath = _request.header.target.substr(1, secondloc);
-		remove_trailing_slash(tempercPath);
-		while (tempercPath != (*it).folder && it != iendt) 
-			it++;
-		if (it == iendt) {
-			std::__1::list<std::__1::string> fieldtemp = _request.get_field_value("referer");
-			std::__1::list<std::__1::string> fieldhost = _request.get_field_value("host");
-			std::string temphost = *(fieldhost.begin());
-			std::string tempRef = *(fieldtemp.begin());
-			std::string::size_type whereTheFront = tempRef.find(temphost);
-
-			if (whereTheFront != std::string::npos)
-			{
-				it = _conf.routs.begin();
-				std::string::size_type startcutsign = whereTheFront + temphost.length() + 1;
-				std::string temRefutEnd;
-				if (startcutsign < tempRef.length())
-					temRefutEnd = tempRef.substr(startcutsign, tempRef.length() - startcutsign);
-				remove_trailing_slash(temRefutEnd);
-				while (it != iendt && temRefutEnd != (*it).folder)
-					it++;
-			}
-		} 
-
-		if (it != iendt) {
-			tempconf.host = _conf.host;
-			tempconf.ports = _conf.ports;
-			tempconf.error = _conf.error;
-			tempconf.limit_body = _conf.limit_body;
-			tempconf.server_name = _conf.server_name;
-			tempconf.routs = _conf.routs;
-
-			tempconf.cgi = (*it).cgi;
-			tempconf.root = (*it).root;
-			tempconf.http_methods = (*it).http_methods;
-			tempconf.http_redirects = (*it).http_redirects;
-			tempconf.index = (*it).index ;
-			tempconf.directory_listing = (*it).directory_listing ;
-			tempconf.download = (*it).download ;
-			tempconf.isCgiOn = (*it).isCgiOn ;
-
-			try {
-				http::Response response(_request, tempconf, _tokens);
-				_response_str = response.string();
-				_request.reset();
-				_btosend = _response_str.length();
-				if (!response.status_is_success())
-					_state = HTTP_ERROR;
-			}
-			catch (std::exception& e) {
-				_state = RD_ERROR;
-			}
-		}
-		else
-		{
-			try {
-				http::Response response(_request, _conf, _tokens);
-				_response_str = response.string();
-				_request.reset();
-				_btosend = _response_str.length();
-				if (!response.status_is_success())
-					_state = HTTP_ERROR;
-			}
-			catch (std::exception& e) {
-				_state = RD_ERROR;
-			}
-
-		}
-	}
+	if (_conf.location != "[")
+		tempconf = createNewlocationConfig();
 	else
-	{
-			try {
-				http::Response response(_request, _conf, _tokens);
-				_response_str = response.string();
-				_request.reset();
-				_btosend = _response_str.length();
-				if (!response.status_is_success())
-					_state = HTTP_ERROR;
-			}
-			catch (std::exception& e) {
-				_state = RD_ERROR;
-			}
+		tempconf = _conf;
+	try {
+		http::Response response(_request, tempconf, _tokens);
+		_response_str = response.string();
+		_request.reset();
+		_btosend = _response_str.length();
+		if (!response.status_is_success())
+			_state = HTTP_ERROR;
+	}
+	catch (std::exception& e) {
+		_state = RD_ERROR;
 	}
 }
 

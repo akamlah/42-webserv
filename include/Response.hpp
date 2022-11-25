@@ -110,6 +110,9 @@ class Response {
         std::string contentType_for_post();
         bool getValid(const std::string & nameof);
 
+        void locationOnDesiderONE();
+        void locationOnDesiderTWO();
+
         void add_field(const std::string& field_name, const std::string& value);
         void add_formatted_timestamp();
         std::string generate_status_line() const;
