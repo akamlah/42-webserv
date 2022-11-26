@@ -145,19 +145,26 @@ void TCP_Connection::prepare_response() {
 	_bsent = 0;
 	_socket.configure();
 	config_data tempconf;
-	if (_conf.location != "[")
-		tempconf = createNewlocationConfig();
-	else
-		tempconf = _conf;
 	try {
-		http::Response response(_request, tempconf, _tokens);
-		_response_str = response.string();
-		_request.reset();
-		_btosend = _response_str.length();
-		if (!response.status_is_success())
-			_state = HTTP_ERROR;
+		if (_conf.location != "[")
+			tempconf = createNewlocationConfig();
+		else
+			tempconf = _conf;
+		try {
+			http::Response response(_request, tempconf, _tokens);
+			_response_str = response.string();
+			_request.reset();
+			_btosend = _response_str.length();
+			if (!response.status_is_success())
+				_state = HTTP_ERROR;
+		}
+		catch (ws::exception& e) {
+			std::cerr << RED << "Error - closing connection" << std::endl;
+			_state = RD_ERROR;
+		}
 	}
 	catch (std::exception& e) {
+		std::cerr << RED << "Error - closing connection" << std::endl;
 		_state = RD_ERROR;
 	}
 }

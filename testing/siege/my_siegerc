@@ -263,9 +263,9 @@ cache = false
 # DOUBLE CAUTION: This directive does not work well on HPUX
 # TRIPLE CAUTION: We don't recommend you set this to keep-alive
 # ex: connection = close
-#     connection = keep-alive
+    connection = keep-alive
 #
-connection = close
+# connection = close
 
 #
 # Default number of simulated  concurrent users. This feature 
